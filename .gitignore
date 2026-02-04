@@ -1,0 +1,15 @@
+# Build artifacts
+*.vvp
+*.vcd
+*.o
+*.elf
+*.bin
+impl/
+
+# IDE/editor
+.vscode/
+.DS_Store
+*.gprj.user
+
+# Embedded repos
+doc/Z8000-Disassembler/
