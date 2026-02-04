@@ -248,7 +248,7 @@ def run_all_tests(harness):
 def interactive_mode(harness):
     """Interactive command mode"""
     print("Z8000 Test Harness Interactive Mode")
-    print("Commands: ST, RS, WR n xxxx, RR n, WM aaaa xxxx, RM aaaa, EX, DA")
+    print("Commands: ST, RS, MT, WR n xxxx, RR n, WM aaaa xxxx, RM aaaa, EX, DA")
     print("Type 'quit' to exit, 'all' to run all tests")
     print()
 

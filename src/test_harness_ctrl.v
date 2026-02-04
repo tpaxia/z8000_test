@@ -84,10 +84,10 @@ reg        hex_phase;
 reg [3:0]  dump_idx;
 
 // Memory test state
-reg [2:0]  mt_phase;      // Test phase (0-7)
+reg [3:0]  mt_phase;      // Test phase (0-8)
 reg [15:0] mt_expected;   // Expected read value
 reg        mt_fail;       // Test failed flag
-reg [1:0]  mt_wait;       // Wait counter for BRAM latency
+reg [2:0]  mt_wait;       // Wait counter for BRAM latency
 
 // Reset counter
 reg [7:0]  rst_cnt;
@@ -566,69 +566,76 @@ always @(posedge clk or negedge rst_n) begin
             end
 
             // Memory Test - writes test patterns and reads them back
-            // Phase 0-3: Write patterns, Phase 4-7: Read and verify
             // Use addresses 0x0F00-0x0F06 (within 2K word SDPB range)
+            // Phase 0-3: Write patterns, Phase 4: Wait, Phase 5-8: Read and verify
             ST_MEM_TEST: begin
                 case (mt_phase)
                     // Write phase - write test patterns to addresses 0x0F00-0x0F06
-                    3'd0: begin
+                    4'd0: begin
                         mem_addr <= 15'h0F00;
                         mem_wdata <= 16'h5A5A;
                         mem_we <= 1;
                         mem_byte <= 0;
-                        mt_phase <= 3'd1;
+                        mt_phase <= 4'd1;
                     end
-                    3'd1: begin
-                        mem_we <= 0;
+                    4'd1: begin
                         mem_addr <= 15'h0F02;
                         mem_wdata <= 16'hA5A5;
                         mem_we <= 1;
-                        mt_phase <= 3'd2;
+                        mt_phase <= 4'd2;
                     end
-                    3'd2: begin
-                        mem_we <= 0;
+                    4'd2: begin
                         mem_addr <= 15'h0F04;
                         mem_wdata <= 16'h1234;
                         mem_we <= 1;
-                        mt_phase <= 3'd3;
+                        mt_phase <= 4'd3;
                     end
-                    3'd3: begin
-                        mem_we <= 0;
+                    4'd3: begin
                         mem_addr <= 15'h0F06;
                         mem_wdata <= 16'hFEDC;
                         mem_we <= 1;
-                        mt_phase <= 3'd4;
+                        mt_phase <= 4'd4;
+                    end
+                    // Wait phase - let writes complete
+                    4'd4: begin
+                        mem_we <= 0;
+                        mt_wait <= 2'd3;  // Extra wait for write to settle
+                        mt_phase <= 4'd5;
                     end
                     // Read phase - read back and verify
-                    3'd4: begin
-                        mem_we <= 0;
-                        mem_addr <= 15'h0F00;
-                        mt_expected <= 16'h5A5A;
-                        mt_phase <= 3'd5;
-                        mt_wait <= 2'd2;
-                        state <= ST_MEM_TEST2;
+                    4'd5: begin
+                        if (mt_wait > 0) begin
+                            mt_wait <= mt_wait - 1;
+                        end else begin
+                            mem_addr <= 15'h0F00;
+                            mt_expected <= 16'h5A5A;
+                            mt_phase <= 4'd6;
+                            mt_wait <= 2'd3;
+                            state <= ST_MEM_TEST2;
+                        end
                     end
-                    3'd5: begin
+                    4'd6: begin
                         mem_addr <= 15'h0F02;
                         mt_expected <= 16'hA5A5;
-                        mt_phase <= 3'd6;
-                        mt_wait <= 2'd2;
+                        mt_phase <= 4'd7;
+                        mt_wait <= 2'd3;
                         state <= ST_MEM_TEST2;
                     end
-                    3'd6: begin
+                    4'd7: begin
                         mem_addr <= 15'h0F04;
                         mt_expected <= 16'h1234;
-                        mt_phase <= 3'd7;
-                        mt_wait <= 2'd2;
+                        mt_phase <= 4'd8;
+                        mt_wait <= 2'd3;
                         state <= ST_MEM_TEST2;
                     end
-                    3'd7: begin
+                    4'd8: begin
                         mem_addr <= 15'h0F06;
                         mt_expected <= 16'hFEDC;
-                        mt_phase <= 3'd0;
-                        mt_wait <= 2'd2;
+                        mt_phase <= 4'd0;
+                        mt_wait <= 2'd3;
                         state <= ST_MEM_TEST2;
                     end
+                    default: mt_phase <= 4'd0;
                 endcase
             end
 
@@ -642,7 +649,7 @@ always @(posedge clk or negedge rst_n) begin
                         mt_fail <= 1;
                     end
 
-                    if (mt_phase == 3'd0) begin
+                    if (mt_phase == 4'd0) begin
                         // Done - report result with last read value for debug
                         if (mt_fail || (mem_rdata != mt_expected)) begin
                             // FAIL:xxxx (show last read value)
