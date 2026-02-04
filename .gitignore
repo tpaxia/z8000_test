@@ -1,10 +1,31 @@
-# Build artifacts
+# Build artifacts - simulation
 *.vvp
 *.vcd
-*.o
-*.elf
-*.bin
+
+# Build artifacts - Z80 firmware
+src/z80_fw.bin
+src/z80_fw.hex
+z80_fw.hex
+
+# Build artifacts - Z8000 bootstrap
+src/bootstrap.bin
+src/bootstrap.o
+src/bootstrap.elf
+src/bootstrap.lst
+src/bootstrap.inc
+
+# Build artifacts - FPGA synthesis
 impl/
+
+# Build artifacts - misc
+*.mi
+src/a.out
+sim_output.txt
+sim_test
+
+# Python
+__pycache__/
+*.pyc
 
 # IDE/editor
 .vscode/

@@ -24,12 +24,33 @@ class Z8000TestHarness:
         self.ser = serial.Serial(port, baud, timeout=timeout)
         time.sleep(0.1)  # Wait for port to settle
 
-    def send_command(self, cmd):
-        """Send command and return response"""
+    def send_command(self, cmd, multiline=False):
+        """Send command and return response.
+
+        If multiline=True or cmd is known multi-line (DA, DP), read all lines.
+        """
+        self.ser.reset_input_buffer()
         self.ser.write((cmd + '\r').encode())
-        time.sleep(0.01)
-        response = self.ser.readline().decode().strip()
-        return response
+
+        # Commands that return multiple lines
+        cmd_upper = cmd.strip().upper()
+        if multiline or cmd_upper in ('DA', 'DP'):
+            # Read multi-line response - wait for data, then read until quiet
+            time.sleep(0.1)  # Initial wait for response to start
+            data = b''
+            while True:
+                n = self.ser.in_waiting
+                if n > 0:
+                    data += self.ser.read(n)
+                    time.sleep(0.05)  # Brief wait to see if more data coming
+                else:
+                    break
+            lines = [l.strip() for l in data.decode().split('\n') if l.strip()]
+            return '\n'.join(lines)
+        else:
+            time.sleep(0.01)
+            response = self.ser.readline().decode().strip()
+            return response
 
     def write_reg(self, reg, value):
         """Write register initial value"""
@@ -75,13 +96,56 @@ class Z8000TestHarness:
         """Reset CPU"""
         return self.send_command('RS')
 
+    def init(self):
+        """Initialize Z8000 - set reset vectors and clear registers"""
+        return self.send_command('INIT')
+
+    def set_timeout(self, value):
+        """Set execution timeout (0x0000-0xFFFF, 0=max ~126ms)"""
+        return self.send_command(f'TO{value:04X}')
+
+    def cycle_count(self):
+        """Read cycle count (Z8000 clocks from reset to halt)"""
+        resp = self.send_command('CC')
+        try:
+            return int(resp, 16)
+        except:
+            return None
+
+    def fetch_count(self):
+        """Read opcode fetch count (instructions fetched)"""
+        resp = self.send_command('FC')
+        try:
+            return int(resp, 16)
+        except:
+            return None
+
     def status(self):
         """Get status (H=halted, R=running)"""
         return self.send_command('ST')
 
     def dump_regs(self):
-        """Dump all registers"""
-        return self.send_command('DA')
+        """Dump all registers - returns list of 16 lines"""
+        self.ser.reset_input_buffer()
+        self.ser.write(('DA' + '\r').encode())
+        time.sleep(0.2)  # Wait for all lines to arrive
+        n = self.ser.in_waiting
+        data = self.ser.read(n).decode() if n > 0 else ''
+        lines = [l.strip() for l in data.split('\n') if l.strip()]
+        return lines
+
+    def debug_raw(self, cmd):
+        """Debug: send command and show raw bytes received"""
+        self.ser.reset_input_buffer()
+        self.ser.write((cmd + '\r').encode())
+        print(f"Sent: {repr(cmd)}")
+        for i in range(20):  # Read for 2 seconds
+            time.sleep(0.1)
+            n = self.ser.in_waiting
+            if n > 0:
+                data = self.ser.read(n)
+                print(f"  [{i}] in_waiting={n}: {repr(data)}")
+        print("Done")
 
     def load_instruction(self, addr, *words):
         """Load instruction word(s) at address"""
@@ -245,11 +309,56 @@ def run_all_tests(harness):
     print("=" * 50)
 
 
+def print_help():
+    """Print help for all commands"""
+    help_text = """
+Z8000 Test Harness Commands
+===========================
+
+Status & Control:
+  ST            Status - returns H (halted/reset) or R (running)
+  RS            Reset - assert Z8000 reset, returns OK
+  EX            Execute - release reset, run until halt
+                Returns: HALT (success), TOUT (timeout), NRST (didn't start)
+  INIT          Initialize - set up reset vectors and clear registers
+                Sets FCW=0x4000, PC=0x0200, clears R0-R15
+  TOxxxx        Set execution timeout (0000=max ~126ms, default)
+  CC            Read cycle count (Z8000 clocks from reset to halt)
+  FC            Read fetch count (opcode fetches executed)
+
+Register Access (active when Z8000 in reset):
+  WRnxxxx       Write register Rn with value xxxx (hex)
+                Example: WR01234 - write 0x1234 to R0
+  RRn           Read register Rn, returns 4 hex digits
+                Example: RR0 - read R0
+  DA            Dump All - show R0-R15 values
+
+Memory Access (active when Z8000 in reset):
+  WMaaaaxxxx    Write word xxxx to address aaaa (hex)
+                Example: WM02005A5A - write 0x5A5A to 0x0200
+  RMaaaa        Read word from address aaaa, returns 4 hex digits
+                Example: RM0200 - read from 0x0200
+  MT            Memory Test - write/read test patterns
+                Returns PASS or FAIL
+
+Debug:
+  DB            Toggle debug mode (DB=0 off, DB=1 on)
+                When on, commands show internal state
+  DP            Dump Ports - show all I/O port values
+
+Local Commands:
+  help          Show this help
+  all           Run all built-in tests
+  raw CMD       Debug: show raw bytes received for CMD
+  quit          Exit interactive mode
+"""
+    print(help_text)
+
+
 def interactive_mode(harness):
     """Interactive command mode"""
     print("Z8000 Test Harness Interactive Mode")
-    print("Commands: ST, RS, MT, WR n xxxx, RR n, WM aaaa xxxx, RM aaaa, EX, DA")
-    print("Type 'quit' to exit, 'all' to run all tests")
+    print("Type 'help' for commands, 'quit' to exit")
     print()
 
     while True:
@@ -257,8 +366,13 @@ def interactive_mode(harness):
             cmd = input("> ").strip()
             if cmd.lower() == 'quit':
                 break
+            elif cmd.lower() == 'help':
+                print_help()
             elif cmd.lower() == 'all':
                 run_all_tests(harness)
+            elif cmd.lower().startswith('raw '):
+                # Debug: show raw bytes for command
+                harness.debug_raw(cmd[4:])
             elif cmd:
                 response = harness.send_command(cmd)
                 print(response)
