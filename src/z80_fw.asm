@@ -630,9 +630,9 @@ init_loop:
         or c
         jp z, init_done
 
-        ; Read word from bootstrap_data (big-endian: high byte, low byte)
-        ld h, (ix+0)            ; High byte
-        ld l, (ix+1)            ; Low byte
+        ; Read word from bootstrap_data (Z80 dw stores little-endian: low, high)
+        ld l, (ix+0)            ; Low byte
+        ld h, (ix+1)            ; High byte
         inc ix
         inc ix
 
