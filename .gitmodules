@@ -1,0 +1,3 @@
+[submodule "tv80_official"]
+	path = tv80_official
+	url = https://github.com/hutch31/tv80.git
