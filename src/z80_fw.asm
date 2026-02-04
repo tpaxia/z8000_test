@@ -424,6 +424,7 @@ ex_tout:
         ; Cycle timeout
         call dbg_ex_status      ; Debug: show final status
         call dbg_ex_cycles      ; Debug: show cycle count (before reset clears it!)
+        call dbg_ex_fetches     ; Debug: show fetch count (before reset clears it!)
         xor a
         out (0x14), a           ; Assert reset
         ld a, 'T'
@@ -440,6 +441,7 @@ ex_tout:
 ex_ok:
         call dbg_ex_status      ; Debug: show final status
         call dbg_ex_cycles      ; Debug: show cycle count (before reset clears it!)
+        call dbg_ex_fetches     ; Debug: show fetch count (before reset clears it!)
         xor a
         out (0x14), a           ; Assert reset
         ld a, 'H'
@@ -954,6 +956,26 @@ dbg_ex_cycles:
         in a, (0x17)
         call phex2
         in a, (0x16)
+        call phex2
+        ld a, ']'
+        call put_char
+        ret
+
+; Debug: EX show fetch count
+dbg_ex_fetches:
+        ld a, (0x1F00)
+        or a
+        ret z
+        ld a, '['
+        call put_char
+        ld a, 'F'
+        call put_char
+        ld a, '='
+        call put_char
+        ; Print 16-bit count as 4 hex digits (big endian)
+        in a, (0x1B)
+        call phex2
+        in a, (0x1A)
         call phex2
         ld a, ']'
         call put_char
