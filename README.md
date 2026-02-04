@@ -242,7 +242,10 @@ instructions/
 │   ├── z8000_test_harness_top.v # Top module for FPGA
 │   ├── uart_rx.v               # UART receiver
 │   ├── uart_tx.v               # UART transmitter
-│   ├── gowin_dpb.v             # Gowin dual-port BRAM wrapper
+│   ├── ram16.v                 # Behavioral RAM for simulation
+│   ├── ram16_gowin.v           # Gowin RAM for synthesis (uses Gowin_SP)
+│   ├── gowin_sp/               # Gowin SP BSRAM IP (8Kx8)
+│   │   └── gowin_sp.v
 │   ├── top.cst                 # Pin constraints
 │   └── z8000/                  # Z8000 CPU (copied from z8000_micro)
 │       ├── z8000_cpu.v         # Main CPU module
@@ -386,7 +389,9 @@ Note: `d` = destination register (0-F), `s` = source register (0-F)
 
 5. **Cycle-Based Timeout**: Execution timeout is implemented in hardware using the Z8000 cycle counter, not Z80 polling loops. This provides accurate, deterministic timeout behavior independent of Z80 execution speed. Default timeout is 1 second (4M cycles at 4MHz).
 
-6. **Embedded Bootstrap**: The Z8000 bootstrap code (reset vectors, register initialization, dump routines) is embedded in the Z80 firmware. The INIT command copies this data to Z8000 memory, ensuring identical initialization in simulation and hardware. No hardcoded Verilog memory initialization is used.
+6. **Vendor-Neutral RAM**: The shared RAM uses separate files for simulation (`ram16.v`) and synthesis (`ram16_gowin.v`). Both implement the same `ram16` module interface. To port to other FPGAs, create a new `ram16_<vendor>.v` and update the project file.
+
+7. **Embedded Bootstrap**: The Z8000 bootstrap code (reset vectors, register initialization, dump routines) is embedded in the Z80 firmware. The INIT command copies this data to Z8000 memory, ensuring identical initialization in simulation and hardware. No hardcoded Verilog memory initialization is used.
 
 ## Troubleshooting
 

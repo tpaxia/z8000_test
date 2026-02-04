@@ -232,15 +232,17 @@ assign led4 = ~cpu_halt_n_out;                   // On when halted
 
 // ===========================================
 // Address Latch (Z8000 side)
+// Uses synchronous latching like the working monitor example
+// Samples address when AS_n is low on 27MHz clock edge
 // ===========================================
 reg [15:0] latched_addr;
 reg [3:0]  latched_st;
 
-always @(negedge cpu_as_n or negedge rst_n) begin
+always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         latched_addr <= 16'h0000;
         latched_st <= 4'b0000;
-    end else begin
+    end else if (~cpu_as_n) begin
         latched_addr <= ad_bus;
         latched_st <= cpu_st;
     end
@@ -252,8 +254,8 @@ end
 // Z80 has priority when Z8000 is in reset
 wire z80_has_bus = ~z8k_rst_n;
 
-// Memory address selection
-wire [12:0] mem_addr = z80_has_bus ? z8k_mem_addr[13:1] : latched_addr[13:1];
+// Memory address selection - use BYTE address (ram16 converts to word internally)
+wire [12:0] mem_addr = z80_has_bus ? z8k_mem_addr[12:0] : latched_addr[12:0];
 
 // Write enables
 wire cpu_mem_write = ~cpu_mreq_n && ~cpu_rw_n && ~cpu_ds_n && !z80_has_bus;
@@ -267,49 +269,30 @@ wire we_hi = z80_we_hi || cpu_we_hi;
 wire we_lo = z80_we_lo || cpu_we_lo;
 
 // Write data
-wire [7:0] wdata_hi = z80_has_bus ? z8k_mem_wdata[15:8] : ad_bus[15:8];
-wire [7:0] wdata_lo = z80_has_bus ? z8k_mem_wdata[7:0]  : ad_bus[7:0];
+wire [15:0] wdata = z80_has_bus ? z8k_mem_wdata : ad_bus;
 
-// Memory arrays
-`ifdef SIMULATION
-reg [7:0] mem_hi [0:8191];
-reg [7:0] mem_lo [0:8191];
-reg [7:0] rdata_hi, rdata_lo;
-
-always @(posedge clk) begin
-    if (we_hi)
-        mem_hi[mem_addr] <= wdata_hi;
-    rdata_hi <= mem_hi[mem_addr];
-end
-
-always @(posedge clk) begin
-    if (we_lo)
-        mem_lo[mem_addr] <= wdata_lo;
-    rdata_lo <= mem_lo[mem_addr];
-end
-
-wire [15:0] mem_rdata = {rdata_hi, rdata_lo};
-
-// Memory is initialized via INIT command (Z80 loads bootstrap data)
-// No hardcoded initialization - same path as hardware
-`else
-// Gowin BRAM for synthesis
-gowin_dpb bram (
-    .clk     (clk),
-    .wr_en   (we_hi || we_lo),
-    .wr_addr (mem_addr),
-    .wr_data ({wdata_hi, wdata_lo}),
-    .wr_be   ({we_hi, we_lo}),
-    .rd_addr (mem_addr),
-    .rd_data (mem_rdata)
-);
+// Shared RAM - vendor-neutral wrapper (see ram16.v)
 wire [15:0] mem_rdata;
-`endif
+
+ram16 bram (
+    .clk    (clk),
+    .we_hi  (we_hi),
+    .we_lo  (we_lo),
+    .addr   (mem_addr),
+    .din    (wdata),
+    .dout   (mem_rdata)
+);
 
 assign z8k_mem_rdata = mem_rdata;
 
+// I/O decode: ST=2 for byte I/O, ST=4 for word I/O (exclude from memory select)
+wire io_sel = (cpu_st == 4'b0010) || (cpu_st == 4'b0100);
+
+// Memory select: mreq active, not I/O, address in range
+wire mem_sel = ~cpu_mreq_n && ~io_sel && (latched_addr[15] == 1'b0);
+
 always @(*) begin
-    if (~cpu_mreq_n && latched_addr[15] == 1'b0)
+    if (mem_sel)
         data_to_cpu = mem_rdata;
     else
         data_to_cpu = 16'hFFFF;

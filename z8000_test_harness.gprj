@@ -22,8 +22,9 @@
         <File path="src/uasm/output/decode_rom.v" type="file.verilog" enable="1"/>
         <File path="src/uasm/output/microcode_rom.v" type="file.verilog" enable="1"/>
         <File path="src/uasm/output/ucode_defs.v" type="file.verilog" enable="1"/>
-        <!-- Gowin BRAM -->
-        <File path="src/gowin_dpb.v" type="file.verilog" enable="1"/>
+        <!-- Gowin RAM implementation -->
+        <File path="src/gowin_sp/gowin_sp.v" type="file.verilog" enable="1"/>
+        <File path="src/ram16_gowin.v" type="file.verilog" enable="1"/>
         <!-- Constraints -->
         <File path="src/top.cst" type="file.cst" enable="1"/>
     </FileList>
