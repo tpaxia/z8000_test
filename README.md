@@ -237,12 +237,18 @@ instructions/
 │   ├── bootstrap.s             # Z8000 bootstrap source (reset vectors, reg init)
 │   ├── z80_fw.asm              # Z80 supervisor firmware (includes bootstrap.inc)
 │   ├── z80_harness.v           # Z80 harness (TV80 + I/O)
-│   ├── z8000_test_harness_tb.v # Simulation testbench
+│   ├── z8000_test_harness_tb.v # Z80-only simulation testbench
+│   ├── z8000_full_tb.v         # Full system testbench (with Z8000 CPU)
 │   ├── z8000_test_harness_top.v # Top module for FPGA
 │   ├── uart_rx.v               # UART receiver
 │   ├── uart_tx.v               # UART transmitter
 │   ├── gowin_dpb.v             # Gowin dual-port BRAM wrapper
-│   └── top.cst                 # Pin constraints
+│   ├── top.cst                 # Pin constraints
+│   └── z8000/                  # Z8000 CPU (copied from z8000_micro)
+│       ├── z8000_cpu.v         # Main CPU module
+│       ├── decode_rom.v        # Instruction decoder
+│       ├── microcode_rom.v     # Microcode ROM
+│       └── ucode_defs.v        # Microcode definitions
 └── tv80_official/              # TV80 Z80 core (git submodule)
     └── rtl/core/
         ├── tv80_alu.v

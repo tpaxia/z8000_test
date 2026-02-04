@@ -2,9 +2,9 @@
 # Target: Tang Nano 20K
 
 # Paths
-Z8K_MICRO = ../z8000_micro
 SRC_DIR = src
 TV80_DIR = tv80_official/rtl/core
+Z8K_DIR = src/z8000
 
 # TV80 Z80 core sources
 TV80_SRCS = \
@@ -23,13 +23,12 @@ Z80_HARNESS_SRCS = \
 
 # Z8000 sources
 Z8K_SRCS = \
-	$(Z8K_MICRO)/z8000_cpu.v \
-	$(Z8K_MICRO)/uasm/output/microcode_rom.v \
-	$(Z8K_MICRO)/uasm/output/decode_rom.v
-
+	$(Z8K_DIR)/z8000_cpu.v \
+	$(Z8K_DIR)/microcode_rom.v \
+	$(Z8K_DIR)/decode_rom.v
 
 # Include paths
-VERILOG_INCS = -I$(Z8K_MICRO) -I$(TV80_DIR)
+VERILOG_INCS = -I$(Z8K_DIR) -I$(TV80_DIR)
 
 # Firmware
 Z80_FW_SRC = $(SRC_DIR)/z80_fw.asm
@@ -112,9 +111,10 @@ sim: firmware $(SRC_DIR)/z8000_test_harness_tb.v $(SRC_DIR)/z80_harness.v $(TV80
 
 # Full system simulation with Z8000
 .PHONY: sim-full
-sim-full: firmware $(SRC_DIR)/z8000_test_harness_tb.v $(Z80_HARNESS_SRCS) $(TV80_SRCS) $(Z8K_SRCS)
+sim-full: firmware $(SRC_DIR)/z8000_full_tb.v $(Z80_HARNESS_SRCS) $(TV80_SRCS) $(Z8K_SRCS)
+	cp $(Z80_FW_HEX) z80_fw.hex
 	iverilog -g2012 -DSIMULATION $(VERILOG_INCS) -o z8000_full_tb.vvp \
-		$(SRC_DIR)/z8000_test_harness_tb.v \
+		$(SRC_DIR)/z8000_full_tb.v \
 		$(Z80_HARNESS_SRCS) \
 		$(TV80_SRCS) \
 		$(Z8K_SRCS)
