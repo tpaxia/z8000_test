@@ -423,9 +423,9 @@ ex_lp:
 ex_tout:
         ; Cycle timeout
         call dbg_ex_status      ; Debug: show final status
+        call dbg_ex_cycles      ; Debug: show cycle count (before reset clears it!)
         xor a
         out (0x14), a           ; Assert reset
-        call dbg_ex_cycles      ; Debug: show cycle count
         ld a, 'T'
         call put_char
         ld a, 'O'
@@ -439,9 +439,9 @@ ex_tout:
 
 ex_ok:
         call dbg_ex_status      ; Debug: show final status
+        call dbg_ex_cycles      ; Debug: show cycle count (before reset clears it!)
         xor a
         out (0x14), a           ; Assert reset
-        call dbg_ex_cycles      ; Debug: show cycle count
         ld a, 'H'
         call put_char
         ld a, 'A'
