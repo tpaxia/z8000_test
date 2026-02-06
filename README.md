@@ -9,11 +9,12 @@ A Z80-based test harness for verifying Z8000 CPU implementations on FPGA. Uses a
   UART RX/TX <----> |   TV80 Z80 Core   | <---> Z80 RAM (8KB)
                     |   (Supervisor)    |
                     +--------+----------+
-                             |
+                             | Port A
                     +--------v----------+
-                    | Shared BRAM (16KB)|
+                    |  True Dual-Port   |
+                    |   BRAM (8KB)      |
                     +--------+----------+
-                             |
+                             | Port B
                     +--------v----------+
                     |    Z8000 CPU      |
                     |  (Under Test)     |
@@ -22,16 +23,17 @@ A Z80-based test harness for verifying Z8000 CPU implementations on FPGA. Uses a
 
 The Z80 supervisor runs firmware that accepts commands over UART to:
 - Reset/run the Z8000
-- Read/write Z8000 memory
+- Read/write Z8000 memory (via BRAM Port A)
 - Read/write Z8000 registers (via memory-mapped register file)
 - Monitor Z8000 status (halt, running)
+- Read bus trace buffer
 
 ## Target Hardware
 
 - **FPGA**: Tang Nano 20K (Gowin GW2AR-18C)
-- **System Clock**: 27MHz
-- **Z8000 Clock**: ~4MHz (derived from system clock)
+- **Clock**: 27MHz single clock domain (both Z80 and Z8000)
 - **UART**: 115200 baud, 8N1
+- **Reset**: Button-debounced (~20ms) for Z80; Z80-controlled (port 0x14) for Z8000
 
 ## LED Indicators
 
@@ -44,13 +46,13 @@ The Z80 supervisor runs firmware that accepts commands over UART to:
 
 ## UART Command Protocol
 
-All commands are text-based, terminated by CR or LF. Commands are case-insensitive (e.g., `st`, `ST`, `St` all work). Hex values accept both uppercase and lowercase (0-9, A-F, a-f).
+All commands are text-based, terminated by CR or LF. Commands are case-insensitive (e.g., `st`, `ST`, `St` all work). Hex values accept both uppercase and lowercase (0-9, A-F, a-f). **No spaces** between command and arguments (e.g., `WM02008110` not `WM 0200 8110`).
 
 ### Status Commands
 
 | Command | Description | Response |
 |---------|-------------|----------|
-| `ST` | Query status | `H` (halted/reset) or `R` (running) |
+| `ST` | Query status | `14=xx 15=xx ST=x H` or `R` |
 | `RS` | Assert reset | `OK` |
 | `EX` | Release reset, run until halt | `HALT`, `TOUT`, or `NRST` |
 | `INIT` | Initialize Z8000 (reset vectors + clear regs) | `OK` |
@@ -77,6 +79,9 @@ All commands are text-based, terminated by CR or LF. Commands are case-insensiti
 **Instrumentation commands:**
 - `CC` - Read cycle count (8 hex digits) - Z8000 clock cycles from reset release to HALT
 - `FC` - Read fetch count (4 hex digits) - number of opcode fetches executed
+- `TC` - Read trace buffer entry count (3 hex digits, 0-3FF)
+- `TR` - Dump first 16 trace entries
+- `TRnnn` - Dump trace entry at index nnn (hex)
 
 **INIT command** loads embedded bootstrap code to Z8000 memory:
 - Copies ~516 bytes from Z80 firmware to Z8000 memory (0x0000-0x0203)
@@ -110,8 +115,7 @@ Registers R0-R15 are mapped to Z8000 memory at addresses 0x0090-0x00AF.
 | `DP` | Dump all I/O port values | Port values P01-P15 |
 
 When debug mode is enabled (`DB=1`), commands output additional diagnostic information:
-- `ST` shows port 0x14 and 0x15 values read
-- `EX` shows cycle limit, run status, final port 0x15 status, and cycle count
+- `EX` shows cycle limit, run status, final port 0x15 status, cycle count, and fetch count
 - `DA` shows loop iteration, addresses, and values at each step
 - `RRn` shows the memory address and raw value read
 
@@ -155,6 +159,12 @@ Invalid commands return: `ERR`
 | 0x16-0x19 | Cycle count (32-bit, little-endian) | - |
 | 0x1A-0x1B | Fetch count (16-bit, little-endian) | - |
 | 0x1C-0x1F | - | Cycle limit (32-bit, little-endian) |
+| 0x20-0x21 | - | Trace read address (10-bit index) |
+| 0x22-0x23 | Trace entry address (16-bit) | - |
+| 0x24-0x25 | Trace entry data (16-bit) | - |
+| 0x26 | Trace entry flags (bit0=R/W, bit1=B/W, bit2=I/O) | - |
+| 0x27-0x28 | Trace write count (10-bit) | - |
+| 0x29 | Z8000 ST bus status (4-bit) | - |
 
 ## Building
 
@@ -188,10 +198,22 @@ make firmware
 ```
 
 This generates:
-- `src/z80_fw.bin` - Raw binary (~2.4KB, includes embedded bootstrap)
+- `src/z80_fw.bin` - Raw binary (~2.9KB, includes embedded bootstrap)
 - `src/z80_fw.hex` - Hex file for Verilog `$readmemh`
 
 Note: `make firmware` automatically rebuilds bootstrap if needed.
+
+### BRAM Initialization
+
+Generate BRAM init files for synthesis (needed after `make clean`):
+
+```bash
+make bram-init
+```
+
+This generates:
+- `src/bram_init.vh` - Verilog include with INIT_RAM parameters for Gowin DPB
+- `src/bram_hi.hex` / `src/bram_lo.hex` - Hex files for simulation
 
 ### Simulation
 
@@ -227,31 +249,38 @@ z8000_test_harness.gprj
 instructions/
 ├── Makefile                    # Build automation
 ├── README.md                   # This file
+├── CLAUDE.md                   # AI assistant project context
 ├── .gitignore                  # Excludes generated files
-├── test_harness.py             # Python control script
+├── test_harness.py             # Python control/test script
 ├── z8000_test_harness.gprj     # Gowin IDE project
+├── rtl/                        # Z8000 CPU (copied from ../z8000_micro)
+│   ├── z8000_cpu.v             # Main CPU module
+│   ├── decode_rom.v            # Instruction decoder
+│   ├── microcode_rom.v         # Microcode ROM
+│   └── ucode_defs.v            # Microcode definitions
 ├── scripts/
 │   ├── gen_fw_hex.py           # Z80 firmware hex generator
-│   └── gen_bootstrap_inc.py    # Bootstrap to Z80 include converter
+│   ├── gen_bootstrap_inc.py    # Bootstrap to Z80 include converter
+│   └── gen_bram_init.py        # BRAM init generator for synthesis
 ├── src/
 │   ├── bootstrap.s             # Z8000 bootstrap source (reset vectors, reg init)
 │   ├── z80_fw.asm              # Z80 supervisor firmware (includes bootstrap.inc)
 │   ├── z80_harness.v           # Z80 harness (TV80 + I/O)
-│   ├── z8000_test_harness_tb.v # Z80-only simulation testbench
-│   ├── z8000_full_tb.v         # Full system testbench (with Z8000 CPU)
 │   ├── z8000_test_harness_top.v # Top module for FPGA
+│   ├── z8000_test_harness_tb.v # Z80-only simulation testbench
+│   ├── z8000_full_tb.v         # Full system testbench (Z8000 + BRAM, no UART)
 │   ├── uart_rx.v               # UART receiver
 │   ├── uart_tx.v               # UART transmitter
-│   ├── ram16.v                 # Behavioral RAM for simulation
-│   ├── ram16_gowin.v           # Gowin RAM for synthesis (uses Gowin_SP)
-│   ├── gowin_sp/               # Gowin SP BSRAM IP (8Kx8)
-│   │   └── gowin_sp.v
-│   ├── top.cst                 # Pin constraints
-│   └── z8000/                  # Z8000 CPU (copied from z8000_micro)
-│       ├── z8000_cpu.v         # Main CPU module
-│       ├── decode_rom.v        # Instruction decoder
-│       ├── microcode_rom.v     # Microcode ROM
-│       └── ucode_defs.v        # Microcode definitions
+│   ├── ram16.v                 # Behavioral dual-port RAM (simulation)
+│   ├── ram16_gowin.v           # Gowin DPB RAM (synthesis, includes bram_init.vh)
+│   ├── trace_buffer.v          # Bus trace capture buffer (1024 entries)
+│   ├── gowin_dpb/              # Gowin true dual-port BRAM IP (4Kx8)
+│   │   ├── gowin_dpb.v
+│   │   └── gowin_dpb.ipc
+│   ├── gowin_sdpb/             # Gowin semi dual-port BRAM IP (trace buffer)
+│   │   ├── gowin_sdpb.v
+│   │   └── gowin_sdpb.ipc
+│   └── top.cst                 # Pin constraints
 └── tv80_official/              # TV80 Z80 core (git submodule)
     └── rtl/core/
         ├── tv80_alu.v
@@ -261,9 +290,10 @@ instructions/
         └── tv80s.v
 ```
 
-**Generated files** (created by `make bootstrap` and `make firmware`, excluded from git):
+**Generated files** (created by build targets, excluded from git):
 - `src/bootstrap.bin`, `src/bootstrap.o`, `src/bootstrap.elf`, `src/bootstrap.lst`, `src/bootstrap.inc`
 - `src/z80_fw.bin`, `src/z80_fw.hex`
+- `src/bram_init.vh`, `src/bram_hi.hex`, `src/bram_lo.hex`
 
 ## Python Control Script
 
@@ -345,11 +375,9 @@ OK
 ```
 DB                      # Enable debug mode
 DB=1
-ST                      # Status with debug output
-[ST]<14=00><15=FF>H
 EX                      # Execute with debug output
-[L=003D0900][RUN][S=00][C=00000052]HALT
-                        # L=cycle limit, S=port 0x15, C=cycle count
+[L=003D0900][RUN][S=00][C=00000052][F=0003]HALT
+                        # L=cycle limit, S=port 0x15, C=cycle count, F=fetch count
 DP                      # Dump I/O ports
 P01=03
 P10=00
@@ -381,17 +409,21 @@ Note: `d` = destination register (0-F), `s` = source register (0-F)
 
 1. **Z80 as Supervisor**: Using a Z80 CPU instead of a Verilog state machine provides flexibility for complex test sequences and easier debugging via readable assembly code.
 
-2. **Shared Memory**: The 16KB BRAM is shared between Z80 (via I/O ports) and Z8000 (via address bus). Z80 has priority when Z8000 is in reset.
+2. **True Dual-Port BRAM**: The 8KB BRAM uses Gowin DPB (true dual-port) primitives with Port A for Z80 and Port B for Z8000. Both ports operate independently with no arbitration needed. WRITE_MODE is set to 01 (write-through) so reads work without requiring a write cycle.
 
-3. **Register Access**: Z8000 registers are memory-mapped at 0x0090-0x00AF. The Z80 can read/write these directly when Z8000 is in reset.
+3. **Register Access**: Z8000 registers are memory-mapped at 0x0090-0x00AF. The Z80 reads/writes these via BRAM Port A while Z8000 accesses via Port B.
 
-4. **Clock Domains**: Z80 runs at 27MHz (system clock), Z8000 runs at ~4MHz (divided).
+4. **Single Clock Domain**: Both Z80 and Z8000 run at 27MHz. The Z8000 CPU includes an internal reset synchronizer.
 
-5. **Cycle-Based Timeout**: Execution timeout is implemented in hardware using the Z8000 cycle counter, not Z80 polling loops. This provides accurate, deterministic timeout behavior independent of Z80 execution speed. Default timeout is 1 second (4M cycles at 4MHz).
+5. **Reset Architecture**: Button reset is debounced (~20ms at 27MHz) and resets only the Z80 and harness logic. The Z8000 reset (`z8k_rst_n`) is controlled by Z80 firmware via I/O port 0x14, latched until explicitly changed.
 
-6. **Vendor-Neutral RAM**: The shared RAM uses separate files for simulation (`ram16.v`) and synthesis (`ram16_gowin.v`). Both implement the same `ram16` module interface. To port to other FPGAs, create a new `ram16_<vendor>.v` and update the project file.
+6. **Cycle-Based Timeout**: Execution timeout is implemented in hardware using the Z8000 cycle counter, not Z80 polling loops. This provides accurate, deterministic timeout behavior independent of Z80 execution speed. Default timeout is 1 second (4M cycles at 4MHz).
 
-7. **Embedded Bootstrap**: The Z8000 bootstrap code (reset vectors, register initialization, dump routines) is embedded in the Z80 firmware. The INIT command copies this data to Z8000 memory, ensuring identical initialization in simulation and hardware. No hardcoded Verilog memory initialization is used.
+7. **Trace Buffer**: A 1024-entry circular buffer captures Z8000 bus transactions (address, data, R/W, B/W, I/O/MEM) on DS_n rising edges. Readable via Z80 I/O ports 0x20-0x28.
+
+8. **Vendor-Neutral RAM**: The RAM uses separate files for simulation (`ram16.v`) and synthesis (`ram16_gowin.v`). Both implement the same `ram16` module interface. To port to other FPGAs, create a new `ram16_<vendor>.v` and update the project file.
+
+9. **Embedded Bootstrap**: The Z8000 bootstrap code (reset vectors, register initialization, dump routines) is embedded in the Z80 firmware. The INIT command copies this data to Z8000 memory. Bootstrap data is also pre-initialized in BRAM for synthesis via `bram_init.vh`.
 
 ## Troubleshooting
 

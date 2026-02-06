@@ -1,8 +1,7 @@
 // Z80-based Z8000 Test Harness Top Module
 // Uses TV80 Z80 core to control Z8000 testing via UART
 //
-// Memory: 16KB shared BRAM accessible by both Z80 (via I/O) and Z8000 (via bus)
-// Z80 has its own 8KB code/data RAM
+// Clock: 27MHz (clk) - Single clock domain for all logic
 //
 // Target: Tang Nano 20K (GW2AR-18C)
 
@@ -19,23 +18,40 @@ module z8000_test_harness_top (
     output        led4       // CPU halted indicator
 );
 
-parameter CLK_FRE   = 27;
-parameter UART_BAUD = 115200;
+parameter CLK_FRE   = 27;     // 27MHz system clock
+parameter UART_BAUD = 115200; // Standard baud for 27MHz (234 cycles/bit)
 
-wire rst_n = ~rst;
+// ===========================================
+// Reset Debounce (~20ms at 27MHz)
+// ===========================================
+reg [19:0] debounce_cnt;
+reg        rst_debounced;
+
+always @(posedge clk) begin
+    if (rst) begin
+        debounce_cnt <= 20'd0;
+        rst_debounced <= 1'b1;
+    end else if (debounce_cnt < 20'd539_999) begin
+        debounce_cnt <= debounce_cnt + 1'b1;
+    end else begin
+        rst_debounced <= 1'b0;
+    end
+end
+
+wire rst_n = ~rst_debounced;
 
 // ===========================================
 // LED Heartbeat
 // ===========================================
-reg [24:0] led_counter;
+reg [23:0] led_counter;
 reg        led_reg;
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        led_counter <= 25'd0;
+        led_counter <= 24'd0;
         led_reg <= 1'b0;
-    end else if (led_counter == 25'd13_499_999) begin
-        led_counter <= 25'd0;
+    end else if (led_counter == 24'd13_499_999) begin  // 0.5s at 27MHz
+        led_counter <= 24'd0;
         led_reg <= ~led_reg;
     end else begin
         led_counter <= led_counter + 1'b1;
@@ -43,29 +59,6 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 assign led = led_reg;
-
-// ===========================================
-// Z8000 CPU Clock - ~4MHz from 27MHz
-// ===========================================
-reg [2:0] z8k_clk_div;
-reg       z8k_clk;
-reg       toggle_sel;
-
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        z8k_clk_div <= 3'd0;
-        z8k_clk <= 1'b0;
-        toggle_sel <= 1'b0;
-    end else begin
-        if ((toggle_sel && z8k_clk_div == 3'd3) || (!toggle_sel && z8k_clk_div == 3'd2)) begin
-            z8k_clk_div <= 3'd0;
-            z8k_clk <= ~z8k_clk;
-            toggle_sel <= ~toggle_sel;
-        end else begin
-            z8k_clk_div <= z8k_clk_div + 1'b1;
-        end
-    end
-end
 
 // ===========================================
 // UART
@@ -86,16 +79,41 @@ uart_rx #(.CLK_FRE(CLK_FRE), .BAUD_RATE(UART_BAUD)) uart_rx_inst (
 );
 
 // ===========================================
-// Z80 Harness Controller
+// Signal declarations (before instantiations)
 // ===========================================
+
+// Z80 harness interface
 wire        z8k_rst_n;
 wire        z8k_halt_n;
 wire        z8k_mem_we;
-wire [14:0] z8k_mem_addr;
+wire [14:0] z80_addr;
 wire [15:0] z8k_mem_wdata;
 wire [15:0] z8k_mem_rdata;
 wire [31:0] z8k_cycle_limit;
 
+// Trace buffer signals
+wire [9:0]  trace_rd_addr;
+wire [35:0] trace_rd_data;
+wire [9:0]  trace_wr_count;
+
+// Z8000 CPU signals
+wire        cpu_as_n, cpu_ds_n, cpu_rw_n, cpu_mreq_n, cpu_bw_n;
+wire [3:0]  cpu_st;
+wire        cpu_busack_n, cpu_ns, cpu_halt_n_out;
+wire [15:0] ad_bus;
+reg  [15:0] data_to_cpu;
+
+// Z8000 instrumentation
+reg        bus_active;
+reg [31:0] cycle_count;
+reg [15:0] fetch_count;
+reg        prev_as_n;
+reg        counting;
+reg        cycle_timeout;
+
+// ===========================================
+// Z80 Harness Controller
+// ===========================================
 z80_harness z80 (
     .clk            (clk),
     .rst_n          (rst_n),
@@ -107,32 +125,28 @@ z80_harness z80 (
     .uart_tx_ready  (uart_tx_ready),
     .z8k_rst_n      (z8k_rst_n),
     .z8k_halt_n     (z8k_halt_n),
+    .z8k_st         (cpu_st),
     .z8k_mem_we     (z8k_mem_we),
-    .z8k_mem_addr   (z8k_mem_addr),
+    .z80_addr       (z80_addr),
     .z8k_mem_wdata  (z8k_mem_wdata),
     .z8k_mem_rdata  (z8k_mem_rdata),
     .z8k_bus_active (bus_active),
     .z8k_cycle_count(cycle_count),
     .z8k_fetch_count(fetch_count),
     .z8k_cycle_limit(z8k_cycle_limit),
-    .z8k_cycle_timeout(cycle_timeout)
+    .z8k_cycle_timeout(cycle_timeout),
+    .trace_rd_addr  (trace_rd_addr),
+    .trace_rd_data  (trace_rd_data),
+    .trace_wr_count (trace_wr_count)
 );
 
 // ===========================================
 // Z8000 CPU
 // ===========================================
-wire        cpu_as_n, cpu_ds_n, cpu_rw_n, cpu_mreq_n, cpu_bw_n;
-wire [3:0]  cpu_st;
-wire        cpu_busack_n, cpu_ns, cpu_halt_n_out;
-wire [15:0] ad_bus;
-reg  [15:0] data_to_cpu;
-
 assign ad_bus = (cpu_rw_n && ~cpu_ds_n) ? data_to_cpu : 16'bz;
 
-wire cpu_wait_n = 1'b1;  // No wait states for now
-
 z8000_cpu cpu (
-    .clk        (z8k_clk),
+    .clk        (clk),
     .rst_n      (z8k_rst_n),
     .ad         (ad_bus),
     .as_n       (cpu_as_n),
@@ -141,7 +155,7 @@ z8000_cpu cpu (
     .mreq_n     (cpu_mreq_n),
     .b_w_n      (cpu_bw_n),
     .st         (cpu_st),
-    .wait_n     (cpu_wait_n),
+    .wait_n     (1'b1),
     .busreq_n   (1'b1),
     .busack_n   (cpu_busack_n),
     .nmi_n      (1'b1),
@@ -155,147 +169,126 @@ assign z8k_halt_n = cpu_halt_n_out;
 
 // ===========================================
 // Z8000 Instrumentation
+// Resets with z8k_rst_n (Z80-controlled)
 // ===========================================
-// bus_active: Latches when AS_n goes low (first bus cycle after reset)
-// cycle_count: Counts Z8000 clock cycles from reset release to HALT
-// fetch_count: Counts opcode fetches (ST = 1101 = first instruction word)
-// cycle_timeout: Goes HIGH when cycle_count >= cycle_limit
 
-reg        bus_active;
-reg [31:0] cycle_count;
-reg [15:0] fetch_count;
-reg        prev_as_n;
-reg        counting;       // True while running (between reset release and halt)
-reg        cycle_timeout;  // Set when cycle_count >= cycle_limit
-
-// Detect falling edge of AS_n
 wire as_falling = prev_as_n && ~cpu_as_n;
-
-// Detect opcode fetch: ST = 4'b1101 (ST_INST_1ST) with AS falling edge
 wire opcode_fetch = as_falling && (cpu_st == 4'b1101);
 
-always @(posedge z8k_clk or negedge rst_n) begin
-    if (!rst_n) begin
+always @(posedge clk or negedge z8k_rst_n) begin
+    if (!z8k_rst_n) begin
         bus_active <= 1'b0;
         cycle_count <= 32'd0;
         fetch_count <= 16'd0;
         prev_as_n <= 1'b1;
-        counting <= 1'b0;
-        cycle_timeout <= 1'b0;
-    end else if (!z8k_rst_n) begin
-        // Z8000 in reset - clear counters and timeout
-        bus_active <= 1'b0;
-        cycle_count <= 32'd0;
-        fetch_count <= 16'd0;
-        prev_as_n <= 1'b1;
-        counting <= 1'b0;
+        counting <= 1'b1;
         cycle_timeout <= 1'b0;
     end else begin
         prev_as_n <= cpu_as_n;
 
-        // Detect first bus activity
-        if (as_falling && !bus_active) begin
+        if (as_falling && !bus_active)
             bus_active <= 1'b1;
-        end
 
-        // Start counting when reset is released
-        if (!counting && z8k_rst_n) begin
-            counting <= 1'b1;
-        end
-
-        // Stop counting when halted
-        if (!cpu_halt_n_out) begin
+        if (!cpu_halt_n_out)
             counting <= 1'b0;
-        end
 
-        // Count cycles while running
-        if (counting && cpu_halt_n_out) begin
+        if (counting && cpu_halt_n_out)
             cycle_count <= cycle_count + 1'b1;
-        end
 
-        // Count opcode fetches
-        if (counting && cpu_halt_n_out && opcode_fetch) begin
+        if (counting && cpu_halt_n_out && opcode_fetch)
             fetch_count <= fetch_count + 1'b1;
-        end
 
-        // Set timeout flag when cycle_count >= cycle_limit (if limit != 0)
-        if (counting && (z8k_cycle_limit != 32'd0) && (cycle_count >= z8k_cycle_limit)) begin
+        if (counting && (z8k_cycle_limit != 32'd0) && (cycle_count >= z8k_cycle_limit))
             cycle_timeout <= 1'b1;
-        end
     end
 end
 
 // LED indicators
-assign led2 = ~z8k_rst_n;                        // On when CPU in reset
-assign led3 = z8k_rst_n && cpu_halt_n_out;       // On when running
-assign led4 = ~cpu_halt_n_out;                   // On when halted
+assign led2 = ~z8k_rst_n;
+assign led3 = z8k_rst_n && cpu_halt_n_out;
+assign led4 = ~cpu_halt_n_out;
 
 // ===========================================
-// Address Latch (Z8000 side)
-// Uses synchronous latching like the working monitor example
-// Samples address when AS_n is low on 27MHz clock edge
+// Address Latch
+// Level-sensitive capture while AS_n is low.
 // ===========================================
-reg [15:0] latched_addr;
-reg [3:0]  latched_st;
+reg [15:0] z8k_addr;
 
 always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        latched_addr <= 16'h0000;
-        latched_st <= 4'b0000;
-    end else if (~cpu_as_n) begin
-        latched_addr <= ad_bus;
-        latched_st <= cpu_st;
-    end
+    if (!rst_n)
+        z8k_addr <= 16'd0;
+    else if (~cpu_as_n)
+        z8k_addr <= ad_bus;
 end
 
 // ===========================================
-// Shared Memory - 16KB (directly accent accessible by Z80 and Z8000)
+// Address decode
 // ===========================================
-// Z80 has priority when Z8000 is in reset
-wire z80_has_bus = ~z8k_rst_n;
+wire io_sel  = (cpu_st == 4'b0010) || (cpu_st == 4'b0100);
+wire ram_sel = ~cpu_mreq_n && ~io_sel;
 
-// Memory address selection - use BYTE address (ram16 converts to word internally)
-wire [12:0] mem_addr = z80_has_bus ? z8k_mem_addr[12:0] : latched_addr[12:0];
+// ===========================================
+// True Dual-Port BRAM (27MHz, Gowin DPB)
+// Port A: Z80 harness  - always connected, no mux
+// Port B: Z8000 CPU    - always connected, no mux
+// Both ports independent, no contention possible.
+// ===========================================
 
-// Write enables
-wire cpu_mem_write = ~cpu_mreq_n && ~cpu_rw_n && ~cpu_ds_n && !z80_has_bus;
-wire cpu_we_hi = cpu_mem_write && (cpu_bw_n || ~latched_addr[0]);
-wire cpu_we_lo = cpu_mem_write && (cpu_bw_n || latched_addr[0]);
+// Z8000 write logic
+wire z8k_ram_write = ram_sel && ~cpu_rw_n && ~cpu_ds_n;
+wire z8k_we_hi = z8k_ram_write && (cpu_bw_n || ~z8k_addr[0]);
+wire z8k_we_lo = z8k_ram_write && (cpu_bw_n ||  z8k_addr[0]);
 
-wire z80_we_hi = z8k_mem_we && z80_has_bus;
-wire z80_we_lo = z8k_mem_we && z80_has_bus;
-
-wire we_hi = z80_we_hi || cpu_we_hi;
-wire we_lo = z80_we_lo || cpu_we_lo;
-
-// Write data
-wire [15:0] wdata = z80_has_bus ? z8k_mem_wdata : ad_bus;
-
-// Shared RAM - vendor-neutral wrapper (see ram16.v)
-wire [15:0] mem_rdata;
+wire [15:0] z80_rd_data;   // Port A read (Z80)
+wire [15:0] z8k_rd_data;   // Port B read (Z8000)
 
 ram16 bram (
-    .clk    (clk),
-    .we_hi  (we_hi),
-    .we_lo  (we_lo),
-    .addr   (mem_addr),
-    .din    (wdata),
-    .dout   (mem_rdata)
+    // Port A - Z80 harness (load/verify test code)
+    .clka    (clk),               // 27MHz
+    .wea_hi  (z8k_mem_we),
+    .wea_lo  (z8k_mem_we),
+    .addra   (z80_addr[12:0]),
+    .dina    (z8k_mem_wdata),
+    .douta   (z80_rd_data),
+    // Port B - Z8000 CPU (fetch/execute)
+    .clkb    (clk),               // 27MHz
+    .web_hi  (z8k_we_hi),
+    .web_lo  (z8k_we_lo),
+    .addrb   (z8k_addr[12:0]),
+    .dinb    (ad_bus),
+    .doutb   (z8k_rd_data)
 );
 
-assign z8k_mem_rdata = mem_rdata;
+assign z8k_mem_rdata = z80_rd_data;   // Z80 reads via Port A
 
-// I/O decode: ST=2 for byte I/O, ST=4 for word I/O (exclude from memory select)
-wire io_sel = (cpu_st == 4'b0010) || (cpu_st == 4'b0100);
-
-// Memory select: mreq active, not I/O, address in range
-wire mem_sel = ~cpu_mreq_n && ~io_sel && (latched_addr[15] == 1'b0);
-
+// Z8000 data bus mux
 always @(*) begin
-    if (mem_sel)
-        data_to_cpu = mem_rdata;
+    if (ram_sel)
+        data_to_cpu = z8k_rd_data;    // Z8000 reads via Port B
     else
         data_to_cpu = 16'hFFFF;
 end
+
+// ===========================================
+// Trace Buffer
+// ===========================================
+wire [15:0] trace_data = cpu_rw_n ? data_to_cpu : ad_bus;
+
+trace_buffer trace (
+    .clk        (clk),
+    .rst_n      (rst_n),
+    .z8k_rst_n  (z8k_rst_n),
+    .z8k_addr   (z8k_addr),
+    .z8k_data   (trace_data),
+    .z8k_as_n   (cpu_as_n),
+    .z8k_ds_n   (cpu_ds_n),
+    .z8k_rw_n   (cpu_rw_n),
+    .z8k_bw_n   (cpu_bw_n),
+    .z8k_mreq_n (cpu_mreq_n),
+    .z8k_st     (cpu_st),
+    .rd_addr    (trace_rd_addr),
+    .rd_data    (trace_rd_data),
+    .wr_count   (trace_wr_count)
+);
 
 endmodule

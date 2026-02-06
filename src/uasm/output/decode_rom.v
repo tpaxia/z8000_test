@@ -3,7 +3,7 @@
 
 module decode_rom (
     input  wire [15:0] ir,
-    output reg  [10:0] upc_entry,
+    output reg  [11:0] upc_entry,
     output reg  [4:0]  op_latch,
     output reg  [1:0]  size_latch,
     output reg         dir_latch,
@@ -14,7 +14,8 @@ module decode_rom (
     output reg         bx_latch,
     output reg         bx_byte_dest,
     output reg         compact_ldb,
-    output reg         ldk_flag
+    output reg         ldk_flag,
+    output reg         ldm_flag
 );
 
 // Operand size constants
@@ -24,7 +25,7 @@ localparam [1:0] SIZE_LONG = 2'd2;
 
 always @(*) begin
     // Defaults
-    upc_entry      = 11'h6DE;  // TRAP_ILLEGAL
+    upc_entry      = 12'h8FC;  // TRAP_ILLEGAL
     op_latch       = 5'd0;
     size_latch     = SIZE_WORD;
     dir_latch      = 1'b0;    // INC
@@ -36,1467 +37,1697 @@ always @(*) begin
     bx_byte_dest   = 1'b0;    // Rn via BX is not a byte destination
     compact_ldb    = 1'b0;    // Not compact LDB (8-bit immediate)
     ldk_flag       = 1'b0;    // Not LDK (4-bit immediate)
+    ldm_flag       = 1'b0;    // Not LDM (load/store multiple)
 
     casez (ir)
         16'b10100001????????: begin  // LD_R
-            upc_entry      = 11'h042;
+            upc_entry      = 12'h042;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b001000010000????: begin  // LD_IM
-            upc_entry      = 11'h044;
+            upc_entry      = 12'h044;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b00100001????????: begin  // LD_IR
-            upc_entry      = 11'h046;
+            upc_entry      = 12'h046;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b011000010000????: begin  // LD_DA
-            upc_entry      = 11'h048;
+            upc_entry      = 12'h048;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01100001????????: begin  // LD_X
-            upc_entry      = 11'h04A;
+            upc_entry      = 12'h04A;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b001100010000????: begin  // LDR_LD
+            upc_entry      = 12'h055;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b00110001????????: begin  // LD_BA
-            upc_entry      = 11'h04C;
+            upc_entry      = 12'h04C;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01110001????????: begin  // LD_BX
-            upc_entry      = 11'h04E;
+            upc_entry      = 12'h04E;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             bx_latch       = 1'b1;
         end
         16'b10111101????????: begin  // LDK_OP
-            upc_entry      = 11'h06C;
+            upc_entry      = 12'h09F;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             ldk_flag       = 1'b1;
         end
         16'b00101111????????: begin  // ST_IR
-            upc_entry      = 11'h1E7;
+            upc_entry      = 12'h280;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b011011110000????: begin  // ST_DA
-            upc_entry      = 11'h1E0;
+            upc_entry      = 12'h279;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01101111????????: begin  // ST_X
-            upc_entry      = 11'h1EB;
+            upc_entry      = 12'h284;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b001100110000????: begin  // LDR_ST
+            upc_entry      = 12'h05C;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b00110011????????: begin  // ST_BA
-            upc_entry      = 11'h1F3;
+            upc_entry      = 12'h28C;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01110011????????: begin  // ST_BX
-            upc_entry      = 11'h1FB;
+            upc_entry      = 12'h294;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             bx_latch       = 1'b1;
         end
         16'b001101000000????: begin  // LDAR_OP
-            upc_entry      = 11'h050;
+            upc_entry      = 12'h050;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b00110100????????: begin  // LDA_BA
-            upc_entry      = 11'h055;
+            upc_entry      = 12'h088;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b011101100000????: begin  // LDA_DA
-            upc_entry      = 11'h05A;
+            upc_entry      = 12'h08D;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01110110????????: begin  // LDA_X
-            upc_entry      = 11'h05F;
+            upc_entry      = 12'h092;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01110100????????: begin  // LDA_BX
-            upc_entry      = 11'h064;
+            upc_entry      = 12'h097;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             bx_latch       = 1'b1;
         end
         16'b10000001????????: begin  // ADD_R
-            upc_entry      = 11'h06E;
+            upc_entry      = 12'h0A1;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_WORD;
         end
         16'b000000010000????: begin  // ADD_IM
-            upc_entry      = 11'h070;
+            upc_entry      = 12'h0A3;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_WORD;
         end
         16'b00000001????????: begin  // ADD_IR
-            upc_entry      = 11'h072;
+            upc_entry      = 12'h0A5;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_WORD;
         end
         16'b010000010000????: begin  // ADD_DA
-            upc_entry      = 11'h074;
+            upc_entry      = 12'h0A7;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_WORD;
         end
         16'b01000001????????: begin  // ADD_X
-            upc_entry      = 11'h076;
+            upc_entry      = 12'h0A9;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_WORD;
         end
         16'b10000011????????: begin  // SUB_R
-            upc_entry      = 11'h078;
+            upc_entry      = 12'h0AB;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b000000110000????: begin  // SUB_IM
-            upc_entry      = 11'h07A;
+            upc_entry      = 12'h0AD;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b00000011????????: begin  // SUB_IR
-            upc_entry      = 11'h07C;
+            upc_entry      = 12'h0AF;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b010000110000????: begin  // SUB_DA
-            upc_entry      = 11'h07E;
+            upc_entry      = 12'h0B1;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b01000011????????: begin  // SUB_X
-            upc_entry      = 11'h080;
+            upc_entry      = 12'h0B3;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b10110101????????: begin  // ADC_R
-            upc_entry      = 11'h082;
+            upc_entry      = 12'h0B5;
             op_latch       = 5'd4;  // ADC
             size_latch     = SIZE_WORD;
         end
         16'b10110111????????: begin  // SBC_R
-            upc_entry      = 11'h085;
+            upc_entry      = 12'h0B8;
             op_latch       = 5'd6;  // SBC
             size_latch     = SIZE_WORD;
         end
         16'b10001011????????: begin  // CP_R
-            upc_entry      = 11'h0AD;
+            upc_entry      = 12'h0E0;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b000010110000????: begin  // CP_IM
-            upc_entry      = 11'h0AF;
+            upc_entry      = 12'h0E2;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b00001011????????: begin  // CP_IR
-            upc_entry      = 11'h0B1;
+            upc_entry      = 12'h0E4;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b010010110000????: begin  // CP_DA
-            upc_entry      = 11'h0B3;
+            upc_entry      = 12'h0E6;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b01001011????????: begin  // CP_X
-            upc_entry      = 11'h0B5;
+            upc_entry      = 12'h0E8;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b10101001????????: begin  // INC_R
-            upc_entry      = 11'h0B7;
+            upc_entry      = 12'h0EA;
             op_latch       = 5'd3;  // INC
             size_latch     = SIZE_WORD;
         end
         16'b00101001????????: begin  // INC_IR
-            upc_entry      = 11'h0B9;
+            upc_entry      = 12'h0EC;
             op_latch       = 5'd3;  // INC
             size_latch     = SIZE_WORD;
         end
         16'b011010010000????: begin  // INC_DA
-            upc_entry      = 11'h0BF;
+            upc_entry      = 12'h0F2;
             op_latch       = 5'd3;  // INC
             size_latch     = SIZE_WORD;
         end
         16'b01101001????????: begin  // INC_X
-            upc_entry      = 11'h0C9;
+            upc_entry      = 12'h0FC;
             op_latch       = 5'd3;  // INC
             size_latch     = SIZE_WORD;
         end
         16'b10101011????????: begin  // DEC_R
-            upc_entry      = 11'h088;
+            upc_entry      = 12'h0BB;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b00101011????????: begin  // DEC_IR
-            upc_entry      = 11'h0D3;
+            upc_entry      = 12'h106;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b011010110000????: begin  // DEC_DA
-            upc_entry      = 11'h0D9;
+            upc_entry      = 12'h10C;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b01101011????????: begin  // DEC_X
-            upc_entry      = 11'h0E3;
+            upc_entry      = 12'h116;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b10001101????0010: begin  // NEG_R
-            upc_entry      = 11'h08A;
+            upc_entry      = 12'h0BD;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b00001101????0010: begin  // NEG_IR
-            upc_entry      = 11'h0ED;
+            upc_entry      = 12'h120;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b0100110100000010: begin  // NEG_DA
-            upc_entry      = 11'h0F3;
+            upc_entry      = 12'h126;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b01001101????0010: begin  // NEG_X
-            upc_entry      = 11'h0FD;
+            upc_entry      = 12'h130;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b10001101????0000: begin  // COM_R
-            upc_entry      = 11'h08C;
+            upc_entry      = 12'h0BF;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b00001101????0000: begin  // COM_IR
-            upc_entry      = 11'h107;
+            upc_entry      = 12'h13A;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b0100110100000000: begin  // COM_DA
-            upc_entry      = 11'h10F;
+            upc_entry      = 12'h142;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b01001101????0000: begin  // COM_X
-            upc_entry      = 11'h11B;
+            upc_entry      = 12'h14E;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b10001101????1000: begin  // CLR_R
-            upc_entry      = 11'h127;
+            upc_entry      = 12'h15A;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b00001101????1000: begin  // CLR_IR
-            upc_entry      = 11'h129;
+            upc_entry      = 12'h15C;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b0100110100001000: begin  // CLR_DA
-            upc_entry      = 11'h14D;
+            upc_entry      = 12'h1A0;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01001101????1000: begin  // CLR_X
-            upc_entry      = 11'h154;
+            upc_entry      = 12'h1A7;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b10001101????0100: begin  // TEST_R
-            upc_entry      = 11'h15C;
+            upc_entry      = 12'h1AF;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b00001101????0100: begin  // TEST_IR
-            upc_entry      = 11'h15E;
+            upc_entry      = 12'h1B1;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b0100110100000100: begin  // TEST_DA
-            upc_entry      = 11'h162;
+            upc_entry      = 12'h1B5;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b01001101????0100: begin  // TEST_X
-            upc_entry      = 11'h169;
+            upc_entry      = 12'h1BC;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b00001101????0101: begin  // LD_IR_IM
-            upc_entry      = 11'h12D;
+            upc_entry      = 12'h160;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b0100110100000101: begin  // LD_DA_IM
-            upc_entry      = 11'h135;
+            upc_entry      = 12'h168;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01001101????0101: begin  // LD_X_IM
-            upc_entry      = 11'h141;
+            upc_entry      = 12'h174;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
+        16'b00001101????0001: begin  // CP_IR_IM
+            upc_entry      = 12'h180;
+            op_latch       = 5'd5;  // SUB
+            size_latch     = SIZE_WORD;
+        end
+        16'b0100110100000001: begin  // CP_DA_IM
+            upc_entry      = 12'h188;
+            op_latch       = 5'd5;  // SUB
+            size_latch     = SIZE_WORD;
+        end
+        16'b01001101????0001: begin  // CP_X_IM
+            upc_entry      = 12'h194;
+            op_latch       = 5'd5;  // SUB
+            size_latch     = SIZE_WORD;
+        end
         16'b10001101????0110: begin  // TSET_R
-            upc_entry      = 11'h171;
+            upc_entry      = 12'h1C4;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b00001101????0110: begin  // TSET_IR
-            upc_entry      = 11'h175;
+            upc_entry      = 12'h1C8;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b0100110100000110: begin  // TSET_DA
-            upc_entry      = 11'h17C;
+            upc_entry      = 12'h1CF;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b01001101????0110: begin  // TSET_X
-            upc_entry      = 11'h186;
+            upc_entry      = 12'h1D9;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b10101101????????: begin  // EX_R
-            upc_entry      = 11'h1C0;
+            upc_entry      = 12'h259;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b00101101????????: begin  // EX_IR
-            upc_entry      = 11'h1C4;
+            upc_entry      = 12'h25D;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b011011010000????: begin  // EX_DA
-            upc_entry      = 11'h1CB;
+            upc_entry      = 12'h264;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b01101101????????: begin  // EX_X
-            upc_entry      = 11'h1D5;
+            upc_entry      = 12'h26E;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b10101111????????: begin  // TCC_OP
-            upc_entry      = 11'h496;
+            upc_entry      = 12'h67B;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b10000111????????: begin  // AND_R
-            upc_entry      = 11'h08F;
+            upc_entry      = 12'h0C2;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_WORD;
         end
         16'b000001110000????: begin  // AND_IM
-            upc_entry      = 11'h091;
+            upc_entry      = 12'h0C4;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_WORD;
         end
         16'b00000111????????: begin  // AND_IR
-            upc_entry      = 11'h093;
+            upc_entry      = 12'h0C6;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_WORD;
         end
         16'b010001110000????: begin  // AND_DA
-            upc_entry      = 11'h095;
+            upc_entry      = 12'h0C8;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_WORD;
         end
         16'b01000111????????: begin  // AND_X
-            upc_entry      = 11'h097;
+            upc_entry      = 12'h0CA;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_WORD;
         end
         16'b10000101????????: begin  // OR_R
-            upc_entry      = 11'h099;
+            upc_entry      = 12'h0CC;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b000001010000????: begin  // OR_IM
-            upc_entry      = 11'h09B;
+            upc_entry      = 12'h0CE;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b00000101????????: begin  // OR_IR
-            upc_entry      = 11'h09D;
+            upc_entry      = 12'h0D0;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b010001010000????: begin  // OR_DA
-            upc_entry      = 11'h09F;
+            upc_entry      = 12'h0D2;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b01000101????????: begin  // OR_X
-            upc_entry      = 11'h0A1;
+            upc_entry      = 12'h0D4;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_WORD;
         end
         16'b10001001????????: begin  // XOR_R
-            upc_entry      = 11'h0A3;
+            upc_entry      = 12'h0D6;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b000010010000????: begin  // XOR_IM
-            upc_entry      = 11'h0A5;
+            upc_entry      = 12'h0D8;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b00001001????????: begin  // XOR_IR
-            upc_entry      = 11'h0A7;
+            upc_entry      = 12'h0DA;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b010010010000????: begin  // XOR_DA
-            upc_entry      = 11'h0A9;
+            upc_entry      = 12'h0DC;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b01001001????????: begin  // XOR_X
-            upc_entry      = 11'h0AB;
+            upc_entry      = 12'h0DE;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_WORD;
         end
         16'b10100000????????: begin  // LD_R
-            upc_entry      = 11'h042;
+            upc_entry      = 12'h042;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b001000000000????: begin  // LD_IM
-            upc_entry      = 11'h044;
+            upc_entry      = 12'h044;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b00100000????????: begin  // LD_IR
-            upc_entry      = 11'h046;
+            upc_entry      = 12'h046;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b011000000000????: begin  // LD_DA
-            upc_entry      = 11'h048;
+            upc_entry      = 12'h048;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b01100000????????: begin  // LD_X
-            upc_entry      = 11'h04A;
+            upc_entry      = 12'h04A;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+        end
+        16'b001100000000????: begin  // LDRB_LD
+            upc_entry      = 12'h064;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b00110000????????: begin  // LD_BA
-            upc_entry      = 11'h04C;
+            upc_entry      = 12'h04C;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b01110000????????: begin  // LD_BX
-            upc_entry      = 11'h04E;
+            upc_entry      = 12'h04E;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             bx_latch       = 1'b1;
         end
         16'b1100????????????: begin  // LDB_SHORT
-            upc_entry      = 11'h06A;
+            upc_entry      = 12'h09D;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             compact_ldb    = 1'b1;
         end
         16'b10000000????????: begin  // ADD_R
-            upc_entry      = 11'h06E;
+            upc_entry      = 12'h0A1;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b000000000000????: begin  // ADD_IM
-            upc_entry      = 11'h070;
+            upc_entry      = 12'h0A3;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b00000000????????: begin  // ADD_IR
-            upc_entry      = 11'h072;
+            upc_entry      = 12'h0A5;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b010000000000????: begin  // ADD_DA
-            upc_entry      = 11'h074;
+            upc_entry      = 12'h0A7;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b01000000????????: begin  // ADD_X
-            upc_entry      = 11'h076;
+            upc_entry      = 12'h0A9;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b10000010????????: begin  // SUB_R
-            upc_entry      = 11'h078;
+            upc_entry      = 12'h0AB;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b000000100000????: begin  // SUB_IM
-            upc_entry      = 11'h07A;
+            upc_entry      = 12'h0AD;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b00000010????????: begin  // SUB_IR
-            upc_entry      = 11'h07C;
+            upc_entry      = 12'h0AF;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b010000100000????: begin  // SUB_DA
-            upc_entry      = 11'h07E;
+            upc_entry      = 12'h0B1;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b01000010????????: begin  // SUB_X
-            upc_entry      = 11'h080;
+            upc_entry      = 12'h0B3;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b10110100????????: begin  // ADC_R
-            upc_entry      = 11'h082;
+            upc_entry      = 12'h0B5;
             op_latch       = 5'd4;  // ADC
             size_latch     = SIZE_BYTE;
         end
         16'b10110110????????: begin  // SBC_R
-            upc_entry      = 11'h085;
+            upc_entry      = 12'h0B8;
             op_latch       = 5'd6;  // SBC
             size_latch     = SIZE_BYTE;
         end
         16'b10000110????????: begin  // AND_R
-            upc_entry      = 11'h08F;
+            upc_entry      = 12'h0C2;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_BYTE;
         end
         16'b000001100000????: begin  // AND_IM
-            upc_entry      = 11'h091;
+            upc_entry      = 12'h0C4;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_BYTE;
         end
         16'b00000110????????: begin  // AND_IR
-            upc_entry      = 11'h093;
+            upc_entry      = 12'h0C6;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_BYTE;
         end
         16'b010001100000????: begin  // AND_DA
-            upc_entry      = 11'h095;
+            upc_entry      = 12'h0C8;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_BYTE;
         end
         16'b01000110????????: begin  // AND_X
-            upc_entry      = 11'h097;
+            upc_entry      = 12'h0CA;
             op_latch       = 5'd7;  // AND
             size_latch     = SIZE_BYTE;
         end
         16'b10000100????????: begin  // OR_R
-            upc_entry      = 11'h099;
+            upc_entry      = 12'h0CC;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b000001000000????: begin  // OR_IM
-            upc_entry      = 11'h09B;
+            upc_entry      = 12'h0CE;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b00000100????????: begin  // OR_IR
-            upc_entry      = 11'h09D;
+            upc_entry      = 12'h0D0;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b010001000000????: begin  // OR_DA
-            upc_entry      = 11'h09F;
+            upc_entry      = 12'h0D2;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b01000100????????: begin  // OR_X
-            upc_entry      = 11'h0A1;
+            upc_entry      = 12'h0D4;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b10001000????????: begin  // XOR_R
-            upc_entry      = 11'h0A3;
+            upc_entry      = 12'h0D6;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b000010000000????: begin  // XOR_IM
-            upc_entry      = 11'h0A5;
+            upc_entry      = 12'h0D8;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b00001000????????: begin  // XOR_IR
-            upc_entry      = 11'h0A7;
+            upc_entry      = 12'h0DA;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b010010000000????: begin  // XOR_DA
-            upc_entry      = 11'h0A9;
+            upc_entry      = 12'h0DC;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b01001000????????: begin  // XOR_X
-            upc_entry      = 11'h0AB;
+            upc_entry      = 12'h0DE;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b10001010????????: begin  // CP_R
-            upc_entry      = 11'h0AD;
+            upc_entry      = 12'h0E0;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b000010100000????: begin  // CP_IM
-            upc_entry      = 11'h0AF;
+            upc_entry      = 12'h0E2;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b00001010????????: begin  // CP_IR
-            upc_entry      = 11'h0B1;
+            upc_entry      = 12'h0E4;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b010010100000????: begin  // CP_DA
-            upc_entry      = 11'h0B3;
+            upc_entry      = 12'h0E6;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b01001010????????: begin  // CP_X
-            upc_entry      = 11'h0B5;
+            upc_entry      = 12'h0E8;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b10001100????0010: begin  // NEG_R
-            upc_entry      = 11'h08A;
+            upc_entry      = 12'h0BD;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b00001100????0010: begin  // NEG_IR
-            upc_entry      = 11'h0ED;
+            upc_entry      = 12'h120;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b0100110000000010: begin  // NEG_DA
-            upc_entry      = 11'h0F3;
+            upc_entry      = 12'h126;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b01001100????0010: begin  // NEG_X
-            upc_entry      = 11'h0FD;
+            upc_entry      = 12'h130;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b10001100????0000: begin  // COM_R
-            upc_entry      = 11'h08C;
+            upc_entry      = 12'h0BF;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b00001100????0000: begin  // COM_IR
-            upc_entry      = 11'h107;
+            upc_entry      = 12'h13A;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b0100110000000000: begin  // COM_DA
-            upc_entry      = 11'h10F;
+            upc_entry      = 12'h142;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b01001100????0000: begin  // COM_X
-            upc_entry      = 11'h11B;
+            upc_entry      = 12'h14E;
             op_latch       = 5'd9;  // XOR
             size_latch     = SIZE_BYTE;
         end
         16'b10001100????1000: begin  // CLR_R
-            upc_entry      = 11'h127;
+            upc_entry      = 12'h15A;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b00001100????1000: begin  // CLR_IR
-            upc_entry      = 11'h129;
+            upc_entry      = 12'h15C;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b0100110000001000: begin  // CLR_DA
-            upc_entry      = 11'h14D;
+            upc_entry      = 12'h1A0;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b01001100????1000: begin  // CLR_X
-            upc_entry      = 11'h154;
+            upc_entry      = 12'h1A7;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b10001100????0100: begin  // TEST_R
-            upc_entry      = 11'h15C;
+            upc_entry      = 12'h1AF;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b00001100????0100: begin  // TEST_IR
-            upc_entry      = 11'h15E;
+            upc_entry      = 12'h1B1;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b0100110000000100: begin  // TEST_DA
-            upc_entry      = 11'h162;
+            upc_entry      = 12'h1B5;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b01001100????0100: begin  // TEST_X
-            upc_entry      = 11'h169;
+            upc_entry      = 12'h1BC;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b00001100????0101: begin  // LD_IR_IM
-            upc_entry      = 11'h12D;
+            upc_entry      = 12'h160;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b0100110000000101: begin  // LD_DA_IM
-            upc_entry      = 11'h135;
+            upc_entry      = 12'h168;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b01001100????0101: begin  // LD_X_IM
-            upc_entry      = 11'h141;
+            upc_entry      = 12'h174;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
+        16'b00001100????0001: begin  // CP_IR_IM
+            upc_entry      = 12'h180;
+            op_latch       = 5'd5;  // SUB
+            size_latch     = SIZE_BYTE;
+        end
+        16'b0100110000000001: begin  // CP_DA_IM
+            upc_entry      = 12'h188;
+            op_latch       = 5'd5;  // SUB
+            size_latch     = SIZE_BYTE;
+        end
+        16'b01001100????0001: begin  // CP_X_IM
+            upc_entry      = 12'h194;
+            op_latch       = 5'd5;  // SUB
+            size_latch     = SIZE_BYTE;
+        end
         16'b10001100????0110: begin  // TSET_R
-            upc_entry      = 11'h171;
+            upc_entry      = 12'h1C4;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b00001100????0110: begin  // TSET_IR
-            upc_entry      = 11'h175;
+            upc_entry      = 12'h1C8;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b0100110000000110: begin  // TSET_DA
-            upc_entry      = 11'h17C;
+            upc_entry      = 12'h1CF;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b01001100????0110: begin  // TSET_X
-            upc_entry      = 11'h186;
+            upc_entry      = 12'h1D9;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_BYTE;
         end
         16'b10101100????????: begin  // EX_R
-            upc_entry      = 11'h1C0;
+            upc_entry      = 12'h259;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b00101100????????: begin  // EX_IR
-            upc_entry      = 11'h1C4;
+            upc_entry      = 12'h25D;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b011011000000????: begin  // EX_DA
-            upc_entry      = 11'h1CB;
+            upc_entry      = 12'h264;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b01101100????????: begin  // EX_X
-            upc_entry      = 11'h1D5;
+            upc_entry      = 12'h26E;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b10101110????????: begin  // TCC_OP
-            upc_entry      = 11'h496;
+            upc_entry      = 12'h67B;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b10101010????????: begin  // DEC_R
-            upc_entry      = 11'h088;
+            upc_entry      = 12'h0BB;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b00101010????????: begin  // DEC_IR
-            upc_entry      = 11'h0D3;
+            upc_entry      = 12'h106;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b011010100000????: begin  // DEC_DA
-            upc_entry      = 11'h0D9;
+            upc_entry      = 12'h10C;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b01101010????????: begin  // DEC_X
-            upc_entry      = 11'h0E3;
+            upc_entry      = 12'h116;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b10101000????????: begin  // INC_R
-            upc_entry      = 11'h0B7;
+            upc_entry      = 12'h0EA;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b00101000????????: begin  // INC_IR
-            upc_entry      = 11'h0B9;
+            upc_entry      = 12'h0EC;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b011010000000????: begin  // INC_DA
-            upc_entry      = 11'h0BF;
+            upc_entry      = 12'h0F2;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b01101000????????: begin  // INC_X
-            upc_entry      = 11'h0C9;
+            upc_entry      = 12'h0FC;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_BYTE;
         end
         16'b00101110????????: begin  // ST_IR
-            upc_entry      = 11'h1E7;
+            upc_entry      = 12'h280;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b011011100000????: begin  // ST_DA
-            upc_entry      = 11'h1E0;
+            upc_entry      = 12'h279;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b01101110????????: begin  // ST_X
-            upc_entry      = 11'h1EB;
+            upc_entry      = 12'h284;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+        end
+        16'b001100100000????: begin  // LDRB_ST
+            upc_entry      = 12'h06B;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b00110010????????: begin  // ST_BA
-            upc_entry      = 11'h1F3;
+            upc_entry      = 12'h28C;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
         end
         16'b01110010????????: begin  // ST_BX
-            upc_entry      = 11'h1FB;
+            upc_entry      = 12'h294;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             bx_latch       = 1'b1;
         end
         16'b10010100????????: begin  // LDL_R
-            upc_entry      = 11'h2C5;
+            upc_entry      = 12'h3EC;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b10010110????????: begin  // ADDL_R
-            upc_entry      = 11'h2C8;
+            upc_entry      = 12'h3EF;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_LONG;
         end
         16'b10010010????????: begin  // SUBL_R
-            upc_entry      = 11'h2CB;
+            upc_entry      = 12'h3F2;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b10010000????????: begin  // CPL_R
-            upc_entry      = 11'h2CE;
+            upc_entry      = 12'h3F5;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b000101100000????: begin  // ADDL_IM
-            upc_entry      = 11'h33E;
+            upc_entry      = 12'h523;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_LONG;
         end
         16'b00010110????????: begin  // ADDL_IR
-            upc_entry      = 11'h348;
+            upc_entry      = 12'h52D;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_LONG;
         end
         16'b010101100000????: begin  // ADDL_DA
-            upc_entry      = 11'h350;
+            upc_entry      = 12'h535;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_LONG;
         end
         16'b01010110????????: begin  // ADDL_X
-            upc_entry      = 11'h35B;
+            upc_entry      = 12'h540;
             op_latch       = 5'd3;  // ADD
             size_latch     = SIZE_LONG;
         end
         16'b000100100000????: begin  // SUBL_IM
-            upc_entry      = 11'h367;
+            upc_entry      = 12'h54C;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b00010010????????: begin  // SUBL_IR
-            upc_entry      = 11'h371;
+            upc_entry      = 12'h556;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b010100100000????: begin  // SUBL_DA
-            upc_entry      = 11'h379;
+            upc_entry      = 12'h55E;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b01010010????????: begin  // SUBL_X
-            upc_entry      = 11'h384;
+            upc_entry      = 12'h569;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b000100000000????: begin  // CPL_IM
-            upc_entry      = 11'h390;
+            upc_entry      = 12'h575;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b00010000????????: begin  // CPL_IR
-            upc_entry      = 11'h399;
+            upc_entry      = 12'h57E;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b010100000000????: begin  // CPL_DA
-            upc_entry      = 11'h3A1;
+            upc_entry      = 12'h586;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
         16'b01010000????????: begin  // CPL_X
-            upc_entry      = 11'h3AE;
+            upc_entry      = 12'h593;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_LONG;
         end
+        16'b10011001????????: begin  // MULT_R
+            upc_entry      = 12'h3F8;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b000110010000????: begin  // MULT_IM
+            upc_entry      = 12'h3FB;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b00011001????????: begin  // MULT_IR
+            upc_entry      = 12'h402;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b010110010000????: begin  // MULT_DA
+            upc_entry      = 12'h408;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b01011001????????: begin  // MULT_X
+            upc_entry      = 12'h411;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b10011000????????: begin  // MULTL_R
+            upc_entry      = 12'h41A;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b000110000000????: begin  // MULTL_IM
+            upc_entry      = 12'h478;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b00011000????????: begin  // MULTL_IR
+            upc_entry      = 12'h478;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b010110000000????: begin  // MULTL_DA
+            upc_entry      = 12'h478;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b01011000????????: begin  // MULTL_X
+            upc_entry      = 12'h478;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b10011011????????: begin  // DIV_R
+            upc_entry      = 12'h479;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b000110110000????: begin  // DIV_IM
+            upc_entry      = 12'h4B4;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b00011011????????: begin  // DIV_IR
+            upc_entry      = 12'h4B4;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b010110110000????: begin  // DIV_DA
+            upc_entry      = 12'h4B4;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b01011011????????: begin  // DIV_X
+            upc_entry      = 12'h4B4;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+        end
+        16'b10011010????????: begin  // DIVL_R
+            upc_entry      = 12'h4B5;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b000110100000????: begin  // DIVL_IM
+            upc_entry      = 12'h4B5;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b00011010????????: begin  // DIVL_IR
+            upc_entry      = 12'h4B5;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b010110100000????: begin  // DIVL_DA
+            upc_entry      = 12'h4B5;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b01011010????????: begin  // DIVL_X
+            upc_entry      = 12'h4B5;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
         16'b10011100????1000: begin  // TESTL_R
-            upc_entry      = 11'h191;
+            upc_entry      = 12'h1E4;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_LONG;
         end
         16'b00011100????1000: begin  // TESTL_IR
-            upc_entry      = 11'h198;
+            upc_entry      = 12'h1EB;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_LONG;
         end
         16'b0101110000001000: begin  // TESTL_DA
-            upc_entry      = 11'h1A3;
+            upc_entry      = 12'h1F6;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_LONG;
         end
         16'b01011100????1000: begin  // TESTL_X
-            upc_entry      = 11'h1B1;
+            upc_entry      = 12'h204;
             op_latch       = 5'd8;  // OR
             size_latch     = SIZE_LONG;
         end
+        16'b00011100????0001: begin  // LDM_LD_IR
+            upc_entry      = 12'h213;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+            ldm_flag       = 1'b1;
+        end
+        16'b0101110000000001: begin  // LDM_LD_DA
+            upc_entry      = 12'h21A;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+            ldm_flag       = 1'b1;
+        end
+        16'b01011100????0001: begin  // LDM_LD_X
+            upc_entry      = 12'h224;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+            ldm_flag       = 1'b1;
+        end
+        16'b00011100????1001: begin  // LDM_ST_IR
+            upc_entry      = 12'h236;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+            ldm_flag       = 1'b1;
+        end
+        16'b0101110000001001: begin  // LDM_ST_DA
+            upc_entry      = 12'h23D;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+            ldm_flag       = 1'b1;
+        end
+        16'b01011100????1001: begin  // LDM_ST_X
+            upc_entry      = 12'h247;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_WORD;
+            ldm_flag       = 1'b1;
+        end
         16'b000101000000????: begin  // LDL_IM
-            upc_entry      = 11'h2D1;
+            upc_entry      = 12'h4B6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b00010100????????: begin  // LDL_IR
-            upc_entry      = 11'h2DA;
+            upc_entry      = 12'h4BF;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b010101000000????: begin  // LDL_DA
-            upc_entry      = 11'h2E1;
+            upc_entry      = 12'h4C6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b01010100????????: begin  // LDL_X
-            upc_entry      = 11'h2EB;
+            upc_entry      = 12'h4D0;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b001101010000????: begin  // LDRL_LD
+            upc_entry      = 12'h073;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b00110101????????: begin  // LDL_BA
-            upc_entry      = 11'h2F6;
+            upc_entry      = 12'h4DB;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b01110101????????: begin  // LDL_BX
-            upc_entry      = 11'h301;
+            upc_entry      = 12'h4E6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
             bx_latch       = 1'b1;
         end
         16'b00011101????????: begin  // STL_IR
-            upc_entry      = 11'h30C;
+            upc_entry      = 12'h4F1;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b010111010000????: begin  // STL_DA
-            upc_entry      = 11'h313;
+            upc_entry      = 12'h4F8;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b01011101????????: begin  // STL_X
-            upc_entry      = 11'h31D;
+            upc_entry      = 12'h502;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_LONG;
+        end
+        16'b001101110000????: begin  // LDRL_ST
+            upc_entry      = 12'h07E;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b00110111????????: begin  // STL_BA
-            upc_entry      = 11'h328;
+            upc_entry      = 12'h50D;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
         end
         16'b01110111????????: begin  // STL_BX
-            upc_entry      = 11'h333;
+            upc_entry      = 12'h518;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_LONG;
             bx_latch       = 1'b1;
         end
         16'b10110011????0000: begin  // RL_1
-            upc_entry      = 11'h51A;
+            upc_entry      = 12'h710;
             op_latch       = 5'd13;  // ROL
             size_latch     = SIZE_WORD;
         end
         16'b10110011????0010: begin  // RL_2
-            upc_entry      = 11'h51C;
+            upc_entry      = 12'h712;
             op_latch       = 5'd13;  // ROL
             size_latch     = SIZE_WORD;
         end
         16'b10110010????0000: begin  // RLB_1
-            upc_entry      = 11'h51A;
+            upc_entry      = 12'h710;
             op_latch       = 5'd13;  // ROL
             size_latch     = SIZE_BYTE;
         end
         16'b10110010????0010: begin  // RLB_2
-            upc_entry      = 11'h51C;
+            upc_entry      = 12'h712;
             op_latch       = 5'd13;  // ROL
             size_latch     = SIZE_BYTE;
         end
         16'b10110011????0100: begin  // RR_1
-            upc_entry      = 11'h51F;
+            upc_entry      = 12'h715;
             op_latch       = 5'd14;  // ROR
             size_latch     = SIZE_WORD;
         end
         16'b10110011????0110: begin  // RR_2
-            upc_entry      = 11'h521;
+            upc_entry      = 12'h717;
             op_latch       = 5'd14;  // ROR
             size_latch     = SIZE_WORD;
         end
         16'b10110010????0100: begin  // RRB_1
-            upc_entry      = 11'h51F;
+            upc_entry      = 12'h715;
             op_latch       = 5'd14;  // ROR
             size_latch     = SIZE_BYTE;
         end
         16'b10110010????0110: begin  // RRB_2
-            upc_entry      = 11'h521;
+            upc_entry      = 12'h717;
             op_latch       = 5'd14;  // ROR
             size_latch     = SIZE_BYTE;
         end
         16'b10110011????1000: begin  // RLC_1
-            upc_entry      = 11'h524;
+            upc_entry      = 12'h71A;
             op_latch       = 5'd10;  // SHL
             size_latch     = SIZE_WORD;
         end
         16'b10110011????1010: begin  // RLC_2
-            upc_entry      = 11'h526;
+            upc_entry      = 12'h71C;
             op_latch       = 5'd10;  // SHL
             size_latch     = SIZE_WORD;
         end
         16'b10110010????1000: begin  // RLCB_1
-            upc_entry      = 11'h524;
+            upc_entry      = 12'h71A;
             op_latch       = 5'd10;  // SHL
             size_latch     = SIZE_BYTE;
         end
         16'b10110010????1010: begin  // RLCB_2
-            upc_entry      = 11'h526;
+            upc_entry      = 12'h71C;
             op_latch       = 5'd10;  // SHL
             size_latch     = SIZE_BYTE;
         end
         16'b10110011????1100: begin  // RRC_1
-            upc_entry      = 11'h529;
+            upc_entry      = 12'h71F;
             op_latch       = 5'd11;  // SHR
             size_latch     = SIZE_WORD;
         end
         16'b10110011????1110: begin  // RRC_2
-            upc_entry      = 11'h52B;
+            upc_entry      = 12'h721;
             op_latch       = 5'd11;  // SHR
             size_latch     = SIZE_WORD;
         end
         16'b10110010????1100: begin  // RRCB_1
-            upc_entry      = 11'h529;
+            upc_entry      = 12'h71F;
             op_latch       = 5'd11;  // SHR
             size_latch     = SIZE_BYTE;
         end
         16'b10110010????1110: begin  // RRCB_2
-            upc_entry      = 11'h52B;
+            upc_entry      = 12'h721;
             op_latch       = 5'd11;  // SHR
             size_latch     = SIZE_BYTE;
         end
         16'b10110011????1001: begin  // SLA_OP
-            upc_entry      = 11'h52E;
+            upc_entry      = 12'h724;
             size_latch     = SIZE_WORD;
         end
         16'b10110010????1001: begin  // SLAB_OP
-            upc_entry      = 11'h52E;
+            upc_entry      = 12'h724;
             size_latch     = SIZE_BYTE;
         end
         16'b10110011????0001: begin  // SRL_OP
-            upc_entry      = 11'h540;
+            upc_entry      = 12'h736;
             size_latch     = SIZE_WORD;
         end
         16'b10110010????0001: begin  // SRLB_OP
-            upc_entry      = 11'h540;
+            upc_entry      = 12'h736;
             size_latch     = SIZE_BYTE;
         end
+        16'b10110011????1101: begin  // SLAL_OP
+            upc_entry      = 12'h798;
+            size_latch     = SIZE_LONG;
+        end
+        16'b10110011????0101: begin  // SLLL_OP
+            upc_entry      = 12'h7AC;
+            size_latch     = SIZE_LONG;
+        end
         16'b10110011????1011: begin  // SDA_OP
-            upc_entry      = 11'h552;
+            upc_entry      = 12'h748;
             size_latch     = SIZE_WORD;
             bx_latch       = 1'b1;
         end
         16'b10110010????1011: begin  // SDAB_OP
-            upc_entry      = 11'h552;
+            upc_entry      = 12'h748;
             size_latch     = SIZE_BYTE;
             bx_latch       = 1'b1;
         end
         16'b10110011????0011: begin  // SDL_OP
-            upc_entry      = 11'h565;
+            upc_entry      = 12'h75B;
             size_latch     = SIZE_WORD;
             bx_latch       = 1'b1;
         end
         16'b10110010????0011: begin  // SDLB_OP
-            upc_entry      = 11'h565;
+            upc_entry      = 12'h75B;
             size_latch     = SIZE_BYTE;
             bx_latch       = 1'b1;
         end
         16'b10110011????1111: begin  // SDAL_OP
-            upc_entry      = 11'h578;
+            upc_entry      = 12'h76E;
             size_latch     = SIZE_LONG;
             bx_latch       = 1'b1;
         end
         16'b10110011????0111: begin  // SDLL_OP
-            upc_entry      = 11'h58D;
+            upc_entry      = 12'h783;
             size_latch     = SIZE_LONG;
             bx_latch       = 1'b1;
         end
         16'b10110001????0000: begin  // EXTSB_OP
-            upc_entry      = 11'h5A2;
+            upc_entry      = 12'h7C0;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b10110001????1010: begin  // EXTS_OP
-            upc_entry      = 11'h5A4;
+            upc_entry      = 12'h7C2;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b10110001????0111: begin  // EXTSL_OP
-            upc_entry      = 11'h5A6;
+            upc_entry      = 12'h7C4;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
         end
         16'b10110000????0000: begin  // DAB_OP
-            upc_entry      = 11'h5A9;
+            upc_entry      = 12'h7C7;
             size_latch     = SIZE_BYTE;
         end
         16'b10111110????????: begin  // RLDB_OP
-            upc_entry      = 11'h5AB;
+            upc_entry      = 12'h7C9;
             size_latch     = SIZE_BYTE;
         end
         16'b10111100????????: begin  // RRDB_OP
-            upc_entry      = 11'h5AF;
+            upc_entry      = 12'h7CD;
             size_latch     = SIZE_BYTE;
         end
         16'b10100111????????: begin  // BIT_R
-            upc_entry      = 11'h5B2;
+            upc_entry      = 12'h7D0;
             size_latch     = SIZE_WORD;
         end
         16'b001001110000????: begin  // BIT_RR
-            upc_entry      = 11'h5C4;
+            upc_entry      = 12'h7E2;
             size_latch     = SIZE_WORD;
             bx_latch       = 1'b1;
         end
         16'b00100111????????: begin  // BIT_IR
-            upc_entry      = 11'h61E;
+            upc_entry      = 12'h83C;
             size_latch     = SIZE_WORD;
         end
         16'b011001110000????: begin  // BIT_DA
-            upc_entry      = 11'h622;
+            upc_entry      = 12'h840;
             size_latch     = SIZE_WORD;
         end
         16'b01100111????????: begin  // BIT_X
-            upc_entry      = 11'h629;
+            upc_entry      = 12'h847;
             size_latch     = SIZE_WORD;
         end
         16'b10100110????????: begin  // BITB_R
-            upc_entry      = 11'h5B4;
+            upc_entry      = 12'h7D2;
             size_latch     = SIZE_BYTE;
         end
         16'b001001100000????: begin  // BITB_RR
-            upc_entry      = 11'h5D2;
+            upc_entry      = 12'h7F0;
             size_latch     = SIZE_BYTE;
             bx_latch       = 1'b1;
             bx_byte_dest   = 1'b1;
         end
         16'b00100110????????: begin  // BITB_IR
-            upc_entry      = 11'h61E;
+            upc_entry      = 12'h83C;
             size_latch     = SIZE_BYTE;
         end
         16'b011001100000????: begin  // BITB_DA
-            upc_entry      = 11'h622;
+            upc_entry      = 12'h840;
             size_latch     = SIZE_BYTE;
         end
         16'b01100110????????: begin  // BITB_X
-            upc_entry      = 11'h629;
+            upc_entry      = 12'h847;
             size_latch     = SIZE_BYTE;
         end
         16'b10100101????????: begin  // SET_R
-            upc_entry      = 11'h5B6;
+            upc_entry      = 12'h7D4;
             size_latch     = SIZE_WORD;
         end
         16'b001001010000????: begin  // SET_RR
-            upc_entry      = 11'h5E0;
+            upc_entry      = 12'h7FE;
             size_latch     = SIZE_WORD;
             bx_latch       = 1'b1;
         end
         16'b00100101????????: begin  // SET_IR
-            upc_entry      = 11'h630;
+            upc_entry      = 12'h84E;
             size_latch     = SIZE_WORD;
         end
         16'b011001010000????: begin  // SET_DA
-            upc_entry      = 11'h635;
+            upc_entry      = 12'h853;
             size_latch     = SIZE_WORD;
         end
         16'b01100101????????: begin  // SET_X
-            upc_entry      = 11'h63F;
+            upc_entry      = 12'h85D;
             size_latch     = SIZE_WORD;
         end
         16'b10100100????????: begin  // SETB_R
-            upc_entry      = 11'h5B8;
+            upc_entry      = 12'h7D6;
             size_latch     = SIZE_BYTE;
         end
         16'b001001000000????: begin  // SETB_RR
-            upc_entry      = 11'h5EE;
+            upc_entry      = 12'h80C;
             size_latch     = SIZE_BYTE;
             bx_latch       = 1'b1;
             bx_byte_dest   = 1'b1;
         end
         16'b00100100????????: begin  // SETB_IR
-            upc_entry      = 11'h630;
+            upc_entry      = 12'h84E;
             size_latch     = SIZE_BYTE;
         end
         16'b011001000000????: begin  // SETB_DA
-            upc_entry      = 11'h635;
+            upc_entry      = 12'h853;
             size_latch     = SIZE_BYTE;
         end
         16'b01100100????????: begin  // SETB_X
-            upc_entry      = 11'h63F;
+            upc_entry      = 12'h85D;
             size_latch     = SIZE_BYTE;
         end
         16'b10100011????????: begin  // RES_R
-            upc_entry      = 11'h5BA;
+            upc_entry      = 12'h7D8;
             size_latch     = SIZE_WORD;
         end
         16'b001000110000????: begin  // RES_RR
-            upc_entry      = 11'h5FC;
+            upc_entry      = 12'h81A;
             size_latch     = SIZE_WORD;
             bx_latch       = 1'b1;
         end
         16'b00100011????????: begin  // RES_IR
-            upc_entry      = 11'h649;
+            upc_entry      = 12'h867;
             size_latch     = SIZE_WORD;
         end
         16'b011000110000????: begin  // RES_DA
-            upc_entry      = 11'h651;
+            upc_entry      = 12'h86F;
             size_latch     = SIZE_WORD;
         end
         16'b01100011????????: begin  // RES_X
-            upc_entry      = 11'h65E;
+            upc_entry      = 12'h87C;
             size_latch     = SIZE_WORD;
         end
         16'b10100010????????: begin  // RESB_R
-            upc_entry      = 11'h5BF;
+            upc_entry      = 12'h7DD;
             size_latch     = SIZE_BYTE;
         end
         16'b001000100000????: begin  // RESB_RR
-            upc_entry      = 11'h60D;
+            upc_entry      = 12'h82B;
             size_latch     = SIZE_BYTE;
             bx_latch       = 1'b1;
             bx_byte_dest   = 1'b1;
         end
         16'b00100010????????: begin  // RESB_IR
-            upc_entry      = 11'h649;
+            upc_entry      = 12'h867;
             size_latch     = SIZE_BYTE;
         end
         16'b011000100000????: begin  // RESB_DA
-            upc_entry      = 11'h651;
+            upc_entry      = 12'h86F;
             size_latch     = SIZE_BYTE;
         end
         16'b01100010????????: begin  // RESB_X
-            upc_entry      = 11'h65E;
+            upc_entry      = 12'h87C;
             size_latch     = SIZE_BYTE;
         end
         16'b00011110????????: begin  // JP_IR
-            upc_entry      = 11'h203;
+            upc_entry      = 12'h29C;
         end
         16'b010111100000????: begin  // JP_DA
-            upc_entry      = 11'h206;
+            upc_entry      = 12'h29F;
         end
         16'b01011110????????: begin  // JP_X
-            upc_entry      = 11'h20C;
+            upc_entry      = 12'h2A5;
         end
         16'b1110????????????: begin  // JR_OP
-            upc_entry      = 11'h214;
+            upc_entry      = 12'h2AD;
         end
         16'b00011111????0000: begin  // CALL_IR
-            upc_entry      = 11'h49A;
+            upc_entry      = 12'h67F;
         end
         16'b0101111100000000: begin  // CALL_DA
-            upc_entry      = 11'h4AB;
+            upc_entry      = 12'h690;
         end
         16'b01011111????0000: begin  // CALL_X
-            upc_entry      = 11'h4BF;
+            upc_entry      = 12'h6A4;
         end
         16'b1101????????????: begin  // CALR_OP
-            upc_entry      = 11'h4D3;
+            upc_entry      = 12'h6B8;
         end
         16'b100111100000????: begin  // RET_OP
-            upc_entry      = 11'h486;
+            upc_entry      = 12'h66B;
         end
         16'b10010011????????: begin  // PUSH_OP
-            upc_entry      = 11'h3BD;
+            upc_entry      = 12'h5A2;
         end
         16'b00001101????1001: begin  // PUSH_IM
-            upc_entry      = 11'h3D7;
+            upc_entry      = 12'h5BC;
         end
         16'b00010011????????: begin  // PUSH_IR
-            upc_entry      = 11'h3E0;
+            upc_entry      = 12'h5C5;
         end
         16'b01010011????0000: begin  // PUSH_DA
-            upc_entry      = 11'h3E8;
+            upc_entry      = 12'h5CD;
         end
         16'b01010011????????: begin  // PUSH_X
-            upc_entry      = 11'h3F4;
+            upc_entry      = 12'h5D9;
         end
         16'b10010001????????: begin  // PUSHL_OP
-            upc_entry      = 11'h3C7;
+            upc_entry      = 12'h5AC;
         end
         16'b00010001????????: begin  // PUSHL_IR
-            upc_entry      = 11'h400;
+            upc_entry      = 12'h5E5;
         end
         16'b01010001????0000: begin  // PUSHL_DA
-            upc_entry      = 11'h40E;
+            upc_entry      = 12'h5F3;
         end
         16'b01010001????????: begin  // PUSHL_X
-            upc_entry      = 11'h420;
+            upc_entry      = 12'h605;
         end
         16'b10010111????????: begin  // POP_OP
-            upc_entry      = 11'h3C2;
+            upc_entry      = 12'h5A7;
         end
         16'b00010111????????: begin  // POP_IR
-            upc_entry      = 11'h432;
+            upc_entry      = 12'h617;
         end
         16'b01010111????0000: begin  // POP_DA
-            upc_entry      = 11'h43A;
+            upc_entry      = 12'h61F;
         end
         16'b01010111????????: begin  // POP_X
-            upc_entry      = 11'h446;
+            upc_entry      = 12'h62B;
         end
         16'b10010101????????: begin  // POPL_OP
-            upc_entry      = 11'h3CF;
+            upc_entry      = 12'h5B4;
         end
         16'b00010101????????: begin  // POPL_IR
-            upc_entry      = 11'h452;
+            upc_entry      = 12'h637;
         end
         16'b01010101????0000: begin  // POPL_DA
-            upc_entry      = 11'h460;
+            upc_entry      = 12'h645;
         end
         16'b01010101????????: begin  // POPL_X
-            upc_entry      = 11'h473;
+            upc_entry      = 12'h658;
         end
         16'b1000110100000111: begin  // NOP_OP
-            upc_entry      = 11'h4E3;
+            upc_entry      = 12'h6C8;
         end
         16'b10001101????0001: begin  // SETFLG_OP
-            upc_entry      = 11'h4E4;
+            upc_entry      = 12'h6C9;
         end
         16'b10001101????0011: begin  // RESFLG_OP
-            upc_entry      = 11'h4E6;
+            upc_entry      = 12'h6CB;
         end
         16'b10001101????0101: begin  // COMFLG_OP
-            upc_entry      = 11'h4E9;
+            upc_entry      = 12'h6CE;
         end
         16'b0111101000000000: begin  // HALT_OP
-            upc_entry      = 11'h4EB;
+            upc_entry      = 12'h6D0;
+            priv_flag      = 1'b1;
+        end
+        16'b0111101100000000: begin  // IRET_OP
+            upc_entry      = 12'h6D1;
             priv_flag      = 1'b1;
         end
         16'b01111101????1101: begin  // LDCTL_PSAP_W
-            upc_entry      = 11'h4EC;
+            upc_entry      = 12'h6DA;
             priv_flag      = 1'b1;
         end
         16'b01111101????1010: begin  // LDCTL_FCW_W
-            upc_entry      = 11'h4F1;
+            upc_entry      = 12'h6DF;
             priv_flag      = 1'b1;
         end
         16'b01111101????1111: begin  // LDCTL_NSP_W
-            upc_entry      = 11'h4F5;
+            upc_entry      = 12'h6E3;
+            priv_flag      = 1'b1;
+        end
+        16'b01111101????1011: begin  // LDCTL_REFR_W
+            upc_entry      = 12'h6E6;
             priv_flag      = 1'b1;
         end
         16'b01111101????0101: begin  // LDCTL_PSAP_R
-            upc_entry      = 11'h4EE;
+            upc_entry      = 12'h6DC;
             priv_flag      = 1'b1;
         end
         16'b01111101????0010: begin  // LDCTL_FCW_R
-            upc_entry      = 11'h4F3;
+            upc_entry      = 12'h6E1;
             priv_flag      = 1'b1;
         end
         16'b01111101????0111: begin  // LDCTL_NSP_R
-            upc_entry      = 11'h4F6;
+            upc_entry      = 12'h6E4;
             priv_flag      = 1'b1;
         end
+        16'b01111101????0011: begin  // LDCTL_REFR_R
+            upc_entry      = 12'h6E7;
+            priv_flag      = 1'b1;
+        end
+        16'b10001100????0001: begin  // LDCTLB_R
+            upc_entry      = 12'h6E9;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+        end
+        16'b10001100????1001: begin  // LDCTLB_W
+            upc_entry      = 12'h6EB;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+        end
+        16'b01111111????????: begin  // SC_OP
+            upc_entry      = 12'h6ED;
+        end
         16'b01111100000000??: begin  // DI_OP
-            upc_entry      = 11'h4F8;
+            upc_entry      = 12'h6EE;
             priv_flag      = 1'b1;
         end
         16'b01111100000001??: begin  // EI_OP
-            upc_entry      = 11'h4FB;
+            upc_entry      = 12'h6F1;
             priv_flag      = 1'b1;
         end
         16'b00111001????0000: begin  // LDPS_IR
-            upc_entry      = 11'h4FD;
+            upc_entry      = 12'h6F3;
             priv_flag      = 1'b1;
         end
         16'b0111100100000000: begin  // LDPS_DA
-            upc_entry      = 11'h504;
+            upc_entry      = 12'h6FA;
             priv_flag      = 1'b1;
         end
         16'b01111001????0000: begin  // LDPS_X
-            upc_entry      = 11'h50F;
+            upc_entry      = 12'h705;
             priv_flag      = 1'b1;
         end
         16'b1111????1???????: begin  // DJNZ_OP
-            upc_entry      = 11'h218;
+            upc_entry      = 12'h2B1;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
         end
         16'b1111????0???????: begin  // DBJNZ_OP
-            upc_entry      = 11'h218;
+            upc_entry      = 12'h2B1;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
         end
         16'b10111011????0001: begin  // LDI_OP
-            upc_entry      = 11'h21D;
+            upc_entry      = 12'h2B6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
             block_latch    = 1'b1;
         end
         16'b10111010????0001: begin  // LDIB_OP
-            upc_entry      = 11'h22F;
+            upc_entry      = 12'h2C8;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
             block_latch    = 1'b1;
         end
         16'b10111011????1001: begin  // LDD_OP
-            upc_entry      = 11'h21D;
+            upc_entry      = 12'h2B6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
             block_latch    = 1'b1;
         end
         16'b10111010????1001: begin  // LDDB_OP
-            upc_entry      = 11'h22F;
+            upc_entry      = 12'h2C8;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC
             block_latch    = 1'b1;
         end
         16'b10111011????0100: begin  // CPIR_OP
-            upc_entry      = 11'h255;
+            upc_entry      = 12'h2EE;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
@@ -1504,7 +1735,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b10111010????0100: begin  // CPIRB_OP
-            upc_entry      = 11'h269;
+            upc_entry      = 12'h302;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
@@ -1512,7 +1743,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b10111011????1100: begin  // CPDR_OP
-            upc_entry      = 11'h255;
+            upc_entry      = 12'h2EE;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
@@ -1520,7 +1751,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b10111010????1100: begin  // CPDRB_OP
-            upc_entry      = 11'h269;
+            upc_entry      = 12'h302;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC
@@ -1528,35 +1759,35 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b10111011????0000: begin  // CPI_OP
-            upc_entry      = 11'h241;
+            upc_entry      = 12'h2DA;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
             block_cp_latch = 1'b1;
         end
         16'b10111010????0000: begin  // CPIB_OP
-            upc_entry      = 11'h24B;
+            upc_entry      = 12'h2E4;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
             block_cp_latch = 1'b1;
         end
         16'b10111011????1000: begin  // CPD_OP
-            upc_entry      = 11'h241;
+            upc_entry      = 12'h2DA;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
             block_cp_latch = 1'b1;
         end
         16'b10111010????1000: begin  // CPDB_OP
-            upc_entry      = 11'h24B;
+            upc_entry      = 12'h2E4;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC
             block_cp_latch = 1'b1;
         end
         16'b10111011????0110: begin  // CPSIR_OP
-            upc_entry      = 11'h297;
+            upc_entry      = 12'h330;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
@@ -1564,7 +1795,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b10111010????0110: begin  // CPSIRB_OP
-            upc_entry      = 11'h2AE;
+            upc_entry      = 12'h347;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
@@ -1572,7 +1803,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b10111011????1110: begin  // CPSDR_OP
-            upc_entry      = 11'h297;
+            upc_entry      = 12'h330;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
@@ -1580,7 +1811,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b10111010????1110: begin  // CPSDRB_OP
-            upc_entry      = 11'h2AE;
+            upc_entry      = 12'h347;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC
@@ -1588,107 +1819,167 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b10111011????0010: begin  // CPSI_OP
-            upc_entry      = 11'h27D;
+            upc_entry      = 12'h316;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
             block_cp_latch = 1'b1;
         end
         16'b10111010????0010: begin  // CPSIB_OP
-            upc_entry      = 11'h28A;
+            upc_entry      = 12'h323;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
             block_cp_latch = 1'b1;
         end
         16'b10111011????1010: begin  // CPSD_OP
-            upc_entry      = 11'h27D;
+            upc_entry      = 12'h316;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
             block_cp_latch = 1'b1;
         end
         16'b10111010????1010: begin  // CPSDB_OP
-            upc_entry      = 11'h28A;
+            upc_entry      = 12'h323;
             op_latch       = 5'd5;  // SUB
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC
             block_cp_latch = 1'b1;
         end
+        16'b10111000????0000: begin  // TRIB_OP
+            upc_entry      = 12'h35E;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+            dir_latch      = 1'b0;  // INC
+            block_cp_latch = 1'b1;
+        end
+        16'b10111000????0100: begin  // TRIRB_OP
+            upc_entry      = 12'h380;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+            dir_latch      = 1'b0;  // INC
+            rep_latch      = 1'b1;
+            block_cp_latch = 1'b1;
+        end
+        16'b10111000????1000: begin  // TRDB_OP
+            upc_entry      = 12'h36F;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+            dir_latch      = 1'b1;  // DEC
+            block_cp_latch = 1'b1;
+        end
+        16'b10111000????1100: begin  // TRDRB_OP
+            upc_entry      = 12'h394;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+            dir_latch      = 1'b1;  // DEC
+            rep_latch      = 1'b1;
+            block_cp_latch = 1'b1;
+        end
+        16'b10111000????0010: begin  // TRTIB_OP
+            upc_entry      = 12'h3A8;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+            dir_latch      = 1'b0;  // INC
+            block_cp_latch = 1'b1;
+        end
+        16'b10111000????0110: begin  // TRTIRB_OP
+            upc_entry      = 12'h3C4;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+            dir_latch      = 1'b0;  // INC
+            rep_latch      = 1'b1;
+            block_cp_latch = 1'b1;
+        end
+        16'b10111000????1010: begin  // TRTDB_OP
+            upc_entry      = 12'h3B6;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+            dir_latch      = 1'b1;  // DEC
+            block_cp_latch = 1'b1;
+        end
+        16'b10111000????1110: begin  // TRTDRB_OP
+            upc_entry      = 12'h3D8;
+            op_latch       = 5'd1;  // MOVE
+            size_latch     = SIZE_BYTE;
+            dir_latch      = 1'b1;  // DEC
+            rep_latch      = 1'b1;
+            block_cp_latch = 1'b1;
+        end
         16'b00111101????????: begin  // IN_IR
-            upc_entry      = 11'h66B;
+            upc_entry      = 12'h889;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             priv_flag      = 1'b1;
         end
         16'b00111100????????: begin  // INB_IR
-            upc_entry      = 11'h66B;
+            upc_entry      = 12'h889;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             priv_flag      = 1'b1;
         end
         16'b00111111????????: begin  // OUT_IR
-            upc_entry      = 11'h670;
+            upc_entry      = 12'h88E;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             priv_flag      = 1'b1;
         end
         16'b00111110????????: begin  // OUTB_IR
-            upc_entry      = 11'h670;
+            upc_entry      = 12'h88E;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             priv_flag      = 1'b1;
         end
         16'b00111011????0100: begin  // IN_DA
-            upc_entry      = 11'h674;
+            upc_entry      = 12'h892;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             priv_flag      = 1'b1;
         end
         16'b00111010????0100: begin  // INB_DA
-            upc_entry      = 11'h674;
+            upc_entry      = 12'h892;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             priv_flag      = 1'b1;
         end
         16'b00111011????0110: begin  // OUT_DA
-            upc_entry      = 11'h67C;
+            upc_entry      = 12'h89A;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             priv_flag      = 1'b1;
         end
         16'b00111010????0110: begin  // OUTB_DA
-            upc_entry      = 11'h67C;
+            upc_entry      = 12'h89A;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             priv_flag      = 1'b1;
         end
         16'b00111011????0101: begin  // SIN_DA
-            upc_entry      = 11'h683;
+            upc_entry      = 12'h8A1;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             priv_flag      = 1'b1;
         end
         16'b00111010????0101: begin  // SINB_DA
-            upc_entry      = 11'h683;
+            upc_entry      = 12'h8A1;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             priv_flag      = 1'b1;
         end
         16'b00111011????0111: begin  // SOUT_DA
-            upc_entry      = 11'h68B;
+            upc_entry      = 12'h8A9;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             priv_flag      = 1'b1;
         end
         16'b00111010????0111: begin  // SOUTB_DA
-            upc_entry      = 11'h68B;
+            upc_entry      = 12'h8A9;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             priv_flag      = 1'b1;
         end
         16'b00111011????0000: begin  // INIR_OP
-            upc_entry      = 11'h692;
+            upc_entry      = 12'h8B0;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
@@ -1696,7 +1987,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111010????0000: begin  // INIRB_OP
-            upc_entry      = 11'h692;
+            upc_entry      = 12'h8B0;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
@@ -1704,7 +1995,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111011????1000: begin  // INDR_OP
-            upc_entry      = 11'h692;
+            upc_entry      = 12'h8B0;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
@@ -1712,7 +2003,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111010????1000: begin  // INDRB_OP
-            upc_entry      = 11'h692;
+            upc_entry      = 12'h8B0;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC
@@ -1720,7 +2011,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111011????0010: begin  // OTIR_OP
-            upc_entry      = 11'h6A5;
+            upc_entry      = 12'h8C3;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
@@ -1728,7 +2019,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111010????0010: begin  // OTIRB_OP
-            upc_entry      = 11'h6A5;
+            upc_entry      = 12'h8C3;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
@@ -1736,7 +2027,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111011????1010: begin  // OTDR_OP
-            upc_entry      = 11'h6A5;
+            upc_entry      = 12'h8C3;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
@@ -1744,7 +2035,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111010????1010: begin  // OTDRB_OP
-            upc_entry      = 11'h6A5;
+            upc_entry      = 12'h8C3;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC
@@ -1752,7 +2043,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111011????0001: begin  // SINIR_OP
-            upc_entry      = 11'h6B8;
+            upc_entry      = 12'h8D6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
@@ -1760,7 +2051,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111010????0001: begin  // SINIRB_OP
-            upc_entry      = 11'h6B8;
+            upc_entry      = 12'h8D6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
@@ -1768,7 +2059,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111011????1001: begin  // SINDR_OP
-            upc_entry      = 11'h6B8;
+            upc_entry      = 12'h8D6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
@@ -1776,7 +2067,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111010????1001: begin  // SINDRB_OP
-            upc_entry      = 11'h6B8;
+            upc_entry      = 12'h8D6;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC
@@ -1784,7 +2075,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111011????0011: begin  // SOTIR_OP
-            upc_entry      = 11'h6CB;
+            upc_entry      = 12'h8E9;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b0;  // INC
@@ -1792,7 +2083,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111010????0011: begin  // SOTIRB_OP
-            upc_entry      = 11'h6CB;
+            upc_entry      = 12'h8E9;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b0;  // INC
@@ -1800,7 +2091,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111011????1011: begin  // SOTDR_OP
-            upc_entry      = 11'h6CB;
+            upc_entry      = 12'h8E9;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_WORD;
             dir_latch      = 1'b1;  // DEC
@@ -1808,7 +2099,7 @@ always @(*) begin
             block_cp_latch = 1'b1;
         end
         16'b00111010????1011: begin  // SOTDRB_OP
-            upc_entry      = 11'h6CB;
+            upc_entry      = 12'h8E9;
             op_latch       = 5'd1;  // MOVE
             size_latch     = SIZE_BYTE;
             dir_latch      = 1'b1;  // DEC

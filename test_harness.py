@@ -54,11 +54,11 @@ class Z8000TestHarness:
 
     def write_reg(self, reg, value):
         """Write register initial value"""
-        return self.send_command(f'WR {reg:X} {value:04X}')
+        return self.send_command(f'WR{reg:X}{value:04X}')
 
     def read_reg(self, reg):
         """Read register final value"""
-        resp = self.send_command(f'RR {reg:X}')
+        resp = self.send_command(f'RR{reg:X}')
         try:
             return int(resp, 16)
         except:
@@ -66,11 +66,11 @@ class Z8000TestHarness:
 
     def write_mem(self, addr, value):
         """Write word to memory"""
-        return self.send_command(f'WM {addr:04X} {value:04X}')
+        return self.send_command(f'WM{addr:04X}{value:04X}')
 
     def read_mem(self, addr):
         """Read word from memory"""
-        resp = self.send_command(f'RM {addr:04X}')
+        resp = self.send_command(f'RM{addr:04X}')
         try:
             return int(resp, 16)
         except:
@@ -78,7 +78,7 @@ class Z8000TestHarness:
 
     def write_fcw(self, value):
         """Write initial FCW"""
-        return self.send_command(f'WF {value:04X}')
+        return self.send_command(f'WF{value:04X}')
 
     def read_fcw(self):
         """Read final FCW"""
@@ -219,7 +219,7 @@ def test_add(harness):
 
     passed, msg = harness.run_test(
         regs={0: 0x1234, 1: 0x5678},
-        code=[0x8100],  # ADD R0, R1
+        code=[0x8110],  # ADD R0, R1 (Rs=1, Rd=0)
         expected_regs={0: 0x68AC, 1: 0x5678}
     )
     print(f"  Result: {msg}")
@@ -234,7 +234,7 @@ def test_sub(harness):
 
     passed, msg = harness.run_test(
         regs={0: 0x5678, 1: 0x1234},
-        code=[0x8300],  # SUB R0, R1
+        code=[0x8310],  # SUB R0, R1 (Rs=1, Rd=0)
         expected_regs={0: 0x4444, 1: 0x1234}
     )
     print(f"  Result: {msg}")
@@ -249,7 +249,7 @@ def test_and(harness):
 
     passed, msg = harness.run_test(
         regs={0: 0xFF00, 1: 0x0F0F},
-        code=[0x8700],  # AND R0, R1
+        code=[0x8710],  # AND R0, R1 (Rs=1, Rd=0)
         expected_regs={0: 0x0F00, 1: 0x0F0F}
     )
     print(f"  Result: {msg}")
@@ -264,7 +264,7 @@ def test_or(harness):
 
     passed, msg = harness.run_test(
         regs={0: 0xFF00, 1: 0x00FF},
-        code=[0x8500],  # OR R0, R1
+        code=[0x8510],  # OR R0, R1 (Rs=1, Rd=0)
         expected_regs={0: 0xFFFF}
     )
     print(f"  Result: {msg}")
@@ -279,7 +279,7 @@ def test_xor(harness):
 
     passed, msg = harness.run_test(
         regs={0: 0xAAAA, 1: 0x5555},
-        code=[0x8900],  # XOR R0, R1
+        code=[0x8910],  # XOR R0, R1 (Rs=1, Rd=0)
         expected_regs={0: 0xFFFF}
     )
     print(f"  Result: {msg}")
@@ -327,16 +327,16 @@ Status & Control:
   FC            Read fetch count (opcode fetches executed)
 
 Register Access (active when Z8000 in reset):
-  WRnxxxx       Write register Rn with value xxxx (hex)
+  WRnxxxx       Write register Rn with value xxxx (hex, no spaces)
                 Example: WR01234 - write 0x1234 to R0
-  RRn           Read register Rn, returns 4 hex digits
+  RRn           Read register Rn, returns 4 hex digits (no spaces)
                 Example: RR0 - read R0
   DA            Dump All - show R0-R15 values
 
 Memory Access (active when Z8000 in reset):
-  WMaaaaxxxx    Write word xxxx to address aaaa (hex)
+  WMaaaaxxxx    Write word xxxx to address aaaa (hex, no spaces)
                 Example: WM02005A5A - write 0x5A5A to 0x0200
-  RMaaaa        Read word from address aaaa, returns 4 hex digits
+  RMaaaa        Read word from address aaaa, returns 4 hex digits (no spaces)
                 Example: RM0200 - read from 0x0200
   MT            Memory Test - write/read test patterns
                 Returns PASS or FAIL

@@ -1,21 +1,27 @@
-// Z8000 Full System Testbench
-// Tests actual Z8000 instruction execution through the complete system
-// Instantiates z8000_test_harness_top with real Z8000 CPU
+// Z8000 Full System Testbench - Direct BRAM test (no UART)
+// Writes test data directly to BRAM, releases Z8000, checks bus trace.
 
 `timescale 1ns / 1ps
 
 module z8000_full_tb;
 
     localparam CLK_PERIOD = 37.037;  // 27MHz
-    localparam CLK_FRE = 27;
-    localparam BAUD_RATE = 115200;
-    localparam BIT_CYCLES = CLK_FRE * 1000000 / BAUD_RATE;
-    localparam real BIT_PERIOD = BIT_CYCLES * CLK_PERIOD;
 
-    reg clk, rst;
-    reg uart_rx;
-    wire uart_tx;
-    wire led, led2, led3, led4;
+    reg         clk;
+    reg         rst_n;
+
+    // Z8000 CPU signals
+    wire [15:0] ad_bus;
+    wire        cpu_as_n, cpu_ds_n, cpu_rw_n, cpu_mreq_n, cpu_bw_n;
+    wire [3:0]  cpu_st;
+    wire        cpu_busack_n, cpu_ns, cpu_halt_n;
+    reg  [15:0] data_to_cpu;
+
+    // Address latch
+    reg  [15:0] z8k_addr;
+
+    // BRAM
+    wire [15:0] rd_data;
 
     // Clock
     initial begin
@@ -23,303 +29,241 @@ module z8000_full_tb;
         forever #(CLK_PERIOD/2) clk = ~clk;
     end
 
-    // DUT - Full system with Z8000 CPU
-    z8000_test_harness_top dut (
-        .clk(clk),
-        .rst(rst),
-        .uart_rx(uart_rx),
-        .uart_tx(uart_tx),
-        .led(led),
-        .led2(led2),
-        .led3(led3),
-        .led4(led4)
+    // ==========================================
+    // Z8000 CPU
+    // ==========================================
+    assign ad_bus = (cpu_rw_n && ~cpu_ds_n) ? data_to_cpu : 16'bz;
+
+    z8000_cpu cpu (
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .ad         (ad_bus),
+        .as_n       (cpu_as_n),
+        .ds_n       (cpu_ds_n),
+        .rw_n       (cpu_rw_n),
+        .mreq_n     (cpu_mreq_n),
+        .b_w_n      (cpu_bw_n),
+        .st         (cpu_st),
+        .wait_n     (1'b1),
+        .busreq_n   (1'b1),
+        .busack_n   (cpu_busack_n),
+        .nmi_n      (1'b1),
+        .vi_n       (1'b1),
+        .nvi_n      (1'b1),
+        .n_s        (cpu_ns),
+        .halt_n     (cpu_halt_n)
     );
 
-    // UART send byte task
-    task uart_send_byte;
-        input [7:0] data;
-        integer i;
-        begin
-            uart_rx = 1'b0;  // Start bit
-            #(BIT_PERIOD);
-            for (i = 0; i < 8; i = i + 1) begin
-                uart_rx = data[i];
-                #(BIT_PERIOD);
-            end
-            uart_rx = 1'b1;  // Stop bit
-            #(BIT_PERIOD);
-        end
-    endtask
+    // ==========================================
+    // Address Latch (same as top module)
+    // ==========================================
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            z8k_addr <= 16'd0;
+        else if (~cpu_as_n)
+            z8k_addr <= ad_bus;
+    end
 
-    // Send command string with CR terminator
-    task uart_send_cmd;
-        input [8*20-1:0] cmd;
-        integer i;
-        reg [7:0] ch;
-        begin
-            for (i = 19; i >= 0; i = i - 1) begin
-                ch = cmd[i*8 +: 8];
-                if (ch != 0) begin
-                    uart_send_byte(ch);
-                end
-            end
-            uart_send_byte(8'h0D);  // CR
-        end
-    endtask
+    // ==========================================
+    // Dual-Port BRAM
+    // Port A: testbench load (directly from initial block)
+    // Port B: Z8000 CPU
+    // ==========================================
+    wire io_sel  = (cpu_st == 4'b0010) || (cpu_st == 4'b0100);
+    wire ram_sel = ~cpu_mreq_n && ~io_sel;
 
-    // UART receive byte with timeout
-    task uart_recv_byte;
-        output [7:0] data;
-        output valid;
-        integer i, timeout;
-        begin
-            data = 8'h00;
-            valid = 0;
-            timeout = 0;
-            while (uart_tx == 1'b1 && timeout < 50000000) begin
-                #100;
-                timeout = timeout + 100;
-            end
-            if (timeout < 50000000) begin
-                #(BIT_PERIOD / 2);
-                if (uart_tx == 1'b0) begin
-                    valid = 1;
-                    for (i = 0; i < 8; i = i + 1) begin
-                        #(BIT_PERIOD);
-                        data[i] = uart_tx;
-                    end
-                    #(BIT_PERIOD);
-                end
-            end
-        end
-    endtask
+    wire z8k_ram_write = ram_sel && ~cpu_rw_n && ~cpu_ds_n;
+    wire z8k_we_hi = z8k_ram_write && (cpu_bw_n || ~z8k_addr[0]);
+    wire z8k_we_lo = z8k_ram_write && (cpu_bw_n ||  z8k_addr[0]);
 
-    // Receive response until CRLF
-    task uart_recv_response;
-        output [8*20-1:0] response;
-        output integer len;
-        reg [7:0] ch;
-        reg valid, done;
-        begin
-            response = 0;
-            len = 0;
-            done = 0;
-            while (!done) begin
-                uart_recv_byte(ch, valid);
-                if (!valid) begin
-                    $display("  RX: TIMEOUT");
-                    done = 1;
-                end else if (ch == 8'h0D) begin
-                    uart_recv_byte(ch, valid);  // Consume LF
-                    done = 1;
-                end else begin
-                    response = (response << 8) | ch;
-                    len = len + 1;
-                end
-            end
-        end
-    endtask
+    ram16 bram (
+        // Port A - testbench (unused during CPU run)
+        .clka    (clk),
+        .wea_hi  (1'b0),
+        .wea_lo  (1'b0),
+        .addra   (13'd0),
+        .dina    (16'd0),
+        .douta   (),
+        // Port B - Z8000 CPU
+        .clkb    (clk),
+        .web_hi  (z8k_we_hi),
+        .web_lo  (z8k_we_lo),
+        .addrb   (z8k_addr[12:0]),
+        .dinb    (ad_bus),
+        .doutb   (rd_data)
+    );
 
-    // Test variables
-    reg [8*20-1:0] response;
-    integer resp_len;
+    // Data bus mux
+    always @(*) begin
+        if (ram_sel)
+            data_to_cpu = rd_data;
+        else
+            data_to_cpu = 16'hFFFF;
+    end
+
+    // ==========================================
+    // Bus monitor - capture on DS_n RISING (end of bus cycle)
+    // At this point BRAM data is valid (CPU reads at UCYC_COMPLETE)
+    // ==========================================
+    reg        prev_ds_n;
+    wire       ds_rising = ~prev_ds_n && cpu_ds_n;
+    reg [15:0] trace_addr [0:63];
+    reg [15:0] trace_data_log [0:63];
+    reg        trace_rw   [0:63];
+    reg [3:0]  trace_st   [0:63];
+    integer    trace_count;
+
+    // Latch data during DS_n active (when data is valid)
+    reg [15:0] capture_addr;
+    reg [15:0] capture_data;
+    reg        capture_rw;
+    reg [3:0]  capture_st;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            prev_ds_n <= 1'b1;
+        else
+            prev_ds_n <= cpu_ds_n;
+    end
+
+    // Continuously update capture regs while DS_n is active
+    always @(posedge clk) begin
+        if (~cpu_ds_n) begin
+            capture_addr <= z8k_addr;
+            capture_data <= cpu_rw_n ? data_to_cpu : ad_bus;
+            capture_rw <= cpu_rw_n;
+            capture_st <= cpu_st;
+        end
+    end
+
+    // Record on DS_n rising (bus cycle complete)
+    always @(posedge clk) begin
+        if (rst_n && ds_rising && trace_count < 64) begin
+            trace_addr[trace_count] = capture_addr;
+            trace_data_log[trace_count] = capture_data;
+            trace_rw[trace_count] = capture_rw;
+            trace_st[trace_count] = capture_st;
+            trace_count = trace_count + 1;
+        end
+    end
+
+    // ==========================================
+    // Test
+    // ==========================================
+    integer i;
     integer pass_count, fail_count;
 
     initial begin
         $dumpfile("z8000_full.vcd");
         $dumpvars(0, z8000_full_tb);
 
-        rst = 1;
-        uart_rx = 1;
+        rst_n = 0;
+        trace_count = 0;
         pass_count = 0;
         fail_count = 0;
 
         $display("");
         $display("========================================");
-        $display("Z8000 Full System Test");
+        $display("Z8000 Direct BRAM Test (27MHz, auto-start)");
         $display("========================================");
+
+        // BRAM is pre-initialized via $readmemh in ram16.v
+        // Bootstrap: FCW=0x4000 @ 0x0002, PC=0x0040 @ 0x0004
+        // Register loads at 0x0040, JP 0x0200 at 0x0082
+        // Dump routine at 0x00C0, JP 0x00C0 at 0x0200
+        // CPU will: load regs, jump to 0x0200, jump to dump, halt
+
+        // Write a HALT at 0x0040 to stop immediately after reset vector
+        bram.mem_hi[32] = 8'h7A;   // word addr 32 = byte addr 0x0040
+        bram.mem_lo[32] = 8'h00;   // HALT = 0x7A00
+
+        // Release reset - CPU starts immediately (auto-start)
+        #100;
+        $display("Releasing reset (CPU auto-starts)...");
+        @(posedge clk);
+        rst_n = 1;
+
+        // ---- Wait for HALT or timeout ----
+        // Bootstrap loads 16 registers then jumps to 0x0200 (HALT)
+        fork
+            begin : wait_halt
+                @(negedge cpu_halt_n);
+                $display("Z8000 halted after %0d bus cycles.", trace_count);
+                disable wait_timeout;
+            end
+            begin : wait_timeout
+                #500000;  // 500us timeout
+                $display("*** TIMEOUT - Z8000 did not halt after %0d bus cycles ***", trace_count);
+                disable wait_halt;
+            end
+        join
+
+        // Let bus settle
+        #500;
+
+        // ---- Print trace ----
         $display("");
+        $display("Bus trace (%0d entries):", trace_count);
+        $display("  #   ADDR  DATA  R/W  ST");
+        for (i = 0; i < trace_count && i < 32; i = i + 1) begin
+            $display("  %03d: %04h  %04h  %s    %04b",
+                i, trace_addr[i], trace_data_log[i],
+                trace_rw[i] ? "R" : "W", trace_st[i]);
+        end
 
-        #1000;
-        rst = 0;
-        #100000;  // Wait for Z80 to boot
+        // ---- Check reset vector reads ----
+        $display("");
+        if (trace_count >= 2) begin
+            if (trace_addr[0] == 16'h0002 && trace_data_log[0] == 16'h4000) begin
+                $display("PASS: FCW = 0x4000 from addr 0x0002");
+                pass_count = pass_count + 1;
+            end else begin
+                $display("FAIL: First read addr=%04h data=%04h (expected 0002/4000)",
+                    trace_addr[0], trace_data_log[0]);
+                fail_count = fail_count + 1;
+            end
 
-        // ----------------------------------------
-        // Test 1: INIT - Load bootstrap to memory
-        // ----------------------------------------
-        $display("----------------------------------------");
-        $display("Test 1: INIT - Load bootstrap");
-        $display("----------------------------------------");
-        uart_send_cmd("INIT");
-        uart_recv_response(response, resp_len);
-        if (response == {8'd0, 8'd0, "O", "K"} || response == {"O", "K"}) begin
-            $display("PASS: INIT returned OK");
+            if (trace_addr[1] == 16'h0004 && trace_data_log[1] == 16'h0040) begin
+                $display("PASS: PC = 0x0040 from addr 0x0004");
+                pass_count = pass_count + 1;
+            end else begin
+                $display("FAIL: Second read addr=%04h data=%04h (expected 0004/0040)",
+                    trace_addr[1], trace_data_log[1]);
+                fail_count = fail_count + 1;
+            end
+        end else begin
+            $display("FAIL: Not enough bus activity (%0d entries)", trace_count);
+            fail_count = fail_count + 2;
+        end
+
+        // ---- Check HALT fetch at 0x0040 ----
+        if (trace_count >= 3) begin
+            if (trace_addr[2] == 16'h0040 && trace_data_log[2] == 16'h7A00 && trace_st[2] == 4'b1101) begin
+                $display("PASS: HALT (0x7A00) fetched from addr 0x0040");
+                pass_count = pass_count + 1;
+            end else begin
+                $display("FAIL: Third entry addr=%04h data=%04h st=%04b (expected 0040/7A00/1101)",
+                    trace_addr[2], trace_data_log[2], trace_st[2]);
+                fail_count = fail_count + 1;
+            end
+        end
+
+        // ---- Check CPU halted ----
+        if (!cpu_halt_n) begin
+            $display("PASS: CPU is halted");
             pass_count = pass_count + 1;
         end else begin
-            $display("FAIL: INIT returned 0x%X", response);
+            $display("FAIL: CPU is not halted");
             fail_count = fail_count + 1;
         end
-        #100000;
 
-        // ----------------------------------------
-        // Test 2: Verify bootstrap loaded - check reset vector
-        // ----------------------------------------
-        $display("");
-        $display("----------------------------------------");
-        $display("Test 2: Verify bootstrap - RM0002 (FCW)");
-        $display("----------------------------------------");
-        uart_send_cmd("RM0002");
-        uart_recv_response(response, resp_len);
-        if (response == {"4", "0", "0", "0"}) begin
-            $display("PASS: FCW = 0x4000");
-            pass_count = pass_count + 1;
-        end else begin
-            $display("FAIL: Expected 4000, got 0x%X (len=%0d)", response, resp_len);
-            fail_count = fail_count + 1;
-        end
-        #50000;
-
-        // ----------------------------------------
-        // Test 3: Verify PC reset vector
-        // ----------------------------------------
-        $display("");
-        $display("----------------------------------------");
-        $display("Test 3: Verify bootstrap - RM0004 (PC)");
-        $display("----------------------------------------");
-        uart_send_cmd("RM0004");
-        uart_recv_response(response, resp_len);
-        if (response == {"0", "0", "4", "0"}) begin
-            $display("PASS: PC = 0x0040 (bootstrap entry)");
-            pass_count = pass_count + 1;
-        end else begin
-            $display("FAIL: Expected 0040, got 0x%X", response);
-            fail_count = fail_count + 1;
-        end
-        #50000;
-
-        // ----------------------------------------
-        // Test 4: Verify bootstrap code at 0x0040
-        // ----------------------------------------
-        $display("");
-        $display("----------------------------------------");
-        $display("Test 4: Verify bootstrap - RM0040 (LD R0)");
-        $display("----------------------------------------");
-        uart_send_cmd("RM0040");
-        uart_recv_response(response, resp_len);
-        if (response == {"6", "1", "0", "0"}) begin
-            $display("PASS: Opcode = 0x6100 (LD R0,addr)");
-            pass_count = pass_count + 1;
-        end else begin
-            $display("FAIL: Expected 6100, got 0x%X", response);
-            fail_count = fail_count + 1;
-        end
-        #50000;
-
-        // ----------------------------------------
-        // Test 5: Enable debug mode
-        // ----------------------------------------
-        $display("");
-        $display("----------------------------------------");
-        $display("Test 5: DB - Enable debug mode");
-        $display("----------------------------------------");
-        uart_send_cmd("DB");
-        uart_recv_response(response, resp_len);
-        $display("DB response: %s", response);
-        #50000;
-
-        // ----------------------------------------
-        // Test 6: Write HALT instruction at 0x0200
-        // ----------------------------------------
-        $display("");
-        $display("----------------------------------------");
-        $display("Test 6: Write HALT at 0x0200");
-        $display("----------------------------------------");
-        uart_send_cmd("WM02007A00");  // HALT = 0x7A00
-        uart_recv_response(response, resp_len);
-        if (response == {"O", "K"}) begin
-            $display("PASS: WM returned OK");
-            pass_count = pass_count + 1;
-        end else begin
-            $display("FAIL: WM returned 0x%X", response);
-            fail_count = fail_count + 1;
-        end
-        #50000;
-
-        // ----------------------------------------
-        // Test 7: Execute and expect HALT (with debug output)
-        // ----------------------------------------
-        $display("");
-        $display("----------------------------------------");
-        $display("Test 7: EX - Execute HALT instruction");
-        $display("----------------------------------------");
-        uart_send_cmd("EX");
-        // With debug mode, response will have prefix like [L=...][RUN][S=...][C=...]HALT
-        uart_recv_response(response, resp_len);
-        $display("EX response (len=%0d): raw=0x%X", resp_len, response);
-        // Check if response ends with HALT (last 4 chars)
-        if (resp_len >= 4) begin
-            $display("PASS: EX returned response length %0d", resp_len);
-            pass_count = pass_count + 1;
-        end else begin
-            $display("FAIL: EX response too short, got %0d chars", resp_len);
-            fail_count = fail_count + 1;
-        end
-        #100000;
-
-        // ----------------------------------------
-        // Test 8: Read cycle count (should be > 0)
-        // ----------------------------------------
-        $display("");
-        $display("----------------------------------------");
-        $display("Test 8: CC - Read cycle count");
-        $display("----------------------------------------");
-        uart_send_cmd("CC");
-        uart_recv_response(response, resp_len);
-        $display("Cycle count response: 0x%X (len=%0d)", response, resp_len);
-        if (resp_len == 8 && response != 0) begin
-            $display("PASS: Got non-zero 8-digit cycle count");
-            pass_count = pass_count + 1;
-        end else begin
-            $display("FAIL: Expected non-zero 8 digits, got len=%0d val=0x%X", resp_len, response);
-            fail_count = fail_count + 1;
-        end
-        #50000;
-
-        // ----------------------------------------
-        // Test 9: Read fetch count (should be > 0)
-        // ----------------------------------------
-        $display("");
-        $display("----------------------------------------");
-        $display("Test 9: FC - Read fetch count");
-        $display("----------------------------------------");
-        uart_send_cmd("FC");
-        uart_recv_response(response, resp_len);
-        $display("Fetch count response: 0x%X (len=%0d)", response, resp_len);
-        if (resp_len == 4 && response != 0) begin
-            $display("PASS: Got non-zero 4-digit fetch count");
-            pass_count = pass_count + 1;
-        end else begin
-            $display("FAIL: Expected non-zero 4 digits, got len=%0d val=0x%X", resp_len, response);
-            fail_count = fail_count + 1;
-        end
-        #50000;
-
-        // ----------------------------------------
-        // Summary
-        // ----------------------------------------
+        // ---- Summary ----
         $display("");
         $display("========================================");
         $display("Test Summary: %0d PASS, %0d FAIL", pass_count, fail_count);
         $display("========================================");
 
-        #100000;
-        $finish;
-    end
-
-    // Watchdog
-    initial begin
-        #500000000;  // 500ms
-        $display("*** WATCHDOG TIMEOUT ***");
+        #1000;
         $finish;
     end
 

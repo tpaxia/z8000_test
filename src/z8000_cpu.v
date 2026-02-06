@@ -28,7 +28,7 @@
 `timescale 1ns / 1ps
 
 // Include auto-generated microcode address definitions
-`include "uasm/output/ucode_defs.v"
+`include "ucode_defs.v"
 
 //=============================================================================
 // CPU Mode Configuration
@@ -113,7 +113,11 @@ module z8000_cpu (
     localparam [4:0] ALU_RRDB   = 5'd20;  // Rotate right digit byte (BCD) - new Rbd
     localparam [4:0] ALU_RLDB_SRC = 5'd21;  // RLDB source update - new Rbs
     localparam [4:0] ALU_RRDB_SRC = 5'd22;  // RRDB source update - new Rbs
-    
+    localparam [4:0] ALU_MUL      = 5'd23;  // Signed multiply, returns low 16 bits
+    localparam [4:0] ALU_MUL_HI   = 5'd24;  // Returns high 16 bits of last multiply
+    localparam [4:0] ALU_MULU     = 5'd25;  // Unsigned multiply, returns low 16 bits
+    localparam [4:0] ALU_MULU_HI  = 5'd26;  // Returns high 16 bits of last unsigned multiply
+
     // Source/Destination selects
     localparam [4:0] SEL_ZERO   = 5'd0;
     localparam [4:0] SEL_RS     = 5'd1;   // Rs - size-dependent (byte or word)
@@ -145,6 +149,8 @@ module z8000_cpu (
     localparam [4:0] SEL_RSL2   = 5'd27;  // Rs+2 (high word of low long for quad)
     localparam [4:0] SEL_INTMASK = 5'd28;   // IR[1:0] mask for DI/EI: IR[1]->bit11, IR[0]->bit12
     localparam [4:0] SEL_SINGLE_BIT = 5'd29; // TEMP2[3] for single vs repeat block I/O
+    localparam [4:0] SEL_RD2    = 5'd30;  // Rd+2 (for quad operations)
+    localparam [4:0] SEL_RD3    = 5'd31;  // Rd+3 (for quad operations)
 
     // Destination-only selects
     localparam [4:0] DST_NONE   = 5'd0;
@@ -152,6 +158,8 @@ module z8000_cpu (
     localparam [4:0] DST_PSAP   = 5'd15;  // PSAP register (also SEL_SIZE for source)
     localparam [4:0] DST_PTR_RS = 5'd16;  // @Rs - pointer dest (always word)
     localparam [4:0] DST_PTR_RD = 5'd17;  // @Rd - pointer dest (always word)
+    localparam [4:0] DST_LDM_INIT = 5'd18; // Initialize LDM: ldm_base=alu_out[3:0], ldm_counter=0
+    localparam [4:0] DST_LDM_INC = 5'd19;  // Increment ldm_counter
     localparam [4:0] DST_TRAP_NUM = 5'd23; // Trap number latch for PSA offset calculation
     localparam [4:0] DST_SP_SYS = 5'd24;   // System stack pointer (always R15_sys)
 
@@ -215,14 +223,14 @@ module z8000_cpu (
     localparam [1:0] UCYC_COMPLETE = 2'd3;  // Data complete - sample read data, release DS_n
 
     // FCW (Flags and Control Word) bit positions
-    // Bits 0-5: Condition flags
-    localparam FCW_C   = 0;   // Carry flag
-    localparam FCW_Z   = 1;   // Zero flag
-    localparam FCW_S   = 2;   // Sign flag (negative)
-    localparam FCW_V   = 3;   // Overflow flag (signed arithmetic)
-    localparam FCW_DA  = 4;   // Decimal adjust flag
-    localparam FCW_H   = 5;   // Half carry flag (BCD)
-    // Bits 6-10: Reserved
+    // Standard Z8000 flag layout (bits 7-2)
+    localparam FCW_C   = 7;   // Carry flag
+    localparam FCW_Z   = 6;   // Zero flag
+    localparam FCW_S   = 5;   // Sign flag (negative)
+    localparam FCW_V   = 4;   // Overflow flag (signed arithmetic)
+    localparam FCW_DA  = 3;   // Decimal adjust flag
+    localparam FCW_H   = 2;   // Half carry flag (BCD)
+    // Bits 1-0: Reserved
     // Bits 11-15: Control bits
     localparam FCW_VIE = 11;  // Vectored interrupt enable
     localparam FCW_NVIE= 12;  // Non-vectored interrupt enable
@@ -277,8 +285,8 @@ module z8000_cpu (
     reg [15:0] TEMP2;          // Temporary register 2
     
     // Microsequencer registers
-    reg [10:0] uPC;            // Microprogram counter (11-bit for 2048 entries)
-    reg [10:0] uPC_stack [0:3];// Microcode return stack
+    reg [11:0] uPC;            // Microprogram counter (12-bit for 4096 entries)
+    reg [11:0] uPC_stack [0:3];// Microcode return stack
     reg [1:0]  uSP;            // Microcode stack pointer
     reg [1:0]  ucycle;         // Bus cycle counter (0-3)
     
@@ -294,7 +302,10 @@ module z8000_cpu (
     reg        bx_byte_dest_latch;  // BX with byte destination (dynamic bit byte ops)
     reg        compact_ldb_latch; // Compact LDB: 8-bit immediate from IR[7:0]
     reg        ldk_latch;      // LDK: 4-bit immediate from IR[3:0]
-    
+    reg        ldm_latch;      // LDM: load/store multiple (dynamic register indexing)
+    reg  [3:0] ldm_base;       // LDM: base register number
+    reg  [3:0] ldm_counter;    // LDM: current register offset
+
     // Status
     reg        halted;
     reg        bus_granted;
@@ -303,7 +314,7 @@ module z8000_cpu (
     // MICROCODE ROM INSTANCE
     //=========================================================================
     
-    wire [47:0] uinst;  // 48-bit microinstruction (expanded for 5-bit selectors)
+    wire [48:0] uinst;  // 49-bit microinstruction (expanded for 12-bit branch)
 
     microcode_rom u_ucode (
         .upc(uPC),
@@ -314,7 +325,7 @@ module z8000_cpu (
     // DECODER ROM INSTANCE
     //=========================================================================
 
-    wire [10:0] decode_entry;
+    wire [11:0] decode_entry;
     wire [4:0]  decode_op;
     wire [1:0]  decode_size;
     wire        decode_dir;
@@ -326,6 +337,7 @@ module z8000_cpu (
     wire        decode_bx_byte_dest;
     wire        decode_compact_ldb;
     wire        decode_ldk;
+    wire        decode_ldm;
 
     decode_rom u_decode (
         .ir(IR),
@@ -340,7 +352,8 @@ module z8000_cpu (
         .bx_latch(decode_bx),
         .bx_byte_dest(decode_bx_byte_dest),
         .compact_ldb(decode_compact_ldb),
-        .ldk_flag(decode_ldk)
+        .ldk_flag(decode_ldk),
+        .ldm_flag(decode_ldm)
     );
     
     //=========================================================================
@@ -358,14 +371,14 @@ module z8000_cpu (
     //   [14:4]  BRANCH (11 bits)
     //   [3:2]   IMM    (2 bits)
     //   [1:0]   MISC   (2 bits)
-    wire [4:0] alu_op    = uinst[47:43];
-    wire [4:0] src_a_sel = uinst[42:38];
-    wire [4:0] src_b_sel = uinst[37:33];
-    wire [4:0] dst_sel   = uinst[32:28];
-    wire [2:0] next_ctrl = uinst[27:25];
-    wire [3:0] bus_op    = uinst[24:21];
-    wire [5:0] cond_sel  = uinst[20:15];
-    wire [10:0] branch_target = uinst[14:4];
+    wire [4:0] alu_op    = uinst[48:44];
+    wire [4:0] src_a_sel = uinst[43:39];
+    wire [4:0] src_b_sel = uinst[38:34];
+    wire [4:0] dst_sel   = uinst[33:29];
+    wire [2:0] next_ctrl = uinst[28:26];
+    wire [3:0] bus_op    = uinst[25:22];
+    wire [5:0] cond_sel  = uinst[21:16];
+    wire [11:0] branch_target = uinst[15:4];
     wire [1:0] imm_sel   = uinst[3:2];   // IMM: 00=0, 01=1, 10=2, 11=4
     wire [1:0] misc      = uinst[1:0];
 
@@ -373,9 +386,9 @@ module z8000_cpu (
     // Simple constants: 0, 1, 2, 4
     wire [15:0] bitmask = 16'h0001 << IR[3:0];  // For SEL_BITMASK source
     // SETFLG/RESFLG/COMFLG: IR[7:4] = CZSV mask
-    // FCW: bit 0=C, bit 1=Z, bit 2=S, bit 3=V
-    // Need to reverse: IR[7]->bit0, IR[6]->bit1, IR[5]->bit2, IR[4]->bit3
-    wire [15:0] flagmask = {12'h000, IR[4], IR[5], IR[6], IR[7]};
+    // Standard Z8000 FCW: bit 7=C, bit 6=Z, bit 5=S, bit 4=V
+    // IR[7:4] maps directly to FCW[7:4]
+    wire [15:0] flagmask = {8'h00, IR[7:4], 4'h0};
     wire [15:0] single_bit = {15'b0, TEMP2[3]};  // TEMP2[3] for single vs repeat block I/O
     // DI/EI interrupt mask: bits indicate which to SKIP, so invert
     // V=IR[1]: 0=affect VIE(bit11), N=IR[0]: 0=affect NVIE(bit12)
@@ -432,11 +445,16 @@ module z8000_cpu (
     wire [3:0] ir_rs_lo = ir_rs | 4'b0001;  // Rs+1 (low word of source pair)
     wire [3:0] ir_rd_lo = ir_rd | 4'b0001;  // Rd+1 (low word of dest pair)
     wire [3:0] ir_rs_lo2 = ir_rs | 4'b0010; // Rs+2 (high word of low long for quad)
+    wire [3:0] ir_rd_lo2 = ir_rd | 4'b0010; // Rd+2 (high word of low long for quad)
+    wire [3:0] ir_rd_lo3 = ir_rd | 4'b0011; // Rd+3 (low word of low long for quad)
+
+    // LDM dynamic register index: (ldm_base + ldm_counter) mod 16
+    wire [3:0] ldm_reg_idx = ldm_base + ldm_counter;
 
     // Trap handling detection
     // When uPC is in the trap handler range, SEL_SIZE returns PSAP instead of size
     // When uPC is in the trap handler range, SEL_SIZE returns PSAP instead of size
-    wire in_trap_handler = (uPC >= `UADDR_TRAP_ILLEGAL) && (uPC <= `UADDR_INT_ENTRY + 11'd32);
+    wire in_trap_handler = (uPC >= `UADDR_TRAP_ILLEGAL) && (uPC <= `UADDR_INT_ENTRY + 12'd32);
 
     // Privileged instruction violation detection
     // Triggers when a privileged instruction is decoded while in normal mode
@@ -473,7 +491,13 @@ module z8000_cpu (
 `endif
                                     R[ir_rs];
             // Rd - size-dependent: byte mode uses byte register, word mode uses word
-            SEL_RD:    src_a_data = (size_latch == SIZE_BYTE) ? {8'h00, rd_byte} :
+            // When ldm_latch is set, use dynamic register R[ldm_base + ldm_counter]
+            SEL_RD:    src_a_data = ldm_latch ? ((ldm_reg_idx == 4'd15) ? current_R15 :
+`ifdef Z8001_MODE
+                                                 (ldm_reg_idx == 4'd14) ? current_R14 :
+`endif
+                                                 R[ldm_reg_idx]) :
+                                    (size_latch == SIZE_BYTE) ? {8'h00, rd_byte} :
                                     (ir_rd == 4'd15) ? current_R15 :
 `ifdef Z8001_MODE
                                     (ir_rd == 4'd14) ? current_R14 :
@@ -536,6 +560,16 @@ module z8000_cpu (
                                     R[ir_rs_lo2];  // Rs+2 (high word of low long for quad)
             SEL_INTMASK: src_a_data = intmask;    // IR[1:0] for DI/EI interrupt mask
             SEL_SINGLE_BIT: src_a_data = single_bit; // TEMP2[3] for single vs repeat
+            SEL_RD2:   src_a_data = (ir_rd_lo2 == 4'd15) ? current_R15 :
+`ifdef Z8001_MODE
+                                    (ir_rd_lo2 == 4'd14) ? current_R14 :
+`endif
+                                    R[ir_rd_lo2];  // Rd+2 (for quad operations)
+            SEL_RD3:   src_a_data = (ir_rd_lo3 == 4'd15) ? current_R15 :
+`ifdef Z8001_MODE
+                                    (ir_rd_lo3 == 4'd14) ? current_R14 :
+`endif
+                                    R[ir_rd_lo3];  // Rd+3 (for quad operations)
             default:   src_a_data = 16'h0000;
         endcase
     end
@@ -553,7 +587,13 @@ module z8000_cpu (
 `endif
                                     R[ir_rs];
             // Rd - size-dependent: byte mode uses byte register, word mode uses word
-            SEL_RD:    src_b_data = (size_latch == SIZE_BYTE) ? {8'h00, rd_byte} :
+            // When ldm_latch is set, use dynamic register R[ldm_base + ldm_counter]
+            SEL_RD:    src_b_data = ldm_latch ? ((ldm_reg_idx == 4'd15) ? current_R15 :
+`ifdef Z8001_MODE
+                                                 (ldm_reg_idx == 4'd14) ? current_R14 :
+`endif
+                                                 R[ldm_reg_idx]) :
+                                    (size_latch == SIZE_BYTE) ? {8'h00, rd_byte} :
                                     (ir_rd == 4'd15) ? current_R15 :
 `ifdef Z8001_MODE
                                     (ir_rd == 4'd14) ? current_R14 :
@@ -616,6 +656,16 @@ module z8000_cpu (
                                     R[ir_rs_lo2];  // Rs+2 (high word of low long for quad)
             SEL_INTMASK: src_b_data = intmask;    // IR[1:0] for DI/EI interrupt mask
             SEL_SINGLE_BIT: src_b_data = single_bit; // TEMP2[3] for single vs repeat
+            SEL_RD2:   src_b_data = (ir_rd_lo2 == 4'd15) ? current_R15 :
+`ifdef Z8001_MODE
+                                    (ir_rd_lo2 == 4'd14) ? current_R14 :
+`endif
+                                    R[ir_rd_lo2];  // Rd+2 (for quad operations)
+            SEL_RD3:   src_b_data = (ir_rd_lo3 == 4'd15) ? current_R15 :
+`ifdef Z8001_MODE
+                                    (ir_rd_lo3 == 4'd14) ? current_R14 :
+`endif
+                                    R[ir_rd_lo3];  // Rd+3 (for quad operations)
             default:   src_b_data = 16'h0000;
         endcase
     end
@@ -631,6 +681,8 @@ module z8000_cpu (
     reg        alu_overflow;
     reg [7:0]  dab_tmp;     // Temporary for DAB operation
     reg        dab_c;       // Carry for DAB operation
+    reg [31:0] mul_result_reg;  // 32-bit result from multiply (sequential register)
+    wire [31:0] mul_result_comb; // Combinational multiply result
 
     // Select actual ALU operation (direct or latched)
     wire [4:0] actual_alu_op = (alu_op == ALU_LATCH) ? op_latch[4:0] : alu_op;
@@ -835,24 +887,67 @@ module z8000_cpu (
                 alu_carry = 1'b0;
             end
 
+            ALU_MUL: begin
+                // Signed 16x16 -> 32 multiply, return low 16 bits
+                // src_a and src_b are treated as signed 16-bit values
+                // mul_result_comb is computed below, use registered value for high word
+                alu_result = mul_result_comb[15:0];
+                alu_carry = 1'b0;
+                // Sign and zero flags handled in size-aware flags block below
+            end
+
+            ALU_MUL_HI: begin
+                // Return high 16 bits from last multiply (from registered result)
+                alu_result = mul_result_reg[31:16];
+                alu_carry = 1'b0;
+            end
+
+            ALU_MULU: begin
+                // Unsigned 16x16 -> 32 multiply, return low 16 bits
+                // mul_result_comb is computed below
+                alu_result = mul_result_comb[15:0];
+                alu_carry = 1'b0;
+            end
+
+            ALU_MULU_HI: begin
+                // Return high 16 bits from last unsigned multiply (from registered result)
+                alu_result = mul_result_reg[31:16];
+                alu_carry = 1'b0;
+            end
+
             default: alu_result = 16'h0000;
         endcase
-        
-        // Size-aware flags
-        case (size_latch)
-            SIZE_BYTE: begin
-                alu_zero = (alu_result[7:0] == 8'h00);
-                alu_sign = alu_result[7];
-            end
-            SIZE_WORD: begin
-                alu_zero = (alu_result == 16'h0000);
-                alu_sign = alu_result[15];
-            end
-            default: begin  // SIZE_LONG (flags from high word)
-                alu_zero = (alu_result == 16'h0000);
-                alu_sign = alu_result[15];
-            end
-        endcase
+    end
+
+    // Combinational multiply result computation
+    // Sign-extend to 32 bits for signed multiply, zero-extend for unsigned
+    assign mul_result_comb = (actual_alu_op == ALU_MUL) ?
+                             ({{16{src_a_data[15]}}, src_a_data} * {{16{src_b_data[15]}}, src_b_data}) :
+                             ({16'b0, src_a_data} * {16'b0, src_b_data});
+
+    // Size-aware flags computation (moved outside the case for clarity)
+    always @(*) begin
+        // MUL/MULU need special handling - 32-bit result flags
+        if (actual_alu_op == ALU_MUL || actual_alu_op == ALU_MULU) begin
+            alu_zero = (mul_result_comb == 32'h0);
+            alu_sign = mul_result_comb[31];
+        end else begin
+            // Size-aware flags for normal operations
+            case (size_latch)
+                SIZE_BYTE: begin
+                    alu_zero = (alu_result[7:0] == 8'h00);
+                    alu_sign = alu_result[7];
+                end
+                SIZE_WORD: begin
+                    alu_zero = (alu_result == 16'h0000);
+                    alu_sign = alu_result[15];
+                end
+                default: begin  // SIZE_LONG (flags from high word)
+                    alu_zero = (alu_result == 16'h0000);
+                    alu_sign = alu_result[15];
+                end
+            endcase
+        end
     end
     
     //=========================================================================
@@ -943,6 +1038,7 @@ module z8000_cpu (
             5'd20: ucond_true = FCW[FCW_SEG];     // SEG - segmented mode
             5'd21: ucond_true = ~FCW[FCW_SEG];    // NSEG - non-segmented mode
             5'd22: ucond_true = cc_result;    // CC_T2 - block compare condition (TEMP2[3:0])
+            5'd23: ucond_true = (ldm_counter > TEMP2[3:0]); // LDM_DONE - transferred n+1 registers
             // Interrupt conditions (active low inputs)
             5'd24: ucond_true = int_pending;      // INT - any enabled interrupt pending
             5'd25: ucond_true = ~nmi_n;           // NMI - non-maskable interrupt
@@ -1069,6 +1165,8 @@ module z8000_cpu (
             R14_nrm <= 16'h0000;
 `endif
 
+            mul_result_reg <= 32'h0;
+
             op_latch <= 5'd0;
             size_latch <= SIZE_WORD;
             dir_latch <= 1'b0;
@@ -1080,6 +1178,9 @@ module z8000_cpu (
             bx_byte_dest_latch <= 1'b0;
             compact_ldb_latch <= 1'b0;
             ldk_latch <= 1'b0;
+            ldm_latch <= 1'b0;
+            ldm_base <= 4'd0;
+            ldm_counter <= 4'd0;
 
             halted <= 1'b0;
             bus_granted <= 1'b0;
@@ -1194,6 +1295,11 @@ module z8000_cpu (
             //=================================================================
             
             if (bus_cycle_done) begin
+                // Update multiply result register when MUL or MULU is executed
+                if (actual_alu_op == ALU_MUL || actual_alu_op == ALU_MULU) begin
+                    mul_result_reg <= mul_result_comb;
+                end
+
                 // Write ALU result to destination
                 if (dst_sel != DST_NONE && dst_sel != DST_FLAGS) begin
                     case (dst_sel)
@@ -1211,7 +1317,17 @@ module z8000_cpu (
                                        else R14_nrm <= alu_result;
 `endif
                                    else R[ir_rs] <= alu_result;
-                        SEL_RD:    if (size_latch == SIZE_BYTE) begin  // BYTE mode
+                        SEL_RD:    if (ldm_latch) begin  // LDM mode - use dynamic register
+                                       if (ldm_reg_idx == 4'd15)
+                                           if (FCW[FCW_SYS]) R15_sys <= alu_result;
+                                           else R15_nrm <= alu_result;
+`ifdef Z8001_MODE
+                                       else if (ldm_reg_idx == 4'd14)
+                                           if (FCW[FCW_SYS]) R14_sys <= alu_result;
+                                           else R14_nrm <= alu_result;
+`endif
+                                       else R[ldm_reg_idx] <= alu_result;
+                                   end else if (size_latch == SIZE_BYTE) begin  // BYTE mode
                                        if (ir_rd_byte_lo)
                                            R[{1'b0, ir_rd_byte_reg}][7:0] <= alu_result[7:0];
                                        else
@@ -1271,7 +1387,9 @@ module z8000_cpu (
                                        else R14_nrm <= alu_result;
 `endif
                                    else R[ir_rd_lo] <= alu_result;
-                        SEL_FCW:   FCW <= alu_result;
+                        SEL_FCW:   FCW <= (size_latch == SIZE_BYTE) ?
+                                          {FCW[15:8], alu_result[7:0]} :  // BYTE: preserve high byte
+                                          alu_result;
                         SEL_TEMP2: TEMP2 <= alu_result;
                         DST_PSAP:  PSAP <= alu_result;
                         DST_TRAP_NUM: trap_num <= alu_result[1:0];
@@ -1295,9 +1413,38 @@ module z8000_cpu (
                                        else R14_nrm <= alu_result;
 `endif
                                    else R[ir_rd] <= alu_result;
+                        SEL_RD2:   if (ir_rd_lo2 == 4'd15)  // Rd+2 (for quad operations)
+                                       if (FCW[FCW_SYS]) R15_sys <= alu_result;
+                                       else R15_nrm <= alu_result;
+`ifdef Z8001_MODE
+                                   else if (ir_rd_lo2 == 4'd14)
+                                       if (FCW[FCW_SYS]) R14_sys <= alu_result;
+                                       else R14_nrm <= alu_result;
+`endif
+                                   else R[ir_rd_lo2] <= alu_result;
+                        SEL_RD3:   if (ir_rd_lo3 == 4'd15)  // Rd+3 (for quad operations)
+                                       if (FCW[FCW_SYS]) R15_sys <= alu_result;
+                                       else R15_nrm <= alu_result;
+`ifdef Z8001_MODE
+                                   else if (ir_rd_lo3 == 4'd14)
+                                       if (FCW[FCW_SYS]) R14_sys <= alu_result;
+                                       else R14_nrm <= alu_result;
+`endif
+                                   else R[ir_rd_lo3] <= alu_result;
+                        // LDM support
+                        DST_LDM_INIT: begin
+                                   // Initialize LDM state: base register from TEMP2[11:8], counter = 0
+                                   // TEMP2 format: 0000_Rxxx_0000_nnnn where Rxxx is start register
+                                   ldm_base <= alu_result[11:8];
+                                   ldm_counter <= 4'd0;
+                               end
+                        DST_LDM_INC: begin
+                                   // Increment LDM counter
+                                   ldm_counter <= ldm_counter + 4'd1;
+                               end
                     endcase
                 end
-                
+
                 // Update flags if requested
                 if (dst_sel == DST_FLAGS || misc[0]) begin
                     // Only update C for actual arithmetic/shift operations,
@@ -1353,6 +1500,7 @@ module z8000_cpu (
                         bx_byte_dest_latch <= decode_bx_byte_dest;
                         compact_ldb_latch <= decode_compact_ldb;
                         ldk_latch <= decode_ldk;
+                        ldm_latch <= decode_ldm;
                         // Check for privileged instruction violation
                         // If privileged instruction in normal mode, redirect to trap
                         if (decode_priv && !FCW[FCW_SYS]) begin

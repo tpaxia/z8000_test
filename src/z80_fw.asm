@@ -2,6 +2,8 @@
 ; I/O: 0=UART_DATA, 1=UART_STAT, 0x10-0x15=Z8K control
 ;      0x16-0x19=cycle count, 0x1A-0x1B=fetch count
 ;      0x1C-0x1F=cycle limit (write)
+;      0x20-0x21=trace read addr, 0x22-0x26=trace data (36-bit)
+;      0x27-0x28=trace write count, 0x29=Z8000 ST (4-bit)
 ;
 ; Commands:
 ;   ST - Status (returns H or R)
@@ -18,6 +20,9 @@
 ;   TOxxxxxxxx - Set cycle timeout (32-bit, 0=no timeout)
 ;   CC - Read cycle count
 ;   FC - Read fetch count
+;   TC - Read trace buffer count
+;   TR - Dump first 16 trace entries
+;   TRnnn - Dump trace entry at index nnn (hex)
 
         org 0x0000
 
@@ -69,7 +74,15 @@ cmd_t:
         call to_upper
         cp 'O'
         jp z, do_to
+        cp 'C'
+        jp z, do_tc_eol
+        cp 'R'
+        jp z, do_tr
         jp cmd_err
+
+do_tc_eol:
+        call skip_eol
+        jp do_tc
 
 cmd_c:
         call get_char
@@ -331,16 +344,52 @@ do_dp:
         jp main
 
 ; ST - Status
+; Shows: control port, status port, Z8000 ST, and R/H indicator
 do_st:
-        call dbg_st_enter
+        ; Show port 0x14 (control)
+        ld a, '1'
+        call put_char
+        ld a, '4'
+        call put_char
+        ld a, '='
+        call put_char
         in a, (0x14)
-        call dbg_port14
-        and 1
-        jp z, st_h
+        push af
+        call phex2
+        ld a, ' '
+        call put_char
+        ; Show port 0x15 (status: halt, bus_active, timeout)
+        ld a, '1'
+        call put_char
+        ld a, '5'
+        call put_char
+        ld a, '='
+        call put_char
         in a, (0x15)
-        call dbg_port15
+        push af
+        call phex2
+        ld a, ' '
+        call put_char
+        ; Show port 0x29 (Z8000 ST)
+        ld a, 'S'
+        call put_char
+        ld a, 'T'
+        call put_char
+        ld a, '='
+        call put_char
+        in a, (0x29)
+        call phex1
+        ld a, ' '
+        call put_char
+        ; Determine R/H status
+        pop af                  ; Port 0x15
+        ld b, a
+        pop af                  ; Port 0x14
         and 1
-        jp z, st_h
+        jp z, st_h              ; reset_n=0 -> halted
+        ld a, b
+        and 1
+        jp z, st_h              ; halt_n=0 -> halted
         ld a, 'R'
         jp st_out
 st_h:
@@ -480,7 +529,9 @@ do_wr:
 ; RR n
 do_rr:
         call ghex1
+        push af
         call skip_eol
+        pop af
         add a, a
         ld e, a
         ld d, 0
@@ -682,6 +733,200 @@ do_fc:
         call phex2
         call put_crlf
         jp main
+
+; TC - Read trace buffer count (10-bit, 0-1024)
+do_tc:
+        ; Read count from ports 0x27-0x28 and print as 3 hex digits
+        in a, (0x28)
+        and 0x03                ; Only 2 bits valid
+        call phex1              ; Print high nibble (0-3)
+        in a, (0x27)
+        call phex2              ; Print low byte
+        call put_crlf
+        jp main
+
+; TR - Read trace buffer entries
+; TRnnn: dump single entry at index nnn (hex)
+; TR: dump first 16 entries
+do_tr:
+        ; Check if next char is hex digit or EOL
+        call get_char
+        call to_upper
+        cp 0x0D
+        jp z, do_tr_all
+        cp 0x0A
+        jp z, do_tr_all
+        ; Parse 3-digit hex index (already have first char in A)
+        ; First digit already in A
+        call hex_digit          ; Convert to value
+        rlca
+        rlca
+        rlca
+        rlca
+        ld b, a                 ; Save high nibble
+        call ghex1              ; Get second digit
+        or b                    ; Combine
+        ld b, a                 ; B = high byte
+        call ghex1              ; Get third digit
+        ld c, a                 ; C = low nibble << 4
+        ld a, b
+        rlca
+        rlca
+        rlca
+        rlca
+        ld d, a
+        and 0xF0
+        or c
+        ld c, a                 ; C = low byte of index
+        ld a, d
+        and 0x0F                ; A = high byte (0-3)
+        ld b, a                 ; BC = index (10-bit)
+        call skip_eol
+        jp do_tr_one
+
+do_tr_all:
+        ; Dump first 16 entries
+        ld bc, 0x0000           ; Start at index 0
+        ld e, 16                ; Count
+do_tr_loop:
+        push bc
+        push de
+        ; Print index (3 hex digits)
+        ld a, b
+        and 0x03
+        call phex1
+        ld a, c
+        call phex2
+        ld a, ':'
+        call put_char
+        ld a, ' '
+        call put_char
+        ; Set trace read address (ports 0x20-0x21)
+        pop de
+        pop bc
+        push bc
+        push de
+        ld a, c
+        out (0x20), a           ; Low byte of index
+        ld a, b
+        out (0x21), a           ; High byte of index
+        ; Small delay for BRAM read
+        nop
+        nop
+        ; Read and print trace entry
+        call print_trace_entry
+        pop de
+        pop bc
+        ; Next entry
+        inc bc
+        dec e
+        jp nz, do_tr_loop
+        jp main
+
+do_tr_one:
+        ; Dump single entry at index BC
+        ; Print index
+        ld a, b
+        and 0x03
+        call phex1
+        ld a, c
+        call phex2
+        ld a, ':'
+        call put_char
+        ld a, ' '
+        call put_char
+        ; Set trace read address
+        ld a, c
+        out (0x20), a
+        ld a, b
+        out (0x21), a
+        nop
+        nop
+        call print_trace_entry
+        jp main
+
+; Print trace entry from ports 0x22-0x26
+; Format: aaaa dddd R W M
+; addr = bytes 0-1, data = bytes 2-3, flags = byte 4
+; flags[0] = R/W (1=read), flags[1] = B/W (1=word), flags[2] = I/O (1=I/O cycle)
+print_trace_entry:
+        ; Read and print address (bytes 0-1, little endian)
+        in a, (0x23)            ; Addr high
+        call phex2
+        in a, (0x22)            ; Addr low
+        call phex2
+        ld a, ' '
+        call put_char
+        ; Read and print data (bytes 2-3, little endian)
+        in a, (0x25)            ; Data high
+        call phex2
+        in a, (0x24)            ; Data low
+        call phex2
+        ld a, ' '
+        call put_char
+        ; Read flags (byte 4)
+        in a, (0x26)
+        ld b, a
+        ; R/W flag (bit 0): R=read, W=write
+        bit 0, b
+        jp z, pte_wr
+        ld a, 'R'
+        jp pte_rw_out
+pte_wr:
+        ld a, 'W'
+pte_rw_out:
+        call put_char
+        ld a, ' '
+        call put_char
+        ; B/W flag (bit 1): W=word, B=byte
+        bit 1, b
+        jp z, pte_byte
+        ld a, 'W'
+        jp pte_bw_out
+pte_byte:
+        ld a, 'B'
+pte_bw_out:
+        call put_char
+        ld a, ' '
+        call put_char
+        ; I/O flag (bit 2): I=I/O, M=memory
+        bit 2, b
+        jp z, pte_mem
+        ld a, 'I'
+        jp pte_io_out
+pte_mem:
+        ld a, 'M'
+pte_io_out:
+        call put_char
+        call put_crlf
+        ret
+
+; Convert hex char in A to value (0-15)
+hex_digit:
+        cp '0'
+        jp c, hd_0
+        cp '9'+1
+        jp c, hd_d
+        cp 'A'
+        jp c, hd_0
+        cp 'F'+1
+        jp c, hd_u
+        cp 'a'
+        jp c, hd_0
+        cp 'f'+1
+        jp c, hd_l
+hd_0:
+        xor a
+        ret
+hd_d:
+        sub '0'
+        ret
+hd_u:
+        sub 'A'-10
+        ret
+hd_l:
+        sub 'a'-10
+        ret
 
 ; === Debug output routines ===
 ; These check debug_flag and output diagnostic info

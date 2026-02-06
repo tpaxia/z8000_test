@@ -4,15 +4,22 @@
 // Memory Map (Z80):
 //   0x0000-0x1FFF: RAM (8KB)
 //
-// I/O Ports (active accent accent when iorq_n=0, directly accent addressed):
+// I/O Ports (directly addressed when iorq_n=0):
 //   0x00: UART data (R: read byte, W: send byte)
 //   0x01: UART status (R: bit0=tx_ready, bit1=rx_valid)
 //   0x10: Z8000 mem addr low
 //   0x11: Z8000 mem addr high
-//   0x12: Z8000 mem data low (directly addressed to BRAM)
+//   0x12: Z8000 mem data low (from BRAM)
 //   0x13: Z8000 mem data high
-//   0x14: Z8000 control (W: bit0=reset_n)
-//   0x15: Z8000 status (R: bit0=halt_n)
+//   0x14: Z8000 control (W: bit0=reset_n, bit1=mem_write)
+//   0x15: Z8000 status (R: bit0=halt_n, bit1=bus_active, bit2=timeout)
+//   0x16-0x19: Cycle count (R, 32-bit little-endian)
+//   0x1A-0x1B: Fetch count (R, 16-bit little-endian)
+//   0x1C-0x1F: Cycle limit (W, 32-bit little-endian)
+//   0x20-0x21: Trace read addr (R/W, 10-bit)
+//   0x22-0x26: Trace data (R, 36-bit: addr[15:0], data[15:0], flags[3:0])
+//   0x27-0x28: Trace write count (R, 10-bit)
+//   0x29: Z8000 ST (R, 4-bit status type from CPU)
 
 `timescale 1ns / 1ps
 
@@ -31,10 +38,11 @@ module z80_harness (
     // Z8000 control
     output reg    z8k_rst_n,
     input         z8k_halt_n,
+    input  [3:0]  z8k_st,          // Z8000 status type (directly from CPU)
 
     // Z8000 memory interface (directly addressed to shared BRAM)
     output reg        z8k_mem_we,
-    output reg [14:0] z8k_mem_addr,
+    output reg [14:0] z80_addr,
     output reg [15:0] z8k_mem_wdata,
     input      [15:0] z8k_mem_rdata,
 
@@ -45,7 +53,12 @@ module z80_harness (
 
     // Cycle-based timeout
     output reg [31:0] z8k_cycle_limit,  // Cycle limit for timeout (0 = no limit)
-    input         z8k_cycle_timeout     // HIGH when cycle_count >= cycle_limit
+    input         z8k_cycle_timeout,    // HIGH when cycle_count >= cycle_limit
+
+    // Trace buffer interface
+    output reg [9:0]  trace_rd_addr,    // Read address (0-1023)
+    input      [35:0] trace_rd_data,    // Read data (36 bits)
+    input      [9:0]  trace_wr_count    // Number of entries captured
 );
 
 // ==============================================
@@ -132,6 +145,17 @@ always @(*) begin
         8'h19: io_dout = z8k_cycle_count[31:24];          // Cycle count byte 3
         8'h1A: io_dout = z8k_fetch_count[7:0];            // Fetch count byte 0
         8'h1B: io_dout = z8k_fetch_count[15:8];           // Fetch count byte 1
+        // Trace buffer (0x20-0x28)
+        8'h20: io_dout = trace_rd_addr[7:0];              // Trace read addr low
+        8'h21: io_dout = {6'b0, trace_rd_addr[9:8]};      // Trace read addr high
+        8'h22: io_dout = trace_rd_data[7:0];              // Trace data byte 0
+        8'h23: io_dout = trace_rd_data[15:8];             // Trace data byte 1
+        8'h24: io_dout = trace_rd_data[23:16];            // Trace data byte 2
+        8'h25: io_dout = trace_rd_data[31:24];            // Trace data byte 3
+        8'h26: io_dout = {4'b0, trace_rd_data[35:32]};    // Trace data byte 4 (4 bits)
+        8'h27: io_dout = trace_wr_count[7:0];             // Trace write count low
+        8'h28: io_dout = {6'b0, trace_wr_count[9:8]};     // Trace write count high
+        8'h29: io_dout = {4'b0, z8k_st};                  // Z8000 ST (status type)
     endcase
 end
 
@@ -146,9 +170,10 @@ always @(posedge clk or negedge rst_n) begin
         z8k_addr_reg <= 15'h0000;
         z8k_data_reg <= 16'h0000;
         z8k_mem_we <= 1'b0;
-        z8k_mem_addr <= 15'h0000;
+        z80_addr <= 15'h0000;
         z8k_mem_wdata <= 16'h0000;
         z8k_cycle_limit <= 32'h00000000;
+        trace_rd_addr <= 10'h000;
     end else begin
         // Defaults
         uart_tx_valid <= 1'b0;
@@ -173,7 +198,7 @@ always @(posedge clk or negedge rst_n) begin
                     z8k_rst_n <= cpu_dout[0];
                     if (cpu_dout[1]) begin // Write to Z8000 mem
                         z8k_mem_we <= 1'b1;
-                        z8k_mem_addr <= z8k_addr_reg;
+                        z80_addr <= z8k_addr_reg;
                         z8k_mem_wdata <= z8k_data_reg;
                     end
                 end
@@ -181,6 +206,9 @@ always @(posedge clk or negedge rst_n) begin
                 8'h1D: z8k_cycle_limit[15:8] <= cpu_dout;   // Cycle limit byte 1
                 8'h1E: z8k_cycle_limit[23:16] <= cpu_dout;  // Cycle limit byte 2
                 8'h1F: z8k_cycle_limit[31:24] <= cpu_dout;  // Cycle limit byte 3
+                // Trace buffer read address
+                8'h20: trace_rd_addr[7:0] <= cpu_dout;      // Trace read addr low
+                8'h21: trace_rd_addr[9:8] <= cpu_dout[1:0]; // Trace read addr high
             endcase
         end
 
@@ -196,7 +224,7 @@ always @(posedge clk or negedge rst_n) begin
         end
 
         // Keep Z8000 memory address updated for reads
-        z8k_mem_addr <= z8k_addr_reg;
+        z80_addr <= z8k_addr_reg;
     end
 end
 

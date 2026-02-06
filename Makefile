@@ -4,7 +4,7 @@
 # Paths
 SRC_DIR = src
 TV80_DIR = tv80_official/rtl/core
-Z8K_DIR = src/z8000
+Z8K_RTL_DIR = rtl
 
 # TV80 Z80 core sources
 TV80_SRCS = \
@@ -20,22 +20,27 @@ Z80_HARNESS_SRCS = \
 	$(SRC_DIR)/z8000_test_harness_top.v \
 	$(SRC_DIR)/uart_tx.v \
 	$(SRC_DIR)/uart_rx.v \
-	$(SRC_DIR)/ram16.v
+	$(SRC_DIR)/ram16.v \
+	$(SRC_DIR)/trace_buffer.v
 
 # Z8000 sources
 Z8K_SRCS = \
-	$(Z8K_DIR)/z8000_cpu.v \
-	$(Z8K_DIR)/microcode_rom.v \
-	$(Z8K_DIR)/decode_rom.v
+	$(Z8K_RTL_DIR)/z8000_cpu.v \
+	$(Z8K_RTL_DIR)/microcode_rom.v \
+	$(Z8K_RTL_DIR)/decode_rom.v
 
 # Include paths
-VERILOG_INCS = -I$(Z8K_DIR) -I$(TV80_DIR)
+VERILOG_INCS = -I$(Z8K_RTL_DIR) -I$(TV80_DIR)
 
 # Firmware
 Z80_FW_SRC = $(SRC_DIR)/z80_fw.asm
 Z80_FW_BIN = $(SRC_DIR)/z80_fw.bin
 Z80_FW_HEX = $(SRC_DIR)/z80_fw.hex
 BOOTSTRAP_INC = $(SRC_DIR)/bootstrap.inc
+BOOTSTRAP_BIN = $(SRC_DIR)/bootstrap.bin
+BRAM_INIT_VH = $(SRC_DIR)/bram_init.vh
+BRAM_HI_HEX = $(SRC_DIR)/bram_hi.hex
+BRAM_LO_HEX = $(SRC_DIR)/bram_lo.hex
 
 # Default target
 .PHONY: all
@@ -110,14 +115,14 @@ sim: firmware $(SRC_DIR)/z8000_test_harness_tb.v $(SRC_DIR)/z80_harness.v $(TV80
 		$(TV80_SRCS)
 	vvp z8000_test_harness_tb.vvp
 
-# Full system simulation with Z8000
+# Full system simulation with Z8000 (direct BRAM test, no UART)
 .PHONY: sim-full
-sim-full: firmware $(SRC_DIR)/z8000_full_tb.v $(Z80_HARNESS_SRCS) $(TV80_SRCS) $(Z8K_SRCS)
-	cp $(Z80_FW_HEX) z80_fw.hex
+sim-full: $(SRC_DIR)/z8000_full_tb.v $(Z8K_SRCS) $(BRAM_HI_HEX)
+	cp $(BRAM_HI_HEX) bram_hi.hex
+	cp $(BRAM_LO_HEX) bram_lo.hex
 	iverilog -g2012 -DSIMULATION $(VERILOG_INCS) -o z8000_full_tb.vvp \
 		$(SRC_DIR)/z8000_full_tb.v \
-		$(Z80_HARNESS_SRCS) \
-		$(TV80_SRCS) \
+		$(SRC_DIR)/ram16.v \
 		$(Z8K_SRCS)
 	vvp z8000_full_tb.vvp
 
@@ -148,8 +153,15 @@ $(SRC_DIR)/bootstrap.bin: $(SRC_DIR)/bootstrap.s
 	@echo "Bootstrap binary generated: $(SRC_DIR)/bootstrap.bin"
 	@echo "Listing file: $(SRC_DIR)/bootstrap.lst"
 
-$(BOOTSTRAP_INC): $(SRC_DIR)/bootstrap.bin
-	python3 scripts/gen_bootstrap_inc.py $(SRC_DIR)/bootstrap.bin $(BOOTSTRAP_INC)
+$(BOOTSTRAP_INC): $(BOOTSTRAP_BIN)
+	python3 scripts/gen_bootstrap_inc.py $(BOOTSTRAP_BIN) $(BOOTSTRAP_INC)
+
+# BRAM init files (from bootstrap binary)
+.PHONY: bram-init
+bram-init: $(BRAM_INIT_VH)
+
+$(BRAM_INIT_VH) $(BRAM_HI_HEX) $(BRAM_LO_HEX): $(BOOTSTRAP_BIN)
+	python3 scripts/gen_bram_init.py $(BOOTSTRAP_BIN) $(SRC_DIR)
 
 #
 # Clean
@@ -160,6 +172,8 @@ clean:
 	rm -f $(SRC_DIR)/z80_fw.bin $(SRC_DIR)/z80_fw.hex
 	rm -f $(SRC_DIR)/bootstrap.bin $(SRC_DIR)/bootstrap.o $(SRC_DIR)/bootstrap.elf
 	rm -f $(SRC_DIR)/bootstrap.lst $(SRC_DIR)/bootstrap.inc
+	rm -f $(SRC_DIR)/bram_hi.hex $(SRC_DIR)/bram_lo.hex $(SRC_DIR)/bram_init.vh
+	rm -f bram_hi.hex bram_lo.hex
 	rm -f $(SRC_DIR)/*.vvp $(SRC_DIR)/*.vcd
 	rm -rf impl
 
