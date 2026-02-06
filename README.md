@@ -16,6 +16,12 @@ A Z80-based test harness for verifying Z8000 CPU implementations on FPGA. Uses a
                     +--------+----------+
                              | Port B
                     +--------v----------+
+                    | Z8000 Bus I/F     |
+                    | (~4MHz clk div +  |
+                    |  addr latch)      |
+                    +--------+----------+
+                             |
+                    +--------v----------+
                     |    Z8000 CPU      |
                     |  (Under Test)     |
                     +-------------------+
@@ -31,7 +37,7 @@ The Z80 supervisor runs firmware that accepts commands over UART to:
 ## Target Hardware
 
 - **FPGA**: Tang Nano 20K (Gowin GW2AR-18C)
-- **Clock**: 27MHz single clock domain (both Z80 and Z8000)
+- **Clock**: 27MHz system clock; Z8000 runs at ~3.86MHz (divided from 27MHz)
 - **UART**: 115200 baud, 8N1
 - **Reset**: Button-debounced (~20ms) for Z80; Z80-controlled (port 0x14) for Z8000
 
@@ -267,6 +273,7 @@ instructions/
 │   ├── z80_fw.asm              # Z80 supervisor firmware (includes bootstrap.inc)
 │   ├── z80_harness.v           # Z80 harness (TV80 + I/O)
 │   ├── z8000_test_harness_top.v # Top module for FPGA
+│   ├── z8000_bus_fpga.v        # Z8000 bus interface (CPU, ~4MHz clk, addr latch)
 │   ├── z8000_test_harness_tb.v # Z80-only simulation testbench
 │   ├── z8000_full_tb.v         # Full system testbench (Z8000 + BRAM, no UART)
 │   ├── uart_rx.v               # UART receiver
@@ -413,7 +420,7 @@ Note: `d` = destination register (0-F), `s` = source register (0-F)
 
 3. **Register Access**: Z8000 registers are memory-mapped at 0x0090-0x00AF. The Z80 reads/writes these via BRAM Port A while Z8000 accesses via Port B.
 
-4. **Single Clock Domain**: Both Z80 and Z8000 run at 27MHz. The Z8000 CPU includes an internal reset synchronizer.
+4. **Clock Architecture**: The Z80 and all shared logic run at 27MHz. The Z8000 CPU runs at ~3.86MHz via a clock divider (alternating /3 and /4 half-periods from 27MHz — closest to 4MHz without a PLL). The bus interface module (`z8000_bus_fpga.v`) encapsulates the clock divider, CPU, AD bus tristate, and address latch.
 
 5. **Reset Architecture**: Button reset is debounced (~20ms at 27MHz) and resets only the Z80 and harness logic. The Z8000 reset (`z8k_rst_n`) is controlled by Z80 firmware via I/O port 0x14, latched until explicitly changed.
 

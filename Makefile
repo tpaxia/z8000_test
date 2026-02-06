@@ -18,6 +18,7 @@ TV80_SRCS = \
 Z80_HARNESS_SRCS = \
 	$(SRC_DIR)/z80_harness.v \
 	$(SRC_DIR)/z8000_test_harness_top.v \
+	$(SRC_DIR)/z8000_bus_fpga.v \
 	$(SRC_DIR)/uart_tx.v \
 	$(SRC_DIR)/uart_rx.v \
 	$(SRC_DIR)/ram16.v \

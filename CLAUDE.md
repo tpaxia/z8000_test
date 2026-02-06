@@ -10,7 +10,8 @@ FPGA-based test harness for a Z8000 CPU implementation using Tang Nano 20K (Gowi
   - `decode_rom.v` - Instruction decode ROM
   - `ucode_defs.v` - Microcode address definitions
 - `src/` - Verilog source files
-  - `z8000_test_harness_top.v` - Top-level module (CPU, dual-port memory, trace buffer)
+  - `z8000_test_harness_top.v` - Top-level module (bus interface, dual-port memory, trace buffer)
+  - `z8000_bus_fpga.v` - Z8000 bus interface (CPU, ~4MHz clock divider, address latch)
   - `z80_harness.v` - Z80 harness controller (TV80 + I/O ports)
   - `ram16.v` - Behavioral dual-port RAM (simulation)
   - `ram16_gowin.v` - Gowin DPB RAM (synthesis, includes bram_init.vh)
@@ -45,7 +46,7 @@ make clean      # Clean build artifacts
 
 ## Key Details
 
-- **Clock**: 27MHz single clock domain (both Z80 and Z8000)
+- **Clock**: 27MHz system clock; Z8000 runs at ~3.86MHz (divided from 27MHz)
 - **Serial**: 115200 baud, 8N1
 - **Memory**: 8KB true dual-port BRAM (Gowin DPB), Port A = Z80, Port B = Z8000
 - **Reset**: Debounced rst_n for Z80; z8k_rst_n (Z80-controlled via port 0x14) for Z8000

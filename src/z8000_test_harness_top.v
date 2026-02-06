@@ -96,11 +96,13 @@ wire [9:0]  trace_rd_addr;
 wire [35:0] trace_rd_data;
 wire [9:0]  trace_wr_count;
 
-// Z8000 CPU signals
+// Z8000 bus interface signals
 wire        cpu_as_n, cpu_ds_n, cpu_rw_n, cpu_mreq_n, cpu_bw_n;
 wire [3:0]  cpu_st;
-wire        cpu_busack_n, cpu_ns, cpu_halt_n_out;
-wire [15:0] ad_bus;
+wire        cpu_halt_n_out;
+wire [15:0] z8k_addr;
+wire [15:0] z8k_wdata;
+wire        z8k_cpu_clk;
 reg  [15:0] data_to_cpu;
 
 // Z8000 instrumentation
@@ -108,6 +110,7 @@ reg        bus_active;
 reg [31:0] cycle_count;
 reg [15:0] fetch_count;
 reg        prev_as_n;
+reg        prev_z8k_clk;
 reg        counting;
 reg        cycle_timeout;
 
@@ -141,28 +144,23 @@ z80_harness z80 (
 );
 
 // ===========================================
-// Z8000 CPU
+// Z8000 Bus Interface (CPU + clock divider)
 // ===========================================
-assign ad_bus = (cpu_rw_n && ~cpu_ds_n) ? data_to_cpu : 16'bz;
-
-z8000_cpu cpu (
+z8000_bus_fpga bus_if (
     .clk        (clk),
-    .rst_n      (z8k_rst_n),
-    .ad         (ad_bus),
+    .rst_n      (rst_n),
+    .z8k_rst_n  (z8k_rst_n),
+    .rdata      (data_to_cpu),
+    .addr       (z8k_addr),
+    .wdata      (z8k_wdata),
     .as_n       (cpu_as_n),
     .ds_n       (cpu_ds_n),
     .rw_n       (cpu_rw_n),
     .mreq_n     (cpu_mreq_n),
-    .b_w_n      (cpu_bw_n),
+    .bw_n       (cpu_bw_n),
     .st         (cpu_st),
-    .wait_n     (1'b1),
-    .busreq_n   (1'b1),
-    .busack_n   (cpu_busack_n),
-    .nmi_n      (1'b1),
-    .vi_n       (1'b1),
-    .nvi_n      (1'b1),
-    .n_s        (cpu_ns),
-    .halt_n     (cpu_halt_n_out)
+    .halt_n     (cpu_halt_n_out),
+    .cpu_clk    (z8k_cpu_clk)
 );
 
 assign z8k_halt_n = cpu_halt_n_out;
@@ -174,6 +172,7 @@ assign z8k_halt_n = cpu_halt_n_out;
 
 wire as_falling = prev_as_n && ~cpu_as_n;
 wire opcode_fetch = as_falling && (cpu_st == 4'b1101);
+wire z8k_clk_rising = z8k_cpu_clk && ~prev_z8k_clk;
 
 always @(posedge clk or negedge z8k_rst_n) begin
     if (!z8k_rst_n) begin
@@ -181,10 +180,12 @@ always @(posedge clk or negedge z8k_rst_n) begin
         cycle_count <= 32'd0;
         fetch_count <= 16'd0;
         prev_as_n <= 1'b1;
+        prev_z8k_clk <= 1'b0;
         counting <= 1'b1;
         cycle_timeout <= 1'b0;
     end else begin
         prev_as_n <= cpu_as_n;
+        prev_z8k_clk <= z8k_cpu_clk;
 
         if (as_falling && !bus_active)
             bus_active <= 1'b1;
@@ -192,7 +193,7 @@ always @(posedge clk or negedge z8k_rst_n) begin
         if (!cpu_halt_n_out)
             counting <= 1'b0;
 
-        if (counting && cpu_halt_n_out)
+        if (counting && cpu_halt_n_out && z8k_clk_rising)
             cycle_count <= cycle_count + 1'b1;
 
         if (counting && cpu_halt_n_out && opcode_fetch)
@@ -207,19 +208,6 @@ end
 assign led2 = ~z8k_rst_n;
 assign led3 = z8k_rst_n && cpu_halt_n_out;
 assign led4 = ~cpu_halt_n_out;
-
-// ===========================================
-// Address Latch
-// Level-sensitive capture while AS_n is low.
-// ===========================================
-reg [15:0] z8k_addr;
-
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n)
-        z8k_addr <= 16'd0;
-    else if (~cpu_as_n)
-        z8k_addr <= ad_bus;
-end
 
 // ===========================================
 // Address decode
@@ -255,7 +243,7 @@ ram16 bram (
     .web_hi  (z8k_we_hi),
     .web_lo  (z8k_we_lo),
     .addrb   (z8k_addr[12:0]),
-    .dinb    (ad_bus),
+    .dinb    (z8k_wdata),
     .doutb   (z8k_rd_data)
 );
 
@@ -272,7 +260,7 @@ end
 // ===========================================
 // Trace Buffer
 // ===========================================
-wire [15:0] trace_data = cpu_rw_n ? data_to_cpu : ad_bus;
+wire [15:0] trace_data = cpu_rw_n ? data_to_cpu : z8k_wdata;
 
 trace_buffer trace (
     .clk        (clk),
