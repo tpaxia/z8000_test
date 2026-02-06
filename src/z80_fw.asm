@@ -417,6 +417,10 @@ do_ex:
         ; Debug: show cycle limit
         call dbg_ex_limit
 
+        ; Assert reset first (clears counters, ensures clean start)
+        xor a
+        out (0x14), a
+
         ; Write cycle_limit to hardware ports 0x1C-0x1F before releasing reset
         ld a, (0x1F02)
         out (0x1C), a           ; Cycle limit byte 0
@@ -470,12 +474,10 @@ ex_lp:
         jp ex_lp
 
 ex_tout:
-        ; Cycle timeout
+        ; Cycle timeout - leave Z8000 halted (don't reset, preserves counters)
         call dbg_ex_status      ; Debug: show final status
-        call dbg_ex_cycles      ; Debug: show cycle count (before reset clears it!)
-        call dbg_ex_fetches     ; Debug: show fetch count (before reset clears it!)
-        xor a
-        out (0x14), a           ; Assert reset
+        call dbg_ex_cycles      ; Debug: show cycle count
+        call dbg_ex_fetches     ; Debug: show fetch count
         ld a, 'T'
         call put_char
         ld a, 'O'
@@ -488,11 +490,10 @@ ex_tout:
         jp main
 
 ex_ok:
+        ; Halted - leave Z8000 halted (don't reset, preserves counters)
         call dbg_ex_status      ; Debug: show final status
-        call dbg_ex_cycles      ; Debug: show cycle count (before reset clears it!)
-        call dbg_ex_fetches     ; Debug: show fetch count (before reset clears it!)
-        xor a
-        out (0x14), a           ; Assert reset
+        call dbg_ex_cycles      ; Debug: show cycle count
+        call dbg_ex_fetches     ; Debug: show fetch count
         ld a, 'H'
         call put_char
         ld a, 'A'

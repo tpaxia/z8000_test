@@ -167,13 +167,19 @@ module z8000_full_tb;
         $display("Z8000 Direct BRAM Test (27MHz, auto-start)");
         $display("========================================");
 
-        // BRAM is pre-initialized via $readmemh in ram16.v
-        // Bootstrap: FCW=0x4000 @ 0x0002, PC=0x0040 @ 0x0004
-        // Register loads at 0x0040, JP 0x0200 at 0x0082
-        // Dump routine at 0x00C0, JP 0x00C0 at 0x0200
-        // CPU will: load regs, jump to 0x0200, jump to dump, halt
+        // Write reset vectors and test code directly into BRAM.
+        // No pre-initialization files needed; on real hardware the Z80
+        // INIT command loads the bootstrap at runtime.
 
-        // Write a HALT at 0x0040 to stop immediately after reset vector
+        // Reset vector: FCW = 0x4000 at byte addr 0x0002 (word addr 1)
+        bram.mem_hi[1] = 8'h40;
+        bram.mem_lo[1] = 8'h00;
+
+        // Reset vector: PC = 0x0040 at byte addr 0x0004 (word addr 2)
+        bram.mem_hi[2] = 8'h00;
+        bram.mem_lo[2] = 8'h40;
+
+        // HALT at 0x0040 to stop immediately after reset vector
         bram.mem_hi[32] = 8'h7A;   // word addr 32 = byte addr 0x0040
         bram.mem_lo[32] = 8'h00;   // HALT = 0x7A00
 

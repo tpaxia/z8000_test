@@ -24,6 +24,8 @@ fcw_setup:
         .org    0x0040
 bootstrap:
 _start:
+        ld      r0, fcw_setup       ! Load desired FCW value
+        ldctl   fcw, r0             ! Set FCW (LD doesn't affect flags)
         ld      r0, reg_setup+0
         ld      r1, reg_setup+2
         ld      r2, reg_setup+4
@@ -52,10 +54,17 @@ reg_dump:
 done_flag:
         .word   0x0000
 
+# FCW dump area at 0x00B2
+        .org    0x00B2
+fcw_dump:
+        .word   0x0000
+
 # Dump routine at 0x00C0
         .org    0x00C0
 dump_routine:
-        ld      reg_dump+0, r0
+        ld      reg_dump+0, r0      ! Save R0 first (before clobbering)
+        ldctl   r0, fcw             ! Read FCW into R0
+        ld      fcw_dump, r0        ! Save FCW at 0x00B2
         ld      reg_dump+2, r1
         ld      reg_dump+4, r2
         ld      reg_dump+6, r3

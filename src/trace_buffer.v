@@ -62,8 +62,45 @@ module trace_buffer (
             z8k_rst_n_d <= z8k_rst_n;
     end
 
-    // Capture enable: DS rising (end of cycle), buffer not full, CPU not in reset
-    wire capture_en = z8k_rst_n && !z8k_rst_rising && ds_rising && !buffer_full;
+    // Address-range gating: only trace when executing test code (>= 0x0200).
+    // Tracks first opcode fetch (ST=1101) address to set/clear trace_active.
+    // All bus cycles (data, I/O, stack) while trace_active are captured.
+    reg trace_active;
+    wire first_fetch = (z8k_st == 4'b1101);
+
+    // Latch ST at AS_n (valid at start of bus cycle)
+    reg [3:0] latched_st;
+    reg       as_n_prev;
+    wire      as_falling = as_n_prev && ~z8k_as_n;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            as_n_prev <= 1'b1;
+        else
+            as_n_prev <= z8k_as_n;
+    end
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            latched_st <= 4'd0;
+        else if (as_falling)
+            latched_st <= z8k_st;
+    end
+
+    // Update trace_active on completed bus cycles that are first opcode fetches
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            trace_active <= 1'b0;
+        else if (z8k_rst_rising)
+            trace_active <= 1'b0;
+        else if (ds_rising && latched_st == 4'b1101) begin
+            // First opcode fetch completed - gate on address
+            trace_active <= (latched_addr >= 16'h0200);
+        end
+    end
+
+    // Capture enable: DS rising, buffer not full, CPU not in reset, trace active
+    wire capture_en = z8k_rst_n && !z8k_rst_rising && ds_rising && !buffer_full && trace_active;
 
     // Latch bus signals while DS_n is active (data becomes valid during this phase)
     reg [15:0] latched_addr;

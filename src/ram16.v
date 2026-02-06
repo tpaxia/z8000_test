@@ -55,11 +55,8 @@ module ram16 (
     end
     assign doutb = {doutb_hi, doutb_lo};
 
-    // Bootstrap initialization
-    initial begin
-        $readmemh("bram_hi.hex", mem_hi);
-        $readmemh("bram_lo.hex", mem_lo);
-    end
+    // Memory starts zeroed; bootstrap is loaded at runtime by Z80 INIT command.
+    // For sim-full, the testbench writes needed data directly.
 
 `else
     // Gowin DPB: two 4Kx8 true dual-port BRAMs (high byte + low byte)

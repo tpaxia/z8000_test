@@ -60,7 +60,7 @@ All commands are text-based, terminated by CR or LF. Commands are case-insensiti
 |---------|-------------|----------|
 | `ST` | Query status | `14=xx 15=xx ST=x H` or `R` |
 | `RS` | Assert reset | `OK` |
-| `EX` | Release reset, run until halt | `HALT`, `TOUT`, or `NRST` |
+| `EX` | Reset, execute, halt (counters preserved) | `HALT`, `TOUT`, or `NRST` |
 | `INIT` | Initialize Z8000 (reset vectors + clear regs) | `OK` |
 | `TOxxxxxxxx` | Set cycle timeout (32-bit hex) | `OK` |
 
@@ -68,10 +68,12 @@ All commands are text-based, terminated by CR or LF. Commands are case-insensiti
 
 | Phase | Description | Timeout | Response |
 |-------|-------------|---------|----------|
-| 1. Startup | Waits for AS_n assertion (bus_active) | ~200μs (fixed) | `NRST` on timeout |
+| 0. Reset | Asserts reset (clears counters) | - | - |
+| 1. Startup | Releases reset, waits for AS_n (bus_active) | ~200μs (fixed) | `NRST` on timeout |
 | 2. Execution | Waits for halt_n LOW or cycle timeout | 1 sec default (configurable) | `HALT` or `TOUT` |
 
-- Cycle and fetch counters are valid after `HALT`
+- After HALT/TOUT, the Z8000 stays halted (not reset) so CC/FC/TC are valid
+- Next EX will reset and start fresh
 
 **TO command:** Sets cycle-based execution timeout (phase 2)
 - Timeout is based on Z8000 clock cycles (not wall-clock time)
@@ -209,18 +211,6 @@ This generates:
 
 Note: `make firmware` automatically rebuilds bootstrap if needed.
 
-### BRAM Initialization
-
-Generate BRAM init files for synthesis (needed after `make clean`):
-
-```bash
-make bram-init
-```
-
-This generates:
-- `src/bram_init.vh` - Verilog include with INIT_RAM parameters for Gowin DPB
-- `src/bram_hi.hex` / `src/bram_lo.hex` - Hex files for simulation
-
 ### Simulation
 
 Run the Z80 harness simulation (tests harness commands without Z8000):
@@ -257,7 +247,29 @@ instructions/
 ├── README.md                   # This file
 ├── CLAUDE.md                   # AI assistant project context
 ├── .gitignore                  # Excludes generated files
-├── test_harness.py             # Python control/test script
+├── test_harness.py             # Interactive serial console
+├── tests/                      # Python test framework
+│   ├── __init__.py             # collect_all_tests()
+│   ├── __main__.py             # CLI: python -m tests
+│   ├── harness.py              # Z8000TestHarness (serial communication)
+│   ├── defs.py                 # TestCase, TestResult dataclasses
+│   ├── runner.py               # TestRunner (setup, execute, verify)
+│   ├── traces.py               # Trace save/load/compare
+│   ├── flags.py                # FCW flag definitions and computation
+│   ├── helpers.py              # Memory layout constants
+│   ├── encoding.py             # Instruction encoding helpers
+│   ├── test_arithmetic.py      # ADD, SUB, ADC, SBC, INC, DEC, NEG
+│   ├── test_logical.py         # AND, OR, XOR, COM, CLR
+│   ├── test_compare.py         # CP, TEST
+│   ├── test_load.py            # LD, LDK
+│   ├── test_bit.py             # BIT, SET, RES
+│   ├── test_shift.py           # SLL, SRL, SRA, RL, RR, RLC, RRC
+│   ├── test_branch.py          # JP, JR, DJNZ, CALL/RET
+│   ├── test_stack.py           # PUSH, POP
+│   ├── test_block.py           # LDI, LDIR, LDD, CPI
+│   ├── test_exchange.py        # EX, EXTSB, EXTS
+│   ├── test_control.py         # NOP, SETFLG, RESFLG, COMFLG, TCC
+│   └── test_io.py              # IN, OUT (trace-verified)
 ├── z8000_test_harness.gprj     # Gowin IDE project
 ├── rtl/                        # Z8000 CPU (copied from ../z8000_micro)
 │   ├── z8000_cpu.v             # Main CPU module
@@ -266,8 +278,7 @@ instructions/
 │   └── ucode_defs.v            # Microcode definitions
 ├── scripts/
 │   ├── gen_fw_hex.py           # Z80 firmware hex generator
-│   ├── gen_bootstrap_inc.py    # Bootstrap to Z80 include converter
-│   └── gen_bram_init.py        # BRAM init generator for synthesis
+│   └── gen_bootstrap_inc.py    # Bootstrap to Z80 include converter
 ├── src/
 │   ├── bootstrap.s             # Z8000 bootstrap source (reset vectors, reg init)
 │   ├── z80_fw.asm              # Z80 supervisor firmware (includes bootstrap.inc)
@@ -279,8 +290,8 @@ instructions/
 │   ├── uart_rx.v               # UART receiver
 │   ├── uart_tx.v               # UART transmitter
 │   ├── ram16.v                 # Behavioral dual-port RAM (simulation)
-│   ├── ram16_gowin.v           # Gowin DPB RAM (synthesis, includes bram_init.vh)
-│   ├── trace_buffer.v          # Bus trace capture buffer (1024 entries)
+│   ├── ram16_gowin.v           # Gowin DPB RAM (synthesis)
+│   ├── trace_buffer.v          # Bus trace buffer (1024 entries, address-gated)
 │   ├── gowin_dpb/              # Gowin true dual-port BRAM IP (4Kx8)
 │   │   ├── gowin_dpb.v
 │   │   └── gowin_dpb.ipc
@@ -300,28 +311,56 @@ instructions/
 **Generated files** (created by build targets, excluded from git):
 - `src/bootstrap.bin`, `src/bootstrap.o`, `src/bootstrap.elf`, `src/bootstrap.lst`, `src/bootstrap.inc`
 - `src/z80_fw.bin`, `src/z80_fw.hex`
-- `src/bram_init.vh`, `src/bram_hi.hex`, `src/bram_lo.hex`
 
-## Python Control Script
+## Test Framework
 
-The `test_harness.py` script provides a convenient interface for testing:
+The `tests/` package provides a declarative test framework with 125 tests across 48 Z8000 mnemonics.
+
+### Running Tests
 
 ```bash
-# Interactive mode
-python test_harness.py /dev/ttyUSB0
-
-# Single command
-python test_harness.py /dev/ttyUSB0 ST
-
-# Run all built-in tests
-python test_harness.py /dev/ttyUSB0 all
+python -m tests -p /dev/ttyUSB0                     # Run all tests
+python -m tests -p /dev/ttyUSB0 --tags arithmetic   # Filter by tag
+python -m tests -p /dev/ttyUSB0 --mnemonic ADD      # Filter by mnemonic
+python -m tests -p /dev/ttyUSB0 --name "add_r_*"    # Filter by name glob
+python -m tests -p /dev/ttyUSB0 --target z8002      # Target CPU filter
+python -m tests -p /dev/ttyUSB0 --list               # List without running
+python -m tests -p /dev/ttyUSB0 -v                   # Verbose output
 ```
 
-Interactive commands:
-- `help` - Show all commands with descriptions
-- `all` - Run built-in instruction tests (ADD, SUB, AND, OR, XOR)
-- `raw CMD` - Debug: show raw bytes received
-- `quit` - Exit
+### Target Selection
+
+| `--target`   | Runs tests with `target=`            | Use for                           |
+|--------------|--------------------------------------|-----------------------------------|
+| `common`     | `common`                             | Tests valid on any Z8000          |
+| `z8002`      | `common`, `z8002`                    | Verilog Z8002 implementation      |
+| `z8001`      | `common`, `z8001`                    | Physical Z8001, non-segmented     |
+| `z8001-seg`  | `common`, `z8001`, `z8001-seg`       | Physical Z8001, segmented mode    |
+
+### Bus Trace Capture and Comparison
+
+The trace buffer captures Z8000 bus transactions during test execution. Tracing is address-gated in hardware: it activates when the first opcode fetch hits the test code area (>= 0x0200) and deactivates when execution leaves that range (jump to dump routine). This captures only the instruction under test and its data accesses.
+
+```bash
+# Capture traces from Z8002 Verilog implementation
+python -m tests -p /dev/ttyUSB0 --target z8002 --save-traces traces/z8002
+
+# Run on physical Z8001, save traces and compare against Z8002
+python -m tests -p /dev/ttyUSB1 --target z8001 --save-traces traces/z8001 \
+    --compare-traces traces/z8002
+```
+
+Traces are saved as JSON files (one per test). Comparison checks bus transactions entry-by-entry, reporting mismatches in address, data, or cycle type.
+
+### Interactive Console
+
+```bash
+python test_harness.py /dev/ttyUSB0                  # Interactive mode
+python test_harness.py /dev/ttyUSB0 all              # Run all tests
+python test_harness.py /dev/ttyUSB0 ST               # Send raw command
+```
+
+Interactive commands: `help`, `all`, `raw CMD`, `quit`
 
 ## Quick Start
 
@@ -426,11 +465,11 @@ Note: `d` = destination register (0-F), `s` = source register (0-F)
 
 6. **Cycle-Based Timeout**: Execution timeout is implemented in hardware using the Z8000 cycle counter, not Z80 polling loops. This provides accurate, deterministic timeout behavior independent of Z80 execution speed. Default timeout is 1 second (4M cycles at 4MHz).
 
-7. **Trace Buffer**: A 1024-entry circular buffer captures Z8000 bus transactions (address, data, R/W, B/W, I/O/MEM) on DS_n rising edges. Readable via Z80 I/O ports 0x20-0x28.
+7. **Trace Buffer**: A 1024-entry buffer captures Z8000 bus transactions (address, data, R/W, B/W, I/O/MEM) on DS_n rising edges. Address-gated: only captures when executing test code (PC >= 0x0200), skipping bootstrap and dump routine overhead. Readable via Z80 I/O ports 0x20-0x28.
 
 8. **Vendor-Neutral RAM**: The RAM uses separate files for simulation (`ram16.v`) and synthesis (`ram16_gowin.v`). Both implement the same `ram16` module interface. To port to other FPGAs, create a new `ram16_<vendor>.v` and update the project file.
 
-9. **Embedded Bootstrap**: The Z8000 bootstrap code (reset vectors, register initialization, dump routines) is embedded in the Z80 firmware. The INIT command copies this data to Z8000 memory. Bootstrap data is also pre-initialized in BRAM for synthesis via `bram_init.vh`.
+9. **Embedded Bootstrap**: The Z8000 bootstrap code (reset vectors, register initialization, dump routines) is embedded in the Z80 firmware. The INIT command copies this data to Z8000 memory at runtime. BRAM starts uninitialized; all memory content is loaded by the Z80 supervisor.
 
 ## Troubleshooting
 
