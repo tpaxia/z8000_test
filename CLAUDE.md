@@ -4,11 +4,11 @@ FPGA-based test harness for a Z8000 CPU implementation using Tang Nano 20K (Gowi
 
 ## Project Structure
 
-- `rtl/` - Z8000 CPU core (copied from ../z8000_micro)
-  - `z8000_cpu.v` - Main CPU module
-  - `microcode_rom.v` - CPU microcode ROM
-  - `decode_rom.v` - Instruction decode ROM
-  - `ucode_defs.v` - Microcode address definitions
+- `z8000_micro/` - Z8000 CPU core (git submodule: z8000_micro)
+  - `rtl/z8000_cpu.v` - Main CPU module
+  - `rtl/microcode_rom.v` - CPU microcode ROM
+  - `rtl/decode_rom.v` - Instruction decode ROM
+  - `rtl/ucode_defs.v` - Microcode address definitions
 - `src/` - Verilog source files
   - `z8000_test_harness_top.v` - Top-level module (bus interface, dual-port memory, trace buffer)
   - `z8000_bus_fpga.v` - Z8000 bus interface (CPU, ~4MHz clock divider, address latch)
@@ -18,6 +18,7 @@ FPGA-based test harness for a Z8000 CPU implementation using Tang Nano 20K (Gowi
   - `gowin_dpb/` - Gowin true dual-port BRAM IP (4Kx8, WRITE_MODE=01)
   - `gowin_sdpb/` - Gowin semi dual-port BRAM IP (trace buffer)
   - `trace_buffer.v` - Bus trace capture buffer (1024 entries, address-gated to test code)
+  - `z8k_io_ports.v` - Z8000 I/O port registers (12x16-bit, Z8000+Z80 accessible)
   - `uart_tx.v` / `uart_rx.v` - UART modules
   - `bootstrap.s` - Bootstrap/dump routine Z8000 assembly source
   - `z80_fw.asm` - Z80 supervisor firmware
@@ -115,17 +116,18 @@ entry-by-entry, reporting mismatches in address, data, or bus cycle type.
 ## Test Framework
 
 Tests are declarative `TestCase` dataclasses in `tests/test_*.py`. Each test defines:
-- **Initial state**: code words, register values, FCW (flags), memory contents
-- **Expected results**: register values, flags set/clear, memory contents
+- **Initial state**: code words, register values, FCW (flags), memory contents, I/O ports
+- **Expected results**: register values, flags set/clear, memory contents, I/O ports
 - **Metadata**: name, mnemonic, tags, target (common/z8001/z8001-seg/z8002)
 
 The `TestRunner` in `tests/runner.py` executes each test by:
 1. `INIT` (reload bootstrap every test for clean state)
-2. Set FCW, write registers, preload memory
+2. Set FCW, write registers, preload memory, write I/O port preloads (via WP)
 3. Load test code at 0x0200, append `JP 0x00C0` (dump routine)
 4. `EX` (resets, executes, halts - counters preserved after halt)
 5. Read back registers, FCW (from 0x00B2), memory, cycle/fetch counts, bus trace
-6. Compare against expected values
+6. If I/O port verification needed: `RS` (z8k_rst_n=0), read ports via RP
+7. Compare against expected values
 
 Tags for filtering: `arithmetic`, `logical`, `compare`, `load`, `bit`, `shift`,
 `branch`, `stack`, `block`, `exchange`, `control`, `io`, `word`, `byte`,
@@ -157,11 +159,34 @@ Tags for filtering: `arithmetic`, `logical`, `compare`, `load`, `bit`, `shift`,
 | 0x0700-0x07FF | Destination buffer (block operations)         |
 | 0x0F00        | Stack base (PUSH/POP/CALL/RET tests)         |
 
+## Z8000 I/O Port Registers
+
+12 x 16-bit registers accessible from both Z8000 (via bus cycles) and Z80 (via RP/WP).
+Standard (ST=0010) and special (ST=0011) I/O use the same addresses but map to different registers.
+
+| Reg Index | Z8000 Addr | Type           | I/O Type        |
+|-----------|-----------|----------------|-----------------|
+| 0x00      | 0x0100    | Loopback byte  | Standard        |
+| 0x01      | 0x0102    | Loopback word  | Standard        |
+| 0x02      | 0x0104    | Output byte    | Standard        |
+| 0x03      | 0x0106    | Output word    | Standard        |
+| 0x04      | 0x0108    | Input byte     | Standard        |
+| 0x05      | 0x010A    | Input word     | Standard        |
+| 0x06      | 0x0100    | Loopback byte  | Special         |
+| 0x07      | 0x0102    | Loopback word  | Special         |
+| 0x08      | 0x0104    | Output byte    | Special         |
+| 0x09      | 0x0106    | Output word    | Special         |
+| 0x0A      | 0x0108    | Input byte     | Special         |
+| 0x0B      | 0x010A    | Input word     | Special         |
+
+Z80 access: `RPnn` reads register, `WPnnxxxx` writes register (nn = hex index).
+Z80 I/O ports 0x30-0x47 (low=0x30+N*2, high=0x31+N*2). Access gated on z8k_rst_n=0.
+
 ## Serial Protocol
 
 Text commands over UART (no spaces between command and arguments):
-`WRnxxxx`, `RRn`, `WMaaaaxxxx`, `RMaaaa`, `EX`, `RS`, `ST`, `MT`, `DA`, `DB`, `DP`,
-`INIT`, `TOxxxxxxxx`, `CC`, `FC`, `TC`, `TR`, `TRnnn`
+`WRnxxxx`, `RRn`, `WMaaaaxxxx`, `RMaaaa`, `WPnnxxxx`, `RPnn`, `EX`, `RS`, `ST`,
+`MT`, `DA`, `DB`, `DP`, `INIT`, `TOxxxxxxxx`, `CC`, `FC`, `TC`, `TR`, `TRnnn`
 
 Key commands:
 - `RS` - Reset CPU

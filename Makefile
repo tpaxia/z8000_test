@@ -4,7 +4,7 @@
 # Paths
 SRC_DIR = src
 TV80_DIR = tv80_official/rtl/core
-Z8K_RTL_DIR = rtl
+Z8K_RTL_DIR = z8000_micro/rtl
 
 # TV80 Z80 core sources
 TV80_SRCS = \
@@ -22,7 +22,8 @@ Z80_HARNESS_SRCS = \
 	$(SRC_DIR)/uart_tx.v \
 	$(SRC_DIR)/uart_rx.v \
 	$(SRC_DIR)/ram16.v \
-	$(SRC_DIR)/trace_buffer.v
+	$(SRC_DIR)/trace_buffer.v \
+	$(SRC_DIR)/z8k_io_ports.v
 
 # Z8000 sources
 Z8K_SRCS = \
