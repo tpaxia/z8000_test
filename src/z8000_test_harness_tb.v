@@ -24,7 +24,7 @@ module z8000_test_harness_tb;
     wire z8k_rst_n;
     reg  z8k_halt_n;
     wire z8k_mem_we;
-    wire [14:0] z8k_mem_addr;
+    wire [14:0] z80_addr;
     wire [15:0] z8k_mem_wdata;
     reg [15:0] z8k_mem_rdata;
 
@@ -34,6 +34,18 @@ module z8000_test_harness_tb;
     reg [15:0] z8k_fetch_count;
     wire [31:0] z8k_cycle_limit;
     wire       z8k_cycle_timeout;
+
+    // Trace buffer (stub for testbench)
+    wire [9:0]  trace_rd_addr;
+    reg  [35:0] trace_rd_data;
+    reg  [9:0]  trace_wr_count;
+
+    // I/O port registers (stub for testbench)
+    wire [3:0]  io_port_reg_sel;
+    wire [7:0]  io_port_wbyte;
+    reg  [15:0] io_port_rdata;
+    wire        io_port_wr_lo;
+    wire        io_port_wr_hi;
 
     // Simulate cycle timeout: timeout when cycle_count >= cycle_limit (if limit != 0)
     assign z8k_cycle_timeout = (z8k_cycle_limit != 32'd0) && (z8k_cycle_count >= z8k_cycle_limit);
@@ -69,20 +81,29 @@ module z8000_test_harness_tb;
         .uart_tx_data(uart_tx_data), .uart_tx_valid(uart_tx_valid),
         .uart_tx_ready(uart_tx_ready),
         .z8k_rst_n(z8k_rst_n), .z8k_halt_n(z8k_halt_n),
-        .z8k_mem_we(z8k_mem_we), .z8k_mem_addr(z8k_mem_addr),
+        .z8k_st(4'b0000),
+        .z8k_mem_we(z8k_mem_we), .z80_addr(z80_addr),
         .z8k_mem_wdata(z8k_mem_wdata), .z8k_mem_rdata(z8k_mem_rdata),
         .z8k_bus_active(z8k_bus_active),
         .z8k_cycle_count(z8k_cycle_count),
         .z8k_fetch_count(z8k_fetch_count),
         .z8k_cycle_limit(z8k_cycle_limit),
-        .z8k_cycle_timeout(z8k_cycle_timeout)
+        .z8k_cycle_timeout(z8k_cycle_timeout),
+        .trace_rd_addr(trace_rd_addr),
+        .trace_rd_data(trace_rd_data),
+        .trace_wr_count(trace_wr_count),
+        .io_port_reg_sel(io_port_reg_sel),
+        .io_port_wbyte(io_port_wbyte),
+        .io_port_rdata(io_port_rdata),
+        .io_port_wr_lo(io_port_wr_lo),
+        .io_port_wr_hi(io_port_wr_hi)
     );
 
     // Memory read/write handling
     always @(posedge clk) begin
         if (z8k_mem_we)
-            test_mem[z8k_mem_addr[13:0]] <= z8k_mem_wdata;
-        z8k_mem_rdata <= test_mem[z8k_mem_addr[13:0]];
+            test_mem[z80_addr[13:0]] <= z8k_mem_wdata;
+        z8k_mem_rdata <= test_mem[z80_addr[13:0]];
     end
 
     // UART send task
@@ -203,6 +224,9 @@ module z8000_test_harness_tb;
         z8k_bus_active = 1;  // Simulate bus active for testing
         z8k_cycle_count = 32'h00001234;  // Test value
         z8k_fetch_count = 16'h0042;  // Test value
+        trace_rd_data = 36'd0;
+        trace_wr_count = 10'd0;
+        io_port_rdata = 16'd0;
         pass_count = 0;
         fail_count = 0;
 

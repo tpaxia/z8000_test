@@ -5,6 +5,7 @@
 # Build artifacts - Z80 firmware
 src/z80_fw.bin
 src/z80_fw.hex
+src/z80_fw.o
 z80_fw.hex
 
 # Build artifacts - Z8000 bootstrap

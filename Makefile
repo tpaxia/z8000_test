@@ -35,7 +35,11 @@ Z8K_SRCS = \
 VERILOG_INCS = -I$(Z8K_RTL_DIR) -I$(TV80_DIR)
 
 # Firmware
+ifeq ($(OS),Windows_NT)
 Z88DK ?= C:/Program Files (x86)/z88dk
+else
+Z88DK ?= $(HOME)/z88dk
+endif
 Z80ASM = "$(Z88DK)/bin/z88dk-z80asm"
 Z80_FW_SRC = $(SRC_DIR)/z80_fw.asm
 Z80_FW_BIN = $(SRC_DIR)/z80_fw.bin
