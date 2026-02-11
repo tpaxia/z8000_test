@@ -1,0 +1,7 @@
+# Quartus Project File for Z8001 External Test Harness
+# Based on z8000_test project, adapted for external Z8001 CPU
+
+QUARTUS_VERSION = "13.0"
+DATE = "2026-02-06"
+
+PROJECT_REVISION = "z8001_ext_test"
