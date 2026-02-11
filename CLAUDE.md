@@ -1,6 +1,6 @@
 # Z8000 Instruction Test Harness
 
-FPGA-based test harness for a Z8000 CPU implementation using Tang Nano 20K (Gowin GW2AR-18C).
+FPGA-based test harness for a Z8000 CPU implementation. Supports Tang Nano 20K (GW2AR-18C) and Tang Primer 20K dock (GW2A-LV18PG256C8/I7).
 
 ## Project Structure
 
@@ -24,7 +24,8 @@ FPGA-based test harness for a Z8000 CPU implementation using Tang Nano 20K (Gowi
   - `z80_fw.asm` - Z80 supervisor firmware
   - `z8000_test_harness_tb.v` - Z80-only simulation testbench
   - `z8000_full_tb.v` - Full system testbench (Z8000 + BRAM, no UART)
-  - `top.cst` - FPGA pin constraints
+  - `top.cst` - FPGA pin constraints (Tang Nano 20K)
+  - `top_primer20k.cst` - FPGA pin constraints (Tang Primer 20K dock)
 - `tests/` - Python test framework
   - `harness.py` - Z8000TestHarness class (serial communication with FPGA)
   - `defs.py` - TestCase, TestResult dataclasses
@@ -51,7 +52,8 @@ FPGA-based test harness for a Z8000 CPU implementation using Tang Nano 20K (Gowi
   - `gen_fw_hex.py` - Z80 firmware hex generator
   - `gen_bootstrap_inc.py` - Bootstrap to Z80 include converter
 - `test_harness.py` - Interactive serial console (thin wrapper over tests/harness.py)
-- `z8000_test_harness.gprj` - Gowin EDA project file
+- `z8000_test_harness.gprj` - Gowin EDA project file (Tang Nano 20K)
+- `z8000_test_harness_primer20k.gprj` - Gowin EDA project file (Tang Primer 20K dock)
 - `Makefile` - Build automation
 - `quartus/` - Quartus project for external Z8001 CPU testing
   - `z8001_ext_test_top.v` - Top-level module (bus wiring, halt detect, instrumentation)
@@ -157,7 +159,8 @@ Tags for filtering: `arithmetic`, `logical`, `compare`, `load`, `bit`, `shift`,
 - **Clock**: 27MHz system clock; Z8000 runs at ~3.86MHz (divided from 27MHz)
 - **Serial**: 115200 baud, 8N1
 - **Memory**: 8KB true dual-port BRAM (Gowin DPB), Port A = Z80, Port B = Z8000
-- **Reset**: Debounced rst_n for Z80; z8k_rst_n (Z80-controlled via port 0x14) for Z8000
+- **Reset**: Power-on reset (~20ms timer) for Z80; z8k_rst_n (Z80-controlled via port 0x14) for Z8000
+- **LEDs**: 4-bit active-low: [0]=heartbeat, [1]=Z80 alive, [2]=Z8000 in reset, [3]=Z8000 halted
 - **FCW flags**: C=bit7, Z=bit6, S=bit5, V=bit4, DA=bit3, H=bit2 (from rtl/z8000_cpu.v)
 
 ## Memory Map
@@ -277,3 +280,18 @@ bootstrap data. The Z8002 build uses non-segmented 3-word reset vectors.
 Build: `cd quartus && make firmware` assembles with `-DZ8001` and generates MIF.
 
 See `quartus/README.md` for full pin assignments, expected output, and build details.
+
+## Gowin Board Support
+
+| Aspect | Tang Nano 20K | Tang Primer 20K Dock |
+|--------|--------------|---------------------|
+| Device | GW2AR-LV18QN88C8/I7 | GW2A-LV18PG256C8/I7 |
+| Package | QN88 | PG256 BGA |
+| Project file | `z8000_test_harness.gprj` | `z8000_test_harness_primer20k.gprj` |
+| Constraints | `src/top.cst` | `src/top_primer20k.cst` |
+| Clock pin | 4 (27MHz) | H11 (27MHz) |
+| UART TX/RX | 69/70 | M11/T13 |
+| LEDs | 15,16,17,18 | L16,L14,N14,N16 |
+| Reset | Power-on timer | Power-on timer |
+
+Both boards share the same Verilog sources and Gowin DPB/SDPB IP.
