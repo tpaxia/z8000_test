@@ -301,3 +301,8 @@ See `quartus/README.md` for full pin assignments, expected output, and build det
 | Reset | Power-on timer | Power-on timer |
 
 Both boards share the same Verilog sources and Gowin DPB/SDPB IP.
+
+## Protected Code
+
+Do NOT modify the following without explicitly asking first:
+- `quartus/z8001_bus_external.v`: `bus_as_active` logic and `buf_dir` assignment (M20FPGA bus buffer direction control)

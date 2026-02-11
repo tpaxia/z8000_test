@@ -40,7 +40,7 @@ module z8001_bus_external (
     // Z8001 bus signals (accent via 74LVC245)
     input  wire        as_n,           // Address strobe (active-low)
     input  wire        ds_n,           // Data strobe (active-low)
-    input  wire        bw_n,           // Byte/Word (low=byte)
+    input  wire        bw_n,           // Byte/Word: Z8001 B/W̄ pin (low=word, high=byte)
     input  wire        mreq_n,         // Memory request (active-low)
     input  wire        rw_n,           // Read/Write (high=read)
     input  wire [3:0]  st,             // Status type
@@ -104,7 +104,9 @@ module z8001_bus_external (
     assign ds_n_out = ds_n_s2;
     assign rw_n_out = rw_n_s2;
     assign mreq_n_out = mreq_n_s2;
-    assign bw_n_out = bw_n_s2;
+    // Real Z8001 B/W̄ pin: LOW=word, HIGH=byte (opposite of Verilog CPU convention)
+    // Invert so downstream logic uses Verilog convention: 0=byte, 1=word
+    assign bw_n_out = ~bw_n_latched;
 
     //------------------------------------------------------------------------
     // Bus Activity Tracking (matches M20FPGA: continuously track AS state)
@@ -159,31 +161,40 @@ module z8001_bus_external (
     reg [15:0] ad_bus_latched;
     reg [3:0]  st_raw_latched;
     reg [3:0]  sn_raw_latched;
+    reg        bw_n_raw_latched;
 
     always @(posedge as_n or negedge rst_n) begin
         if (!rst_n) begin
             ad_bus_latched <= 16'h0000;
             st_raw_latched <= 4'b0000;
             sn_raw_latched <= 4'b0000;
+            bw_n_raw_latched <= 1'b1;
         end else begin
-            // Latch address and status on AS rising edge
+            // Latch address, status, and B/W on AS rising edge
+            // B/W is only valid during address phase; must latch here
             ad_bus_latched <= ad_bus;
             st_raw_latched <= st;
             sn_raw_latched <= sn;
+            bw_n_raw_latched <= bw_n;
         end
     end
 
     // Transfer latched values to synchronized domain
+    reg bw_n_latched;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             addr <= 16'h0000;
             st_latched <= 4'b0000;
+            bw_n_latched <= 1'b1;
         end else if (!z8k_rst_n) begin
             addr <= 16'h0000;
             st_latched <= 4'b0000;
+            bw_n_latched <= 1'b1;
         end else begin
             addr <= ad_bus_latched;
             st_latched <= st_raw_latched;
+            bw_n_latched <= bw_n_raw_latched;
         end
     end
 

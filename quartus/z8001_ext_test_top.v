@@ -209,6 +209,7 @@ module z8001_ext_test_top (
     reg halt_detected;
     reg ds_n_prev;
     wire ds_rising = ~ds_n_prev && z8k_ds_n_sync;
+    wire z8k_ds_falling = ds_n_prev && ~z8k_ds_n_sync;
     wire first_fetch_cycle = (z8k_st == 4'b1101);
 
     always @(posedge sys_clk or negedge sys_rst_n) begin
@@ -366,8 +367,13 @@ module z8001_ext_test_top (
     // Port B: Z8001 CPU (fetch/execute)
     //------------------------------------------------------------------------
 
-    // Z8001 write logic
-    wire z8k_ram_write = ram_sel && ~z8k_rw_n_sync && ~z8k_ds_n_sync;
+    // Z8001 write logic - edge-detected to avoid trailing garbage
+    // After real DS rises, the CPU stops driving data but z8k_ds_n_sync
+    // stays low for 2 more clocks (synchronizer delay). Level-based write
+    // enables would let the BRAM capture whatever garbage is on the floating
+    // bus during those trailing cycles. Using DS falling edge ensures a
+    // single-pulse write when data is guaranteed valid.
+    wire z8k_ram_write = ram_sel && ~z8k_rw_n_sync && z8k_ds_falling;
     wire z8k_we_hi = z8k_ram_write && (z8k_bw_n_sync || ~z8k_addr[0]);
     wire z8k_we_lo = z8k_ram_write && (z8k_bw_n_sync ||  z8k_addr[0]);
 
@@ -396,7 +402,7 @@ module z8001_ext_test_top (
     //------------------------------------------------------------------------
     // I/O Port Registers
     //------------------------------------------------------------------------
-    wire z8k_io_wr = io_port_match && ~z8k_rw_n_sync && ~z8k_ds_n_sync;
+    wire z8k_io_wr = io_port_match && ~z8k_rw_n_sync && z8k_ds_falling;
 
     z8k_io_ports io_ports (
         .clk           (sys_clk),
@@ -426,7 +432,7 @@ module z8001_ext_test_top (
     // Any Z8001 I/O write captures wdata; LED driven from bit 0
     //------------------------------------------------------------------------
     reg [15:0] io_led_reg;
-    wire io_write = io_sel && ~z8k_rw_n_sync && ~z8k_ds_n_sync;
+    wire io_write = io_sel && ~z8k_rw_n_sync && z8k_ds_falling;
 
     always @(posedge sys_clk or negedge sys_rst_n) begin
         if (!sys_rst_n)
