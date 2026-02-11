@@ -9,7 +9,7 @@ src/z80_fw.o
 z80_fw.hex
 
 # Build artifacts - Z8000 bootstrap
-src/bootstrap.bin
+# Note: bootstrap.bin is committed (rare toolchain: z8k-coff-as)
 src/bootstrap.o
 src/bootstrap.elf
 src/bootstrap.lst

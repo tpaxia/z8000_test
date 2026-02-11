@@ -183,6 +183,10 @@ def main():
     harness = Z8000TestHarness(args.port, args.baud)
     print(f"Connected to {args.port}")
 
+    print("Uploading bootstrap...", end=" ", flush=True)
+    harness.upload_bootstrap(args.target)
+    print("done")
+
     runner = TestRunner(harness, target=args.target, verbose=True)
     results, passed, failed = runner.run_tests(all_tests)
 

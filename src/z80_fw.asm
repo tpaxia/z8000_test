@@ -710,41 +710,66 @@ mt_f:
         jp main
 
 ; INIT - Initialize Z8000 memory with bootstrap code
-; Loads bootstrap_data (from bootstrap.inc) to Z8000 memory starting at 0x0000
-; Bootstrap contains: reset vectors, register init, dump routines
+; If bootstrap has been uploaded to BRAM shadow (0x1000), copies it to active
+; area (0x0000). Otherwise writes a minimal default (reset vector + HALT).
 do_init:
         ; Assert reset first
         xor a
         out (0x14), a
 
-        ; Copy bootstrap data to Z8000 memory
-        ; Use IX as source pointer, DE as Z8000 dest address
-        ld ix, bootstrap_data
-        ld de, 0x0000           ; Z8000 start address
-        ld bc, bootstrap_len    ; Word count
+        ; Read bootstrap word count from BRAM 0x1FFE
+        ld de, 0x1FFE
+        call z8kr                   ; HL = word count
+        ld a, h
+        or l
+        jp z, init_default          ; If 0, no upload yet — use minimal default
 
-init_loop:
-        ; Check if done (BC = 0)
+        ; BC = word count
+        ld b, h
+        ld c, l
+
+        ; Copy from shadow (0x1000+) to active (0x0000+)
+        ld ix, 0x0000               ; IX = dest address counter
+init_shadow_loop:
+        ; Read source word: source addr = dest + 0x1000
+        push ix
+        pop de
+        ld a, d
+        add a, 0x10                 ; DE += 0x1000
+        ld d, a
+        call z8kr                   ; HL = word from shadow
+
+        ; Write to dest
+        push ix
+        pop de
+        call z8kw                   ; Write HL to active area
+
+        inc ix
+        inc ix                      ; Next word address
+
+        ; Decrement word count
+        dec bc
         ld a, b
         or c
-        jp z, init_done
+        jp nz, init_shadow_loop
 
-        ; Read word from bootstrap_data (Z80 dw stores little-endian: low, high)
-        ld l, (ix+0)            ; Low byte
-        ld h, (ix+1)            ; High byte
-        inc ix
-        inc ix
+        jp init_done
 
-        ; Write HL to Z8000 address DE
-        call z8kw
-
-        ; Next Z8000 address
-        inc de
-        inc de
-
-        ; Decrement count
-        dec bc
-        jp init_loop
+init_default:
+        ; Minimal bootstrap: reset vector + HALT at 0x0040
+        ; Z8002 non-segmented: 3-word reset vector
+        ld de, 0x0000
+        ld hl, 0x0000
+        call z8kw                   ; 0x0000: reserved
+        ld de, 0x0002
+        ld hl, 0x4000
+        call z8kw                   ; 0x0002: FCW = system mode
+        ld de, 0x0004
+        ld hl, 0x0040
+        call z8kw                   ; 0x0004: PC = 0x0040
+        ld de, 0x0040
+        ld hl, 0x7A00
+        call z8kw                   ; 0x0040: HALT
 
 init_done:
         ; Print OK
@@ -1417,24 +1442,5 @@ z8kr:
         ld h, a
         ret
 
-; ==============================================
-; Z8000 Bootstrap Data
-; ==============================================
-bootstrap_data:
-IFDEF Z8001
-        ; Z8001: 4-word segmented reset vector
-        dw 0x0000               ; reserved
-        dw 0x4000               ; FCW (system mode)
-        dw 0x0000               ; PC segment
-        dw 0x0040               ; PC offset
-        dw 0x0000, 0x0000, 0x0000, 0x0000  ; pad to 0x0010
-ELSE
-        ; Z8002: 3-word non-segmented reset vector
-        dw 0x0000               ; reserved
-        dw 0x4000               ; FCW (system mode)
-        dw 0x0040               ; PC = bootstrap entry
-        dw 0x0000, 0x0000, 0x0000, 0x0000, 0x0000  ; pad to 0x0010
-ENDIF
-bootstrap_body:
-        include "bootstrap_body.inc"
-bootstrap_len: equ (bootstrap_body - bootstrap_data) / 2 + bootstrap_body_len
+; Bootstrap data removed - now uploaded at runtime via Python test framework.
+; See tests/harness.py upload_bootstrap() and BRAM shadow area at 0x1000.

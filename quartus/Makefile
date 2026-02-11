@@ -31,8 +31,8 @@ $(Z80_FW_MIF): $(Z80_FW_HEX)
 $(Z80_FW_HEX): $(Z80_FW_BIN)
 	$(PYTHON) $(SCRIPTS_DIR)/gen_fw_hex.py $(Z80_FW_BIN) $(Z80_FW_HEX)
 
-$(Z80_FW_BIN): $(SRC_DIR)/z80_fw.asm $(SRC_DIR)/bootstrap_body.inc
-	cd $(SRC_DIR) && $(Z80ASM) -b -DZ8001 -o=../quartus/z80_fw.bin z80_fw.asm
+$(Z80_FW_BIN): $(SRC_DIR)/z80_fw.asm
+	cd $(SRC_DIR) && $(Z80ASM) -b -o=../quartus/z80_fw.bin z80_fw.asm
 
 # Alternative: copy hex from main project if already built
 copy-hex:

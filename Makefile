@@ -44,7 +44,6 @@ Z80ASM = "$(Z88DK)/bin/z88dk-z80asm"
 Z80_FW_SRC = $(SRC_DIR)/z80_fw.asm
 Z80_FW_BIN = $(SRC_DIR)/z80_fw.bin
 Z80_FW_HEX = $(SRC_DIR)/z80_fw.hex
-BOOTSTRAP_BODY_INC = $(SRC_DIR)/bootstrap_body.inc
 BOOTSTRAP_BIN = $(SRC_DIR)/bootstrap.bin
 
 # Default target
@@ -79,7 +78,7 @@ help:
 .PHONY: firmware
 firmware: $(Z80_FW_BIN) $(Z80_FW_HEX)
 
-$(Z80_FW_BIN): $(Z80_FW_SRC) $(BOOTSTRAP_BODY_INC)
+$(Z80_FW_BIN): $(Z80_FW_SRC)
 	@echo "Assembling Z80 firmware..."
 	cd $(SRC_DIR) && $(Z80ASM) -b -o=z80_fw.bin z80_fw.asm
 	@echo "Firmware size: $$(wc -c < $(Z80_FW_BIN)) bytes"
@@ -147,7 +146,7 @@ wave:
 # Bootstrap (Z8000 test code)
 #
 .PHONY: bootstrap
-bootstrap: $(SRC_DIR)/bootstrap.bin $(BOOTSTRAP_INC)
+bootstrap: $(SRC_DIR)/bootstrap.bin
 
 $(SRC_DIR)/bootstrap.bin: $(SRC_DIR)/bootstrap.s
 	cd $(SRC_DIR) && z8k-coff-as -z8002 -als bootstrap.s -o bootstrap.o > bootstrap.lst
@@ -155,9 +154,6 @@ $(SRC_DIR)/bootstrap.bin: $(SRC_DIR)/bootstrap.s
 	cd $(SRC_DIR) && z8k-coff-objcopy -O binary bootstrap.elf bootstrap.bin
 	@echo "Bootstrap binary generated: $(SRC_DIR)/bootstrap.bin"
 	@echo "Listing file: $(SRC_DIR)/bootstrap.lst"
-
-$(BOOTSTRAP_BODY_INC): $(BOOTSTRAP_BIN)
-	python3 scripts/gen_bootstrap_inc.py $(BOOTSTRAP_BIN) $(BOOTSTRAP_BODY_INC) --skip 8
 
 #
 # Clean

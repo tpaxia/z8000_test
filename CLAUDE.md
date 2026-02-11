@@ -148,13 +148,18 @@ Tests are declarative `TestCase` dataclasses in `tests/test_*.py`. Each test def
 - **Metadata**: name, mnemonic, tags, target (common/z8001/z8001-seg/z8002)
 
 The `TestRunner` in `tests/runner.py` executes each test by:
-1. `INIT` (reload bootstrap every test for clean state)
+1. `INIT` (copies bootstrap from BRAM shadow to active area for clean state)
 2. Set FCW, write registers, preload memory, write I/O port preloads (via WP)
 3. Load test code at 0x0200, append `JP 0x00C0` (dump routine)
 4. `EX` (resets, executes, halts - counters preserved after halt)
 5. Read back registers, FCW (from 0x00B2), memory, cycle/fetch counts, bus trace
 6. If I/O port verification needed: `RS` (z8k_rst_n=0), read ports via RP
 7. Compare against expected values
+
+Bootstrap is uploaded once on connect via `harness.upload_bootstrap(target)`.
+The Python framework reads `src/bootstrap.bin`, builds target-appropriate reset
+vectors, and uploads to BRAM shadow area (0x1000). Each `INIT` copies from
+shadow to active. Without upload, `INIT` writes a minimal default (HALT).
 
 Tags for filtering: `arithmetic`, `logical`, `compare`, `load`, `bit`, `shift`,
 `branch`, `stack`, `block`, `exchange`, `control`, `io`, `word`, `byte`,
@@ -186,6 +191,8 @@ Tags for filtering: `arithmetic`, `logical`, `compare`, `load`, `bit`, `shift`,
 | 0x0600-0x06FF | Source buffer (block operations)              |
 | 0x0700-0x07FF | Destination buffer (block operations)         |
 | 0x0F00        | Stack base (PUSH/POP/CALL/RET tests)         |
+| 0x1000-0x1203 | Bootstrap shadow area (uploaded by Python)   |
+| 0x1FFE        | Bootstrap word count (uploaded by Python)    |
 
 ## Z8000 I/O Port Registers
 
@@ -279,11 +286,12 @@ would get the previous cycle's status.
 
 ### Shared Firmware
 
-Both platforms use the same `src/z80_fw.asm` firmware source. The Quartus build
-passes `-DZ8001` to z80asm, which selects Z8001 segmented reset vectors in the
-bootstrap data. The Z8002 build uses non-segmented 3-word reset vectors.
+Both platforms use the same `src/z80_fw.asm` firmware source. The Z80 firmware
+no longer embeds the Z8000 bootstrap — it is uploaded at runtime by the Python
+test framework via `upload_bootstrap()`. Target-specific reset vectors (Z8001
+segmented vs Z8002 non-segmented) are built by the Python code.
 
-Build: `cd quartus && make firmware` assembles with `-DZ8001` and generates MIF.
+Build: `cd quartus && make firmware` assembles and generates MIF.
 
 See `quartus/README.md` for full pin assignments, expected output, and build details.
 

@@ -1,5 +1,7 @@
 """Z8000 Test Harness - serial communication with the FPGA test harness."""
 
+import os
+import struct
 import time
 import serial
 
@@ -138,6 +140,47 @@ class Z8000TestHarness:
     def set_timeout(self, value):
         """Set execution timeout (0x0000-0xFFFF, 0=max ~126ms)"""
         return self.send_command(f'TO{value:04X}')
+
+    def upload_bootstrap(self, target="z8002", bin_path=None):
+        """Upload Z8000 bootstrap binary to BRAM shadow area (0x1000).
+
+        Reads src/bootstrap.bin, replaces reset vectors for the target CPU,
+        and uploads to BRAM shadow area. The Z80 INIT command will copy from
+        shadow to active area (0x0000) on each test.
+
+        Args:
+            target: "z8002", "z8001", or "z8001-seg"
+            bin_path: path to bootstrap.bin (default: auto-detect relative to project)
+        """
+        if bin_path is None:
+            # Find bootstrap.bin relative to this file (tests/harness.py -> src/bootstrap.bin)
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            bin_path = os.path.join(project_root, "src", "bootstrap.bin")
+
+        with open(bin_path, "rb") as f:
+            data = f.read()
+
+        # bootstrap.bin starts at 0x0000. First 8 words (16 bytes) are reset vectors,
+        # which are target-specific. Replace with appropriate vectors.
+        body = data[16:]  # 0x0010 onwards — same for all targets
+
+        if target in ("z8001", "z8001-seg"):
+            # Z8001: 4-word segmented reset vector, padded to 8 words
+            vectors = struct.pack(">8H", 0x0000, 0x4000, 0x0000, 0x0040, 0, 0, 0, 0)
+        else:
+            # Z8002: 3-word non-segmented reset vector, padded to 8 words
+            vectors = struct.pack(">8H", 0x0000, 0x4000, 0x0040, 0, 0, 0, 0, 0)
+
+        full_image = vectors + body
+        word_count = len(full_image) // 2
+
+        # Upload to BRAM shadow area at 0x1000
+        for i in range(0, len(full_image), 2):
+            word = (full_image[i] << 8) | full_image[i + 1]
+            self.write_mem(0x1000 + i, word)
+
+        # Write word count to 0x1FFE
+        self.write_mem(0x1FFE, word_count)
 
     def cycle_count(self):
         """Read cycle count (Z8000 clocks from reset to halt)"""
