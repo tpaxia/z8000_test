@@ -25,6 +25,9 @@ src/a.out
 sim_output.txt
 sim_test
 
+# Test results (generated reports)
+results/*/
+
 # Python
 __pycache__/
 *.pyc

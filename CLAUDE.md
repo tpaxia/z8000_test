@@ -51,6 +51,8 @@ FPGA-based test harness for a Z8000 CPU implementation. Supports Tang Nano 20K (
 - `scripts/` - Build scripts
   - `gen_fw_hex.py` - Z80 firmware hex generator
   - `gen_bootstrap_inc.py` - Bootstrap to Z80 include converter
+  - `gen_report.py` - Verification report generator (JSON + markdown)
+- `results/` - Test result reports (generated, not checked in)
 - `test_harness.py` - Interactive serial console (thin wrapper over tests/harness.py)
 - `z8000_test_harness.gprj` - Gowin EDA project file (Tang Nano 20K)
 - `z8000_test_harness_primer20k.gprj` - Gowin EDA project file (Tang Primer 20K dock)
@@ -97,6 +99,10 @@ python -m tests -p /dev/ttyUSB0 --name "add_r_*"    # Filter by name glob
 python -m tests -p /dev/ttyUSB0 --target z8002      # Target CPU filter
 python -m tests -p /dev/ttyUSB0 --list               # List without running
 python -m tests -p /dev/ttyUSB0 -v                   # Verbose output
+
+# Verification report (JSON + markdown, grouped by mnemonic and failure category)
+python scripts/gen_report.py -p /dev/ttyUSB0 --target z8002
+python scripts/gen_report.py -p /dev/ttyUSB0 --target z8001 -o results/z8001_run1
 
 # Interactive console
 python test_harness.py /dev/ttyUSB0                  # Interactive mode
