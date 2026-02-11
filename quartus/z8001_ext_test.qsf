@@ -23,6 +23,8 @@ set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 # Source Files
 # ============================================================================
 set_global_assignment -name VERILOG_FILE z8001_ext_test_top.v
+set_global_assignment -name VERILOG_FILE z8001_bus_external.v
+set_global_assignment -name VERILOG_FILE trace_buffer_altera.v
 set_global_assignment -name VERILOG_FILE ram16_altera.v
 set_global_assignment -name VERILOG_FILE pll.v
 

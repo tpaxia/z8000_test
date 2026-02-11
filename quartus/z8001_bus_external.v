@@ -107,17 +107,18 @@ module z8001_bus_external (
     assign bw_n_out = bw_n_s2;
 
     //------------------------------------------------------------------------
-    // Bus Activity Tracking (matches M20FPGA bus_as_active)
+    // Bus Activity Tracking (matches M20FPGA: continuously track AS state)
     //------------------------------------------------------------------------
+    // M20FPGA pattern: always @(negedge clk8) bus_as_active = fas;
+    // bus_as_active mirrors as_n: 1 when AS inactive, 0 when AS active.
+    // This ensures buf_dir transitions correctly each bus cycle.
     reg bus_as_active;
 
-    always @(posedge clk or negedge z8k_rst_n) begin
-        if (!z8k_rst_n) begin
-            bus_as_active <= 1'b0;
-        end else if (!as_n_s2) begin
-            // Set when AS goes active
-            bus_as_active <= 1'b1;
-        end
+    always @(negedge clk or negedge rst_n) begin
+        if (!rst_n)
+            bus_as_active <= 1'b1;  // AS inactive at reset
+        else
+            bus_as_active <= as_n;  // Track raw AS state (1=inactive, 0=active)
     end
 
     //------------------------------------------------------------------------

@@ -39,6 +39,7 @@ Pin assignments and bus interface logic are based on the **M20FPGA** project.
     |              |  - BRAM (8KB)     |              |
     |              |  - Trace Buffer   |              |
     |              |  - UART           |              |
+    |              |  - I/O LED Latch  |              |
     |              +---------+---------+              |
     |                        |                        |
     |                   UART TXD/RXD                  |
@@ -65,25 +66,76 @@ buf_dir = rw_n && bus_as_active && as_n;
 - **Write data phase** (rw_n=0): `buf_dir=0` → CPU drives data
 - **Read data phase** (rw_n=1, AS inactive): `buf_dir=1` → FPGA drives data
 
+`bus_as_active` continuously tracks raw AS state on `negedge clk` (matching
+M20FPGA pattern), ensuring correct direction transitions each bus cycle.
+
 ## Project Structure
 
 ```
 quartus/
 ├── z8001_ext_test.qpf          # Quartus project file
-├── z8001_ext_test.qsf          # Pin assignments (from M20FPGA)
+├── z8001_ext_test.qsf          # Pin assignments and source file list
 ├── z8001_ext_test.sdc          # Timing constraints
-├── z8001_ext_test_top.v        # Top-level module
-├── z8001_bus_external.v        # External Z8001 bus interface
+├── z8001_ext_test_top.v        # Top-level module (bus wiring, halt detect, instrumentation)
+├── z8001_bus_external.v        # External Z8001 bus interface (sync, latch, buffer control)
+├── trace_buffer_altera.v       # Bus trace capture (behavioral RAM, no Gowin SDPB)
 ├── z80_harness_quartus.v       # Z80 harness (Altera altsyncram for Z80 RAM)
 ├── ram16_altera.v              # Dual-port RAM (Altera altsyncram)
 ├── pll.v                       # PLL wrapper (replace with MegaWizard output)
-├── z80_fw_echo.asm             # Z80 echo firmware source (pyz80 syntax)
+├── z80_fw_echo.asm             # Z80 test runner firmware (pyz80 syntax)
 ├── z80_fw_minimal.py           # Z80 echo firmware generator (deprecated)
 ├── gen_mif.py                  # Binary-to-MIF converter
 ├── z80_fw.bin                  # Assembled firmware binary
+├── z80_fw.hex                  # Firmware in hex format
 ├── z80_fw.mif                  # Firmware in Altera MIF format
 ├── Makefile                    # Build automation
 └── README.md                   # This file
+```
+
+## Top-Level Architecture
+
+The top module (`z8001_ext_test_top.v`) wires together:
+
+- **Z8001 bus interface** (`z8001_bus_external`): 2-stage synchronizers, address
+  latch on AS rising edge, buffer direction control, status latching
+- **Dual-port BRAM** (8KB): Port A for Z80 harness, Port B for Z8001 CPU with
+  byte write enables
+- **Address decode**: `io_sel` for I/O cycles (ST=0010/0100), `ram_sel` for
+  memory cycles. Data mux returns BRAM for memory, 0xFFFF for I/O reads.
+- **Halt detection**: Opcode sniffing — latches `data_to_cpu` while DS is active,
+  checks for HALT opcode (0x7A00) on first fetch (ST=1101) at DS rising edge
+- **Instrumentation**: Cycle count (on 4MHz clock rising edges), fetch count
+  (on AS falling + ST=1101), bus_active flag, cycle timeout
+- **Trace buffer** (`trace_buffer_altera`): 1024-entry bus transaction capture,
+  address-gated to test code area (>= 0x0200)
+- **I/O LED latch**: Any Z8001 I/O write captures wdata; LED driven from bit 0
+- **Z80 harness**: Full command interface over UART (same I/O port map as Gowin)
+
+## Z80 Firmware
+
+The firmware (`z80_fw_echo.asm`) is a self-contained test runner:
+
+1. Writes Z8001 segmented reset vectors to BRAM (FCW=0x4000, PC=0x0200)
+2. Writes test program at 0x0200: `LD R1,#1; OUT DA,R1,0x00FE; HALT`
+3. Sets cycle limit (4,000,000 = ~1s at 4MHz)
+4. Releases Z8001, polls for halt or timeout
+5. Prints cycle count, fetch count, trace count
+6. Dumps all trace entries (AAAA DDDD RBM format)
+7. Waits for keypress, resets Z8001, re-runs
+
+**Expected serial output:**
+```
+Z8001 Bus Test
+HALT
+CC=000000xx
+FC=0004
+TC=006
+0202 0001 RWM
+0204 3B16 RWM
+0206 00FE RWM
+00FE 0001 WWI
+0208 7A00 RWM
+DONE
 ```
 
 ## Pin Assignments (from M20FPGA)
@@ -93,7 +145,7 @@ quartus/
 | Signal | Pin | Dir | Description |
 |--------|-----|-----|-------------|
 | z8k_clk | F1 | Out | 4 MHz CPU clock |
-| z8k_reset | B17 | Out | CPU reset (active-low) |
+| z8k_reset | B17 | Out | CPU reset (0=reset, 1=run) |
 | z8k_busreq_n | H2 | Out | Bus request |
 | z8k_wait_n | J2 | Out | Wait state |
 | z8k_nvi_n | F2 | Out | Non-vectored interrupt |
@@ -114,7 +166,7 @@ quartus/
 | bus_buf_oe_n | R2 | Out | Buffer OE (active-low, always 0) |
 | bus_buf_dir | P2 | Out | Buffer direction |
 
-### Address/Data Bus (accent SRAM data pins in M20FPGA)
+### Address/Data Bus (via SRAM data pins in M20FPGA)
 
 | Signal | Pins | Description |
 |--------|------|-------------|
@@ -127,7 +179,7 @@ quartus/
 |--------|-----|-------------|
 | clk_50mhz | T2 | 50 MHz oscillator |
 | rst_n | W13 | Reset button (active-low) |
-| led | E4 | Status LED |
+| led | E4 | I/O LED (bit 0 of Z8001 I/O write data) |
 | uart_rxd | B18 | Serial receive |
 | uart_txd | B22 | Serial transmit |
 
@@ -145,10 +197,28 @@ quartus/
 
 These modules are shared with the Gowin project:
 
-- `z80_harness.v` - Z80 supervisor with UART command interface
 - `uart_tx.v` / `uart_rx.v` - UART modules
-- `trace_buffer.v` - Bus trace capture
 - `tv80_official/` - TV80 Z80 core
+
+Quartus-specific versions (adapted from shared code):
+
+- `z80_harness_quartus.v` - Z80 harness with Altera altsyncram for Z80 RAM
+- `ram16_altera.v` - Dual-port BRAM with Altera altsyncram
+- `trace_buffer_altera.v` - Trace buffer with behavioral RAM (no Gowin SDPB)
+
+## Differences from Gowin Version
+
+| Aspect | Gowin (Tang Nano 20K) | Quartus (Cyclone IV) |
+|--------|----------------------|---------------------|
+| CPU | Verilog Z8002 (internal) | Physical Z8001 (external) |
+| Clock | 27MHz, /3.5 divider for ~3.86MHz | 50MHz PLL → 16MHz sys + 4MHz CPU |
+| BRAM | Gowin DPB primitives | Altera altsyncram |
+| Trace RAM | Gowin SDPB | Behavioral (Quartus infers BRAM) |
+| Z80 RAM | Behavioral + $readmemh | Altera altsyncram + MIF init |
+| Halt detect | Direct halt_n from CPU | Opcode sniffing (0x7A00 on ST=1101) |
+| I/O ports | 12x16-bit register file | Single I/O LED latch (no read-back) |
+| Firmware | Full command-based supervisor | Self-contained test runner |
+| Bus interface | Direct CPU wires | 74LVC245 level shifters + synchronizers |
 
 ## Differences from M20FPGA
 
@@ -169,7 +239,7 @@ These modules are shared with the Gowin project:
 ### Firmware
 
 ```bash
-make firmware   # Assemble z80_fw_echo.asm -> z80_fw.bin -> z80_fw.mif
+make firmware   # Assemble z80_fw_echo.asm -> z80_fw.bin -> z80_fw.hex -> z80_fw.mif
 ```
 
 ### FPGA
@@ -187,68 +257,19 @@ make firmware   # Assemble z80_fw_echo.asm -> z80_fw.bin -> z80_fw.mif
 - 115200 baud, 8N1
 - Connect to the UART pins (urxd1/utxd1) via USB-serial adapter
 
-## Bring-up Status
-
-### Phase 1: UART echo (current)
-
-The design is currently in a minimal bring-up configuration:
-
-- **Z8001 held in reset** (`freset = 0`, active-low)
-- **Bus buffers disabled** (`fbuscs = 1`)
-- **External SRAM disabled** (chip selects high)
-- **AD bus tri-stated**
-- **Z80 running echo firmware** (`z80_fw_echo.asm`)
-
-The Z80 harness module (`z80_harness_quartus.v`) is fully instantiated with all
-I/O port decoding for Z8001 control, memory access, and trace buffer — but the
-Z8001 side is connected to dummy constants. The echo firmware only exercises UART
-TX/RX (ports 0x00-0x01).
-
-**What works:**
-- PLL generates 16 MHz system clock and 4 MHz CPU clock
-- Z80 boots from MIF-initialized altsyncram
-- UART TX: `>` prompt appears on serial terminal
-- UART RX: characters are echoed back with CR/LF
-- LED heartbeat (slow blink)
-
-### Phase 2: Full supervisor firmware (next)
-
-Replace echo firmware with the full Z80 supervisor (`../src/z80_fw.asm`) to
-enable the serial command protocol (RS, ST, EX, WM, RM, etc.). This requires
-either porting the firmware to pyz80 syntax or cross-assembling with z80asm.
-
-### Phase 3: Enable Z8001 bus interface (future)
-
-- Connect `z8001_bus_external.v` to the top-level module
-- Wire BRAM port B to the Z8001 bus interface
-- Enable bus buffers (fbuscs low)
-- Control Z8001 reset via Z80 harness (port 0x14)
-- Instantiate trace buffer
-
-## Serial Protocol (when running full supervisor)
-
-Same as Gowin version - see main project README.md.
-
-Key commands:
-- `RS` - Reset Z8001
-- `ST` - Status
-- `EX` - Execute until halt
-- `WMaaaaxxxx` - Write memory word
-- `RMaaaa` - Read memory word
-- `TC` - Trace count
-- `TR` - Dump trace entries
-
 ## LED Status
 
-Single LED shows system state (current: slow blink only):
-- **Fast blink**: Z8001 in reset
-- **Slow blink**: Z8001 running
-- **Solid on**: Z8001 halted
+Single LED driven by Z8001 I/O write data (bit 0):
+- **OFF**: Z8001 hasn't executed an I/O write yet (or wrote 0)
+- **ON**: Z8001 wrote data with bit 0 = 1 to any I/O address
 
 ## Notes
 
 - The design uses FPGA BRAM instead of external SRAM (simpler for test harness)
+- External SRAM chip selects held high (disabled)
 - Only SN[3:0] are wired (sufficient for 16 segments)
 - No wait states implemented (z8k_wait_n always high)
-- Bus buffer always enabled (buf_oe_n always low) once enabled
-- CPU reset (freset) is active-low
+- Bus buffer always enabled (buf_oe_n always low)
+- `freset` polarity: 0=reset, 1=run (matching original M20FPGA convention)
+- Trace buffer address-gated: only captures bus cycles when executing code at >= 0x0200
+- Halt detection uses data latching to avoid MREQ/DS synchronizer race condition

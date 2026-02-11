@@ -53,8 +53,22 @@ FPGA-based test harness for a Z8000 CPU implementation using Tang Nano 20K (Gowi
 - `test_harness.py` - Interactive serial console (thin wrapper over tests/harness.py)
 - `z8000_test_harness.gprj` - Gowin EDA project file
 - `Makefile` - Build automation
+- `quartus/` - Quartus project for external Z8001 CPU testing
+  - `z8001_ext_test_top.v` - Top-level module (bus wiring, halt detect, instrumentation)
+  - `z8001_bus_external.v` - External Z8001 bus interface (sync, latch, buffer control)
+  - `trace_buffer_altera.v` - Bus trace capture (behavioral RAM, no Gowin SDPB)
+  - `z80_harness_quartus.v` - Z80 harness (Altera altsyncram for Z80 RAM)
+  - `ram16_altera.v` - Dual-port RAM (Altera altsyncram)
+  - `pll.v` - PLL wrapper (replace with MegaWizard output)
+  - `z80_fw_echo.asm` - Z80 self-contained test runner firmware (pyz80 syntax)
+  - `gen_mif.py` - Binary-to-MIF converter
+  - `z8001_ext_test.qsf` - Pin assignments and source file list
+  - `z8001_ext_test.sdc` - Timing constraints
+  - `Makefile` - Firmware build automation
 
 ## Build Commands
+
+### Gowin (Tang Nano 20K)
 
 ```bash
 make firmware   # Assemble Z80 firmware (z80_fw.asm -> z80_fw.bin/hex)
@@ -63,6 +77,12 @@ make sim        # Run Z80 harness simulation
 make sim-full   # Run full system simulation with Z8000 CPU
 make wave       # View VCD waveform in GTKWave
 make clean      # Clean build artifacts
+```
+
+### Quartus (External Z8001)
+
+```bash
+cd quartus && make firmware   # Assemble z80_fw_echo.asm -> .bin -> .hex -> .mif
 ```
 
 ## Running Tests
@@ -209,3 +229,54 @@ Uses `ifdef SIMULATION` to switch between:
 - **Synthesis**: Gowin DPB primitives (`ram16_gowin.v`), Z80 INIT loads bootstrap at runtime
 
 See README.md for full documentation.
+
+## Quartus Project (External Z8001)
+
+Separate Quartus project in `quartus/` for testing a **physical Z8001 CPU** on a
+QMTECH Cyclone IV EP4CE15F23C8 board, using pin assignments from the M20FPGA project.
+
+### Key Differences from Gowin Version
+
+| Aspect | Gowin (Tang Nano 20K) | Quartus (Cyclone IV) |
+|--------|----------------------|---------------------|
+| CPU | Verilog Z8002 (internal) | Physical Z8001 (external, 5V via 74LVC245) |
+| Clock | 27MHz, /3.5 divider | 50MHz PLL -> 16MHz sys + 4MHz CPU |
+| BRAM | Gowin DPB primitives | Altera altsyncram |
+| Trace RAM | Gowin SDPB | Behavioral (Quartus infers BRAM) |
+| Halt detect | Direct halt_n pin from CPU | Opcode sniffing (0x7A00 on ST=1101) |
+| I/O ports | 12x16-bit register file | Single I/O LED latch |
+| Firmware | Full command-based supervisor | Self-contained test runner |
+| Bus interface | Direct CPU wires | 74LVC245 level shifters + 2-stage synchronizers |
+
+### Bus Buffer Control (74LVC245)
+
+Direction controlled by: `buf_dir = rw_n && bus_as_active && as_n`
+- `bus_as_active` continuously tracks raw AS state on `negedge clk` (M20FPGA pattern)
+- Address phase (AS active): CPU drives bus
+- Read data phase (AS inactive, rw_n=1): FPGA drives bus
+- Write data phase (AS inactive, rw_n=0): CPU drives bus
+
+### Halt Detection
+
+No direct halt_n pin from external Z8001 - uses opcode sniffing:
+- Latches `data_to_cpu` while DS is active (avoids MREQ/DS synchronizer race)
+- On DS rising edge, checks if latched data == 0x7A00 during first fetch (ST=1101)
+
+### Trace Buffer (trace_buffer_altera.v)
+
+Same capture logic as `src/trace_buffer.v` but uses `z8k_st` (bus_external's
+st_latched) directly at DS rising time, rather than internal AS-falling ST latch.
+This is because bus_external already latches ST on AS rising, so a second latch
+would get the previous cycle's status.
+
+### Z80 Test Runner Firmware (z80_fw_echo.asm)
+
+Self-contained test runner (not command-based like Gowin firmware):
+1. Writes Z8001 segmented reset vectors to BRAM (FCW=0x4000, PC=0x0200)
+2. Writes test program: `LD R1,#1; OUT DA,R1,0x00FE; HALT`
+3. Releases Z8001, polls for halt/timeout
+4. Prints cycle count, fetch count, trace count
+5. Dumps all trace entries (AAAA DDDD RBM format)
+6. Waits for keypress, resets, re-runs
+
+See `quartus/README.md` for full pin assignments, expected output, and build details.
