@@ -31,6 +31,10 @@ class TestRunner:
         for addr, val in tc.memory.items():
             self.harness.write_mem(addr, val)
 
+        # 3b. Preload I/O port registers
+        for idx, val in tc.io_preloads.items():
+            self.harness.write_io_port(idx, val)
+
         # 4. Load test code at CODE_BASE + append JP dump_routine
         code_with_jp = list(tc.code) + JP_DUMP
         for i, word in enumerate(code_with_jp):
@@ -62,6 +66,13 @@ class TestRunner:
         cycle_count = self.harness.cycle_count()
         fetch_count = self.harness.fetch_count()
         trace = self.harness.read_all_trace()
+
+        # 10b. Read I/O port registers (requires reset first)
+        actual_io = {}
+        if tc.expected_io:
+            self.harness.reset()
+            for idx in tc.expected_io:
+                actual_io[idx] = self.harness.read_io_port(idx)
 
         # 11. Verify registers
         for reg, expected in tc.expected_regs.items():
@@ -96,6 +107,15 @@ class TestRunner:
                     f"0x{actual:04X}" if actual is not None else "None"
                 )
 
+        # 14. Verify I/O ports
+        for idx, expected in tc.expected_io.items():
+            actual = actual_io.get(idx)
+            if actual != expected:
+                failures.append(
+                    f"IO[0x{idx:02X}]: expected 0x{expected:04X}, got "
+                    f"0x{actual:04X}" if actual is not None else "None"
+                )
+
         passed = len(failures) == 0
         return TestResult(
             test=tc,
@@ -105,6 +125,7 @@ class TestRunner:
             actual_regs=actual_regs,
             actual_fcw=actual_fcw,
             actual_memory=actual_memory,
+            actual_io=actual_io,
             cycle_count=cycle_count,
             fetch_count=fetch_count,
             trace=trace,

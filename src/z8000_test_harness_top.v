@@ -105,6 +105,16 @@ wire [15:0] z8k_wdata;
 wire        z8k_cpu_clk;
 reg  [15:0] data_to_cpu;
 
+// I/O port register signals (Z80 side)
+wire [3:0]  z80_io_reg_sel;
+wire [7:0]  z80_io_wbyte;
+wire [15:0] z80_io_rdata;
+wire        z80_io_wr_lo;
+wire        z80_io_wr_hi;
+
+// I/O port register signals (Z8000 side)
+wire [15:0] z8k_io_rdata;
+
 // Z8000 instrumentation
 reg        bus_active;
 reg [31:0] cycle_count;
@@ -140,7 +150,12 @@ z80_harness z80 (
     .z8k_cycle_timeout(cycle_timeout),
     .trace_rd_addr  (trace_rd_addr),
     .trace_rd_data  (trace_rd_data),
-    .trace_wr_count (trace_wr_count)
+    .trace_wr_count (trace_wr_count),
+    .io_port_reg_sel(z80_io_reg_sel),
+    .io_port_wbyte  (z80_io_wbyte),
+    .io_port_rdata  (z80_io_rdata),
+    .io_port_wr_lo  (z80_io_wr_lo),
+    .io_port_wr_hi  (z80_io_wr_hi)
 );
 
 // ===========================================
@@ -212,8 +227,15 @@ assign led4 = ~cpu_halt_n_out;
 // ===========================================
 // Address decode
 // ===========================================
-wire io_sel  = (cpu_st == 4'b0010) || (cpu_st == 4'b0100);
+wire io_std_sel = (cpu_st == 4'b0010);   // Standard I/O (ST=0010)
+wire io_spc_sel = (cpu_st == 4'b0100);   // Special I/O (ST=0100)
+wire io_sel  = io_std_sel || io_spc_sel;
 wire ram_sel = ~cpu_mreq_n && ~io_sel;
+
+// I/O port address match: Z8000 addresses 0x0100-0x010A
+wire io_port_match = io_sel && (z8k_addr[15:4] == 12'h010);
+// Register index: addr[3:1] (0-5) + 6 if special I/O
+wire [3:0] z8k_io_reg_sel = z8k_addr[3:1] + (io_spc_sel ? 4'd6 : 4'd0);
 
 // ===========================================
 // True Dual-Port BRAM (27MHz, Gowin DPB)
@@ -249,10 +271,35 @@ ram16 bram (
 
 assign z8k_mem_rdata = z80_rd_data;   // Z80 reads via Port A
 
+// ===========================================
+// I/O Port Registers
+// ===========================================
+wire z8k_io_wr = io_port_match && ~cpu_rw_n && ~cpu_ds_n;
+
+z8k_io_ports io_ports (
+    .clk           (clk),
+    .rst_n         (rst_n),
+    // Z8000 bus side
+    .z8k_reg_sel   (z8k_io_reg_sel),
+    .z8k_wdata     (z8k_wdata),
+    .z8k_rdata     (z8k_io_rdata),
+    .z8k_wr        (z8k_io_wr),
+    .z8k_bw_n      (cpu_bw_n),
+    .z8k_addr_lsb  (z8k_addr[0]),
+    // Z80 side
+    .z80_reg_sel   (z80_io_reg_sel),
+    .z80_wbyte     (z80_io_wbyte),
+    .z80_rdata     (z80_io_rdata),
+    .z80_wr_lo     (z80_io_wr_lo),
+    .z80_wr_hi     (z80_io_wr_hi)
+);
+
 // Z8000 data bus mux
 always @(*) begin
     if (ram_sel)
         data_to_cpu = z8k_rd_data;    // Z8000 reads via Port B
+    else if (io_port_match)
+        data_to_cpu = z8k_io_rdata;   // I/O port register read
     else
         data_to_cpu = 16'hFFFF;
 end

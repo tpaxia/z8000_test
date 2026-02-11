@@ -16,12 +16,14 @@ class TestCase:
     regs: dict[int, int] = field(default_factory=dict)
     fcw: int = 0x4000                                # Initial FCW (system mode)
     memory: dict[int, int] = field(default_factory=dict)  # {addr: word}
+    io_preloads: dict[int, int] = field(default_factory=dict)  # {reg_index: word}
 
     # Expected results
     expected_regs: dict[int, int] = field(default_factory=dict)
     expected_fcw_set: list[str] = field(default_factory=list)    # Flags that must be 1
     expected_fcw_clear: list[str] = field(default_factory=list)  # Flags that must be 0
     expected_memory: dict[int, int] = field(default_factory=dict)
+    expected_io: dict[int, int] = field(default_factory=dict)  # {reg_index: word}
     expected_trace: list[dict] | None = None         # Optional trace pattern
     expected_result: str = "HALT"                    # Expected EX result
 
@@ -35,6 +37,7 @@ class TestResult:
     actual_regs: dict[int, int] = field(default_factory=dict)
     actual_fcw: int | None = None
     actual_memory: dict[int, int] = field(default_factory=dict)
+    actual_io: dict[int, int] = field(default_factory=dict)
     cycle_count: int | None = None
     fetch_count: int | None = None
     trace: list[dict] = field(default_factory=list)  # Bus trace entries

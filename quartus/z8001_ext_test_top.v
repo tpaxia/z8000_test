@@ -164,8 +164,15 @@ module z8001_ext_test_top (
     //------------------------------------------------------------------------
     // Address Decode
     //------------------------------------------------------------------------
-    wire io_sel  = (z8k_st == 4'b0010) || (z8k_st == 4'b0100);
+    wire io_std_sel = (z8k_st == 4'b0010);   // Standard I/O (ST=0010)
+    wire io_spc_sel = (z8k_st == 4'b0100);   // Special I/O (ST=0100)
+    wire io_sel  = io_std_sel || io_spc_sel;
     wire ram_sel = ~z8k_mreq_n_sync && ~io_sel;
+
+    // I/O port address match: Z8000 addresses 0x0100-0x010A
+    wire io_port_match = io_sel && (z8k_addr[15:4] == 12'h010);
+    // Register index: addr[3:1] (0-5) + 6 if special I/O
+    wire [3:0] z8k_io_reg_sel = z8k_addr[3:1] + (io_spc_sel ? 4'd6 : 4'd0);
 
     //------------------------------------------------------------------------
     // UART
@@ -311,6 +318,16 @@ module z8001_ext_test_top (
     wire [15:0] z8k_mem_wdata;
     wire [15:0] z8k_mem_rdata;
 
+    // I/O port register signals (Z80 side)
+    wire [3:0]  z80_io_reg_sel;
+    wire [7:0]  z80_io_wbyte;
+    wire [15:0] z80_io_rdata;
+    wire        z80_io_wr_lo;
+    wire        z80_io_wr_hi;
+
+    // I/O port register signals (Z8000 side)
+    wire [15:0] z8k_io_rdata;
+
     z80_harness z80 (
         .clk            (sys_clk),
         .rst_n          (sys_rst_n),
@@ -334,7 +351,12 @@ module z8001_ext_test_top (
         .z8k_cycle_timeout(cycle_timeout),
         .trace_rd_addr  (trace_rd_addr),
         .trace_rd_data  (trace_rd_data),
-        .trace_wr_count (trace_wr_count)
+        .trace_wr_count (trace_wr_count),
+        .io_port_reg_sel(z80_io_reg_sel),
+        .io_port_wbyte  (z80_io_wbyte),
+        .io_port_rdata  (z80_io_rdata),
+        .io_port_wr_lo  (z80_io_wr_lo),
+        .io_port_wr_hi  (z80_io_wr_hi)
     );
 
     //------------------------------------------------------------------------
@@ -370,8 +392,33 @@ module z8001_ext_test_top (
 
     assign z8k_mem_rdata = z80_rd_data;
 
-    // Z8001 data bus mux: BRAM for memory reads, 0xFFFF for I/O (no I/O read ports yet)
-    assign data_to_cpu = ram_sel ? z8k_rd_data : 16'hFFFF;
+    //------------------------------------------------------------------------
+    // I/O Port Registers
+    //------------------------------------------------------------------------
+    wire z8k_io_wr = io_port_match && ~z8k_rw_n_sync && ~z8k_ds_n_sync;
+
+    z8k_io_ports io_ports (
+        .clk           (sys_clk),
+        .rst_n         (sys_rst_n),
+        // Z8000 bus side
+        .z8k_reg_sel   (z8k_io_reg_sel),
+        .z8k_wdata     (z8k_wdata),
+        .z8k_rdata     (z8k_io_rdata),
+        .z8k_wr        (z8k_io_wr),
+        .z8k_bw_n      (z8k_bw_n_sync),
+        .z8k_addr_lsb  (z8k_addr[0]),
+        // Z80 side
+        .z80_reg_sel   (z80_io_reg_sel),
+        .z80_wbyte     (z80_io_wbyte),
+        .z80_rdata     (z80_io_rdata),
+        .z80_wr_lo     (z80_io_wr_lo),
+        .z80_wr_hi     (z80_io_wr_hi)
+    );
+
+    // Z8001 data bus mux
+    assign data_to_cpu = ram_sel     ? z8k_rd_data :
+                         io_port_match ? z8k_io_rdata :
+                                         16'hFFFF;
 
     //------------------------------------------------------------------------
     // I/O LED Latch

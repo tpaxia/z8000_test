@@ -13,6 +13,8 @@
 ;   RRn - Read register n
 ;   WMaaaaxxxx - Write memory
 ;   RMaaaa - Read memory
+;   WPnnxxxx - Write I/O port register nn
+;   RPnn - Read I/O port register nn
 ;   DA - Dump all registers
 ;   MT - Memory test
 ;   DB - Toggle debug mode
@@ -165,6 +167,8 @@ cmd_r:
         jp z, do_rr
         cp 'M'
         jp z, do_rm
+        cp 'P'
+        jp z, do_rp
         jp cmd_err
 
 do_rs_eol:
@@ -178,6 +182,8 @@ cmd_w:
         jp z, do_wr
         cp 'M'
         jp z, do_wm
+        cp 'P'
+        jp z, do_wp
         jp cmd_err
 
 cmd_ex:
@@ -568,6 +574,45 @@ do_rm:
         call skip_eol
         call z8kr
         call phex4
+        call put_crlf
+        jp main
+
+; RP nn - Read I/O port register
+do_rp:
+        call ghex2              ; A = register index
+        push af
+        call skip_eol
+        pop af
+        add a, a                ; index * 2
+        add a, 0x30             ; Z80 port base
+        ld c, a
+        ld b, 0
+        inc c
+        in h, (c)              ; high byte (odd port)
+        dec c
+        in l, (c)              ; low byte (even port)
+        call phex4
+        call put_crlf
+        jp main
+
+; WP nn xxxx - Write I/O port register
+do_wp:
+        call ghex2              ; A = register index
+        push af
+        call ghex4              ; HL = value
+        call skip_eol
+        pop af
+        add a, a                ; index * 2
+        add a, 0x30             ; Z80 port base
+        ld c, a
+        ld b, 0
+        out (c), l              ; low byte (even port)
+        inc c
+        out (c), h              ; high byte (odd port)
+        ld a, 'O'
+        call put_char
+        ld a, 'K'
+        call put_char
         call put_crlf
         jp main
 
@@ -1375,6 +1420,21 @@ z8kr:
 ; ==============================================
 ; Z8000 Bootstrap Data
 ; ==============================================
-        include "bootstrap.inc"
-
-        end
+bootstrap_data:
+IFDEF Z8001
+        ; Z8001: 4-word segmented reset vector
+        dw 0x0000               ; reserved
+        dw 0x4000               ; FCW (system mode)
+        dw 0x0000               ; PC segment
+        dw 0x0040               ; PC offset
+        dw 0x0000, 0x0000, 0x0000, 0x0000  ; pad to 0x0010
+ELSE
+        ; Z8002: 3-word non-segmented reset vector
+        dw 0x0000               ; reserved
+        dw 0x4000               ; FCW (system mode)
+        dw 0x0040               ; PC = bootstrap entry
+        dw 0x0000, 0x0000, 0x0000, 0x0000, 0x0000  ; pad to 0x0010
+ENDIF
+bootstrap_body:
+        include "bootstrap_body.inc"
+bootstrap_len: equ (bootstrap_body - bootstrap_data) / 2 + bootstrap_body_len

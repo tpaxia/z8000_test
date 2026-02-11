@@ -1,48 +1,162 @@
-"""I/O instruction tests: IN, OUT (verified via trace buffer)."""
+"""I/O instruction tests: IN, OUT (verified via I/O port registers and trace)."""
 
 from .defs import TestCase
 from .flags import FCW_SYS
 
-# No actual I/O hardware exists in the test harness, but the Z8000 will
-# generate I/O bus cycles that are captured by the trace buffer.
-# These tests verify that I/O instructions execute without hanging
-# and produce the expected trace entries.
+# I/O Port Register Map:
+# Standard I/O (ST=0010): regs 0-5 at Z8000 addr 0x0100-0x010A
+# Special I/O  (ST=0100): regs 6-11 at Z8000 addr 0x0100-0x010A
+#
+# Reg 0 (0x0100): Loopback byte  (standard)
+# Reg 1 (0x0102): Loopback word  (standard)
+# Reg 2 (0x0104): Output byte    (standard)
+# Reg 3 (0x0106): Output word    (standard)
+# Reg 4 (0x0108): Input byte     (standard)
+# Reg 5 (0x010A): Input word     (standard)
+# Reg 6 (0x0100): Loopback byte  (special)
+# Reg 7 (0x0102): Loopback word  (special)
+# Reg 8 (0x0104): Output byte    (special)
+# Reg 9 (0x0106): Output word    (special)
+# Reg 10(0x0108): Input byte     (special)
+# Reg 11(0x010A): Input word     (special)
 
 # IN  Rd, @Rs:  00111101_Rsnz_Rddd
 # IN  Rd, port: 00111101_0000_Rddd + port
 # OUT @Rd, Rs:  00111111_Rdnz_Rsss
 # OUT port, Rs: 00111111_0000_Rsss + port
+# INB  Rbd, @Rs:  00111100_Rsnz_Rbdd
+# INB  Rbd, port: 00111100_0000_Rbdd + port
+# OUTB @Rd, Rbs:  00111110_Rdnz_Rbss
+# OUTB port, Rbs: 00111110_0000_Rbss + port
 
 TESTS = [
     # =========================================================================
-    # OUT port, Rs - output to I/O port (trace-verified)
+    # OUT port, Rs - output word to I/O port (register-verified)
     # =========================================================================
     TestCase(
-        name="out_port_basic",
+        name="out_port_word",
         mnemonic="OUT",
-        description="OUT 0x00FE, R0: write R0 to port 0x00FE",
+        description="OUT 0x0106, R0: write R0 to output word reg",
         tags=["io", "word", "DA_mode"],
-        # OUT port, Rs: 00111111_0000_Rsss + port
-        # OUT 0x00FE, R0: 0x3F00, 0x00FE
-        code=[0x3F00, 0x00FE],
+        # OUT 0x0106, R0: 0x3F00, 0x0106
+        code=[0x3F00, 0x0106],
         regs={0: 0xABCD},
-        expected_regs={0: 0xABCD},  # R0 unchanged
-        # Can't verify I/O effect without trace checking, but execution should complete
+        expected_regs={0: 0xABCD},
+        expected_io={3: 0xABCD},  # Reg 3 = standard output word
+    ),
+
+    TestCase(
+        name="out_port_loopback",
+        mnemonic="OUT",
+        description="OUT 0x0102, R1: write R1 to loopback word reg",
+        tags=["io", "word", "DA_mode"],
+        # OUT 0x0102, R1: 0x3F01, 0x0102
+        code=[0x3F01, 0x0102],
+        regs={1: 0x1234},
+        expected_regs={1: 0x1234},
+        expected_io={1: 0x1234},  # Reg 1 = standard loopback word
     ),
 
     # =========================================================================
-    # IN Rd, port - input from I/O port
+    # IN Rd, port - input word from I/O port (register-verified)
     # =========================================================================
     TestCase(
-        name="in_port_basic",
+        name="in_port_word",
         mnemonic="IN",
-        description="IN R0, 0x00FE: read from port 0x00FE",
+        description="IN R0, 0x010A: read from input word reg",
         tags=["io", "word", "DA_mode"],
-        # IN Rd, port: 00111101_0000_Rddd + port
-        # IN R0, 0x00FE: 0x3D00, 0x00FE
-        code=[0x3D00, 0x00FE],
+        # IN R0, 0x010A: 0x3D00, 0x010A
+        code=[0x3D00, 0x010A],
         regs={0: 0x0000},
-        # Result is undefined (no actual I/O hardware), just verify no crash
-        expected_result="HALT",
+        io_preloads={5: 0xBEEF},  # Reg 5 = standard input word
+        expected_regs={0: 0xBEEF},
+    ),
+
+    TestCase(
+        name="in_port_loopback",
+        mnemonic="IN",
+        description="IN R2, 0x0102: read from loopback word reg",
+        tags=["io", "word", "DA_mode"],
+        # IN R2, 0x0102: 0x3D02, 0x0102
+        code=[0x3D02, 0x0102],
+        regs={2: 0x0000},
+        io_preloads={1: 0xCAFE},  # Reg 1 = standard loopback word
+        expected_regs={2: 0xCAFE},
+    ),
+
+    # =========================================================================
+    # OUT/IN loopback roundtrip
+    # =========================================================================
+    TestCase(
+        name="out_in_loopback",
+        mnemonic="OUT",
+        description="OUT 0x0102, R0; IN R1, 0x0102: loopback roundtrip",
+        tags=["io", "word", "DA_mode"],
+        # OUT 0x0102, R0:  0x3F00, 0x0102
+        # IN  R1, 0x0102:  0x3D01, 0x0102
+        code=[0x3F00, 0x0102, 0x3D01, 0x0102],
+        regs={0: 0x5A5A, 1: 0x0000},
+        expected_regs={0: 0x5A5A, 1: 0x5A5A},
+        expected_io={1: 0x5A5A},  # Loopback reg should have final value
+    ),
+
+    # =========================================================================
+    # OUTB port, Rbs - output byte
+    # =========================================================================
+    TestCase(
+        name="outb_port_byte",
+        mnemonic="OUTB",
+        description="OUTB 0x0104, RH0: write byte to output byte reg",
+        tags=["io", "byte", "DA_mode"],
+        # OUTB 0x0104, RH0: 0x3E00, 0x0104
+        code=[0x3E00, 0x0104],
+        regs={0: 0xAB00},  # RH0 = 0xAB
+        expected_regs={0: 0xAB00},
+        expected_io={2: 0xAB00},  # Reg 2 = standard output byte, high byte written
+    ),
+
+    # =========================================================================
+    # INB Rbd, port - input byte
+    # =========================================================================
+    TestCase(
+        name="inb_port_byte",
+        mnemonic="INB",
+        description="INB RH0, 0x0108: read byte from input byte reg",
+        tags=["io", "byte", "DA_mode"],
+        # INB RH0, 0x0108: 0x3C00, 0x0108
+        code=[0x3C00, 0x0108],
+        regs={0: 0x0000},
+        io_preloads={4: 0x42FF},  # Reg 4 = standard input byte, high byte = 0x42
+        expected_regs={0: 0x4200},  # RH0 = high byte of port read
+    ),
+
+    # =========================================================================
+    # OUT @Rd, Rs - indirect output
+    # =========================================================================
+    TestCase(
+        name="out_indirect",
+        mnemonic="OUT",
+        description="OUT @R1, R0: write R0 to port addressed by R1",
+        tags=["io", "word", "IR_mode"],
+        # OUT @R1, R0: 0x3F10, R1=port addr
+        code=[0x3F10],
+        regs={0: 0xDEAD, 1: 0x0106},
+        expected_regs={0: 0xDEAD, 1: 0x0106},
+        expected_io={3: 0xDEAD},  # Reg 3 = standard output word
+    ),
+
+    # =========================================================================
+    # IN Rd, @Rs - indirect input
+    # =========================================================================
+    TestCase(
+        name="in_indirect",
+        mnemonic="IN",
+        description="IN R0, @R1: read from port addressed by R1",
+        tags=["io", "word", "IR_mode"],
+        # IN R0, @R1: 0x3D10
+        code=[0x3D10],
+        regs={0: 0x0000, 1: 0x010A},
+        io_preloads={5: 0xFACE},  # Reg 5 = standard input word
+        expected_regs={0: 0xFACE, 1: 0x010A},
     ),
 ]

@@ -5,7 +5,8 @@
 #   make clean     - Clean generated files
 
 # Tools
-Z80ASM = pyz80
+Z88DK ?= C:/Program Files (x86)/z88dk
+Z80ASM = "$(Z88DK)/bin/z88dk-z80asm"
 PYTHON = python
 
 # Paths
@@ -13,7 +14,6 @@ SRC_DIR = ../src
 SCRIPTS_DIR = ../scripts
 
 # Files
-Z80_FW_ASM = z80_fw_echo.asm
 Z80_FW_BIN = z80_fw.bin
 Z80_FW_HEX = z80_fw.hex
 Z80_FW_MIF = z80_fw.mif
@@ -22,7 +22,7 @@ Z80_FW_MIF = z80_fw.mif
 
 all: firmware
 
-# Build Z80 firmware and generate MIF
+# Build Z80 firmware (shared source with -DZ8001) and generate MIF
 firmware: $(Z80_FW_MIF)
 
 $(Z80_FW_MIF): $(Z80_FW_HEX)
@@ -31,8 +31,8 @@ $(Z80_FW_MIF): $(Z80_FW_HEX)
 $(Z80_FW_HEX): $(Z80_FW_BIN)
 	$(PYTHON) $(SCRIPTS_DIR)/gen_fw_hex.py $(Z80_FW_BIN) $(Z80_FW_HEX)
 
-$(Z80_FW_BIN): $(Z80_FW_ASM)
-	$(Z80ASM) --obj=$(Z80_FW_BIN) $(Z80_FW_ASM)
+$(Z80_FW_BIN): $(SRC_DIR)/z80_fw.asm $(SRC_DIR)/bootstrap_body.inc
+	cd $(SRC_DIR) && $(Z80ASM) -b -DZ8001 -o=../quartus/z80_fw.bin z80_fw.asm
 
 # Alternative: copy hex from main project if already built
 copy-hex:

@@ -61,6 +61,18 @@ class Z8000TestHarness:
         except:
             return None
 
+    def write_io_port(self, index, value):
+        """Write I/O port register (index 0-11, value 16-bit)"""
+        return self.send_command(f'WP{index:02X}{value:04X}')
+
+    def read_io_port(self, index):
+        """Read I/O port register (index 0-11, returns 16-bit value)"""
+        resp = self.send_command(f'RP{index:02X}')
+        try:
+            return int(resp, 16)
+        except:
+            return None
+
     def write_fcw(self, value):
         """Write initial FCW to reset vector (0x0002) and fcw_setup (0x0030)"""
         self.write_mem(0x0002, value)

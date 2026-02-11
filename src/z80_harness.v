@@ -20,6 +20,7 @@
 //   0x22-0x26: Trace data (R, 36-bit: addr[15:0], data[15:0], flags[3:0])
 //   0x27-0x28: Trace write count (R, 10-bit)
 //   0x29: Z8000 ST (R, 4-bit status type from CPU)
+//   0x30-0x47: I/O port registers (12 regs, 2 bytes each: even=low, odd=high)
 
 `timescale 1ns / 1ps
 
@@ -58,7 +59,14 @@ module z80_harness (
     // Trace buffer interface
     output reg [9:0]  trace_rd_addr,    // Read address (0-1023)
     input      [35:0] trace_rd_data,    // Read data (36 bits)
-    input      [9:0]  trace_wr_count    // Number of entries captured
+    input      [9:0]  trace_wr_count,   // Number of entries captured
+
+    // I/O port registers interface
+    output [3:0]      io_port_reg_sel,  // Register index (0-11)
+    output [7:0]      io_port_wbyte,    // Write data byte
+    input  [15:0]     io_port_rdata,    // Read data (full word)
+    output reg        io_port_wr_lo,    // Write low byte strobe
+    output reg        io_port_wr_hi     // Write high byte strobe
 );
 
 // ==============================================
@@ -127,6 +135,13 @@ reg [1:0]  mem_read_wait;
 // UART RX consumed flag
 reg uart_rx_consumed;
 
+// I/O port register decode (ports 0x30-0x47)
+wire io_port_sel = (cpu_addr[7:0] >= 8'h30) && (cpu_addr[7:0] <= 8'h47);
+wire [4:0] io_port_off = cpu_addr[4:0] - 5'h10; // (addr-0x30): 0x30[4:0]=0x10
+assign io_port_reg_sel = io_port_off[4:1];       // (addr-0x30)/2 = reg index
+wire   io_port_byte_hi = io_port_off[0];         // odd addr = high byte
+assign io_port_wbyte = cpu_dout;
+
 // I/O Read
 always @(*) begin
     io_dout = 8'hFF;
@@ -156,6 +171,10 @@ always @(*) begin
         8'h27: io_dout = trace_wr_count[7:0];             // Trace write count low
         8'h28: io_dout = {6'b0, trace_wr_count[9:8]};     // Trace write count high
         8'h29: io_dout = {4'b0, z8k_st};                  // Z8000 ST (status type)
+        default: begin
+            if (io_port_sel)
+                io_dout = io_port_byte_hi ? io_port_rdata[15:8] : io_port_rdata[7:0];
+        end
     endcase
 end
 
@@ -174,11 +193,15 @@ always @(posedge clk or negedge rst_n) begin
         z8k_mem_wdata <= 16'h0000;
         z8k_cycle_limit <= 32'h00000000;
         trace_rd_addr <= 10'h000;
+        io_port_wr_lo <= 1'b0;
+        io_port_wr_hi <= 1'b0;
     end else begin
         // Defaults
         uart_tx_valid <= 1'b0;
         uart_rx_ready <= 1'b0;
         z8k_mem_we <= 1'b0;
+        io_port_wr_lo <= 1'b0;
+        io_port_wr_hi <= 1'b0;
 
         // Clear consumed flag when rx_valid goes low
         if (!uart_rx_valid)
@@ -209,6 +232,14 @@ always @(posedge clk or negedge rst_n) begin
                 // Trace buffer read address
                 8'h20: trace_rd_addr[7:0] <= cpu_dout;      // Trace read addr low
                 8'h21: trace_rd_addr[9:8] <= cpu_dout[1:0]; // Trace read addr high
+                default: begin
+                    if (io_port_sel) begin
+                        if (io_port_byte_hi)
+                            io_port_wr_hi <= 1'b1;
+                        else
+                            io_port_wr_lo <= 1'b1;
+                    end
+                end
             endcase
         end
 
