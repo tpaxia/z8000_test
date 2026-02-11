@@ -60,7 +60,8 @@ def result_to_dict(r):
         "passed": r.passed,
         "exec_result": r.exec_result,
         "failures": r.failures,
-        "actual_regs": {str(k): f"0x{v:04X}" for k, v in r.actual_regs.items()},
+        "actual_regs": {str(k): f"0x{v:04X}" if v is not None else None
+                        for k, v in r.actual_regs.items()},
         "actual_fcw": f"0x{r.actual_fcw:04X}" if r.actual_fcw is not None else None,
         "cycle_count": r.cycle_count,
         "fetch_count": r.fetch_count,
