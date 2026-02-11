@@ -74,8 +74,15 @@ quartus/
 ├── z8001_ext_test.sdc          # Timing constraints
 ├── z8001_ext_test_top.v        # Top-level module
 ├── z8001_bus_external.v        # External Z8001 bus interface
+├── z80_harness_quartus.v       # Z80 harness (Altera altsyncram for Z80 RAM)
 ├── ram16_altera.v              # Dual-port RAM (Altera altsyncram)
 ├── pll.v                       # PLL wrapper (replace with MegaWizard output)
+├── z80_fw_echo.asm             # Z80 echo firmware source (pyz80 syntax)
+├── z80_fw_minimal.py           # Z80 echo firmware generator (deprecated)
+├── gen_mif.py                  # Binary-to-MIF converter
+├── z80_fw.bin                  # Assembled firmware binary
+├── z80_fw.mif                  # Firmware in Altera MIF format
+├── Makefile                    # Build automation
 └── README.md                   # This file
 ```
 
@@ -86,7 +93,7 @@ quartus/
 | Signal | Pin | Dir | Description |
 |--------|-----|-----|-------------|
 | z8k_clk | F1 | Out | 4 MHz CPU clock |
-| z8k_reset | B17 | Out | CPU reset (active-high) |
+| z8k_reset | B17 | Out | CPU reset (active-low) |
 | z8k_busreq_n | H2 | Out | Bus request |
 | z8k_wait_n | J2 | Out | Wait state |
 | z8k_nvi_n | F2 | Out | Non-vectored interrupt |
@@ -154,7 +161,20 @@ These modules are shared with the Gowin project:
 
 ## Building
 
-1. Open `z8001_ext_test.qpf` in Quartus II 13.0+ or Quartus Prime
+### Prerequisites
+
+- Quartus II 13.0+ or Quartus Prime
+- Python 3 with `pyz80` assembler: `pip install pyz80`
+
+### Firmware
+
+```bash
+make firmware   # Assemble z80_fw_echo.asm -> z80_fw.bin -> z80_fw.mif
+```
+
+### FPGA
+
+1. Open `z8001_ext_test.qpf` in Quartus
 2. Generate PLL using MegaWizard/IP Catalog:
    - Input: 50 MHz
    - Output c0: 16 MHz
@@ -162,7 +182,50 @@ These modules are shared with the Gowin project:
 3. Replace `pll.v` with generated PLL
 4. Compile and program
 
-## Serial Protocol
+### Serial Connection
+
+- 115200 baud, 8N1
+- Connect to the UART pins (urxd1/utxd1) via USB-serial adapter
+
+## Bring-up Status
+
+### Phase 1: UART echo (current)
+
+The design is currently in a minimal bring-up configuration:
+
+- **Z8001 held in reset** (`freset = 0`, active-low)
+- **Bus buffers disabled** (`fbuscs = 1`)
+- **External SRAM disabled** (chip selects high)
+- **AD bus tri-stated**
+- **Z80 running echo firmware** (`z80_fw_echo.asm`)
+
+The Z80 harness module (`z80_harness_quartus.v`) is fully instantiated with all
+I/O port decoding for Z8001 control, memory access, and trace buffer — but the
+Z8001 side is connected to dummy constants. The echo firmware only exercises UART
+TX/RX (ports 0x00-0x01).
+
+**What works:**
+- PLL generates 16 MHz system clock and 4 MHz CPU clock
+- Z80 boots from MIF-initialized altsyncram
+- UART TX: `>` prompt appears on serial terminal
+- UART RX: characters are echoed back with CR/LF
+- LED heartbeat (slow blink)
+
+### Phase 2: Full supervisor firmware (next)
+
+Replace echo firmware with the full Z80 supervisor (`../src/z80_fw.asm`) to
+enable the serial command protocol (RS, ST, EX, WM, RM, etc.). This requires
+either porting the firmware to pyz80 syntax or cross-assembling with z80asm.
+
+### Phase 3: Enable Z8001 bus interface (future)
+
+- Connect `z8001_bus_external.v` to the top-level module
+- Wire BRAM port B to the Z8001 bus interface
+- Enable bus buffers (fbuscs low)
+- Control Z8001 reset via Z80 harness (port 0x14)
+- Instantiate trace buffer
+
+## Serial Protocol (when running full supervisor)
 
 Same as Gowin version - see main project README.md.
 
@@ -177,7 +240,7 @@ Key commands:
 
 ## LED Status
 
-Single LED shows system state:
+Single LED shows system state (current: slow blink only):
 - **Fast blink**: Z8001 in reset
 - **Slow blink**: Z8001 running
 - **Solid on**: Z8001 halted
@@ -187,4 +250,5 @@ Single LED shows system state:
 - The design uses FPGA BRAM instead of external SRAM (simpler for test harness)
 - Only SN[3:0] are wired (sufficient for 16 segments)
 - No wait states implemented (z8k_wait_n always high)
-- Bus buffer always enabled (buf_oe_n always low)
+- Bus buffer always enabled (buf_oe_n always low) once enabled
+- CPU reset (freset) is active-low
