@@ -356,7 +356,8 @@ module z8001_ext_test_top (
         .io_port_wbyte  (z80_io_wbyte),
         .io_port_rdata  (z80_io_rdata),
         .io_port_wr_lo  (z80_io_wr_lo),
-        .io_port_wr_hi  (z80_io_wr_hi)
+        .io_port_wr_hi  (z80_io_wr_hi),
+        .z80_alive      ()
     );
 
     //------------------------------------------------------------------------

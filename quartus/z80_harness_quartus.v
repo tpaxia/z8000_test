@@ -69,7 +69,10 @@ module z80_harness (
     output [7:0]      io_port_wbyte,    // Write data byte
     input  [15:0]     io_port_rdata,    // Read data (full word)
     output reg        io_port_wr_lo,    // Write low byte strobe
-    output reg        io_port_wr_hi     // Write high byte strobe
+    output reg        io_port_wr_hi,    // Write high byte strobe
+
+    // Alive indicator
+    output            z80_alive          // Toggles while Z80 firmware polls UART
 );
 
 // ==============================================
@@ -288,6 +291,22 @@ always @(posedge clk or negedge rst_n) begin
         z80_addr <= z8k_addr_reg;
     end
 end
+
+// ==============================================
+// Z80 Alive Indicator
+// Counts UART status polls (port 0x01 reads).
+// Bit 19 toggles ~every 500K polls = visible blink.
+// ==============================================
+reg [19:0] alive_cnt;
+
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+        alive_cnt <= 20'd0;
+    else if (io_rd && cpu_addr[7:0] == 8'h01)
+        alive_cnt <= alive_cnt + 1'b1;
+end
+
+assign z80_alive = alive_cnt[19];
 
 // ==============================================
 // CPU Data Input Mux

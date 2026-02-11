@@ -1,0 +1,18 @@
+// Tang Primer 20K Dock Pin Constraints for Z8000 Test Harness
+// Target: GW2A-LV18PG256C8/I7 (PG256 BGA)
+
+IO_LOC "clk" H11;
+IO_LOC "uart_rx" T13;
+IO_LOC "uart_tx" M11;
+IO_LOC "led[0]" L16;
+IO_LOC "led[1]" L14;
+IO_LOC "led[2]" N14;
+IO_LOC "led[3]" N16;
+
+IO_PORT "clk" IO_TYPE=LVCMOS33;
+IO_PORT "uart_rx" IO_TYPE=LVCMOS33;
+IO_PORT "uart_tx" IO_TYPE=LVCMOS33;
+IO_PORT "led[0]" IO_TYPE=LVCMOS33;
+IO_PORT "led[1]" IO_TYPE=LVCMOS33;
+IO_PORT "led[2]" IO_TYPE=LVCMOS33;
+IO_PORT "led[3]" IO_TYPE=LVCMOS33;

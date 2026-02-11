@@ -9,36 +9,31 @@
 
 module z8000_test_harness_top (
     input         clk,       // 27MHz system clock
-    input         rst,       // Active high reset
     input         uart_rx,   // UART receive pin
     output        uart_tx,   // UART transmit pin
-    output        led,       // Heartbeat LED
-    output        led2,      // CPU in reset indicator
-    output        led3,      // CPU running indicator
-    output        led4       // CPU halted indicator
+    output [3:0]  led        // LEDs (active low): [0]=heartbeat, [1]=Z80 alive,
+                             //   [2]=Z8000 in reset, [3]=Z8000 halted
 );
 
 parameter CLK_FRE   = 27;     // 27MHz system clock
 parameter UART_BAUD = 115200; // Standard baud for 27MHz (234 cycles/bit)
 
 // ===========================================
-// Reset Debounce (~20ms at 27MHz)
+// Power-on Reset (~20ms at 27MHz)
 // ===========================================
-reg [19:0] debounce_cnt;
-reg        rst_debounced;
+reg [19:0] por_cnt = 20'd0;
+reg        por_active = 1'b1;
 
 always @(posedge clk) begin
-    if (rst) begin
-        debounce_cnt <= 20'd0;
-        rst_debounced <= 1'b1;
-    end else if (debounce_cnt < 20'd539_999) begin
-        debounce_cnt <= debounce_cnt + 1'b1;
-    end else begin
-        rst_debounced <= 1'b0;
+    if (por_active) begin
+        if (por_cnt < 20'd539_999)
+            por_cnt <= por_cnt + 1'b1;
+        else
+            por_active <= 1'b0;
     end
 end
 
-wire rst_n = ~rst_debounced;
+wire sys_rst_n = ~por_active;
 
 // ===========================================
 // LED Heartbeat
@@ -46,8 +41,8 @@ wire rst_n = ~rst_debounced;
 reg [23:0] led_counter;
 reg        led_reg;
 
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
+always @(posedge clk or negedge sys_rst_n) begin
+    if (!sys_rst_n) begin
         led_counter <= 24'd0;
         led_reg <= 1'b0;
     end else if (led_counter == 24'd13_499_999) begin  // 0.5s at 27MHz
@@ -58,8 +53,6 @@ always @(posedge clk or negedge rst_n) begin
     end
 end
 
-assign led = led_reg;
-
 // ===========================================
 // UART
 // ===========================================
@@ -67,13 +60,13 @@ wire [7:0]  uart_tx_data, uart_rx_data;
 wire        uart_tx_valid, uart_tx_ready, uart_rx_valid, uart_rx_ready;
 
 uart_tx #(.CLK_FRE(CLK_FRE), .BAUD_RATE(UART_BAUD)) uart_tx_inst (
-    .clk(clk), .rst_n(rst_n),
+    .clk(clk), .rst_n(sys_rst_n),
     .tx_data(uart_tx_data), .tx_data_valid(uart_tx_valid),
     .tx_data_ready(uart_tx_ready), .tx_pin(uart_tx)
 );
 
 uart_rx #(.CLK_FRE(CLK_FRE), .BAUD_RATE(UART_BAUD)) uart_rx_inst (
-    .clk(clk), .rst_n(rst_n),
+    .clk(clk), .rst_n(sys_rst_n),
     .rx_data(uart_rx_data), .rx_data_valid(uart_rx_valid),
     .rx_data_ready(uart_rx_ready), .rx_pin(uart_rx)
 );
@@ -115,6 +108,9 @@ wire        z80_io_wr_hi;
 // I/O port register signals (Z8000 side)
 wire [15:0] z8k_io_rdata;
 
+// Z80 alive indicator
+wire        z80_alive;
+
 // Z8000 instrumentation
 reg        bus_active;
 reg [31:0] cycle_count;
@@ -129,7 +125,7 @@ reg        cycle_timeout;
 // ===========================================
 z80_harness z80 (
     .clk            (clk),
-    .rst_n          (rst_n),
+    .rst_n          (sys_rst_n),
     .uart_rx_data   (uart_rx_data),
     .uart_rx_valid  (uart_rx_valid),
     .uart_rx_ready  (uart_rx_ready),
@@ -155,7 +151,8 @@ z80_harness z80 (
     .io_port_wbyte  (z80_io_wbyte),
     .io_port_rdata  (z80_io_rdata),
     .io_port_wr_lo  (z80_io_wr_lo),
-    .io_port_wr_hi  (z80_io_wr_hi)
+    .io_port_wr_hi  (z80_io_wr_hi),
+    .z80_alive      (z80_alive)
 );
 
 // ===========================================
@@ -163,7 +160,7 @@ z80_harness z80 (
 // ===========================================
 z8000_bus_fpga bus_if (
     .clk        (clk),
-    .rst_n      (rst_n),
+    .rst_n      (sys_rst_n),
     .z8k_rst_n  (z8k_rst_n),
     .rdata      (data_to_cpu),
     .addr       (z8k_addr),
@@ -219,10 +216,11 @@ always @(posedge clk or negedge z8k_rst_n) begin
     end
 end
 
-// LED indicators
-assign led2 = ~z8k_rst_n;
-assign led3 = z8k_rst_n && cpu_halt_n_out;
-assign led4 = ~cpu_halt_n_out;
+// LED indicators (active low: 0 = on)
+assign led[0] = ~led_reg;                           // Heartbeat
+assign led[1] = ~z80_alive;                         // Z80 firmware alive
+assign led[2] = z8k_rst_n;                          // Z8000 in reset (on when rst asserted)
+assign led[3] = cpu_halt_n_out;                     // Z8000 halted
 
 // ===========================================
 // Address decode
@@ -278,7 +276,7 @@ wire z8k_io_wr = io_port_match && ~cpu_rw_n && ~cpu_ds_n;
 
 z8k_io_ports io_ports (
     .clk           (clk),
-    .rst_n         (rst_n),
+    .rst_n         (sys_rst_n),
     // Z8000 bus side
     .z8k_reg_sel   (z8k_io_reg_sel),
     .z8k_wdata     (z8k_wdata),
@@ -311,7 +309,7 @@ wire [15:0] trace_data = cpu_rw_n ? data_to_cpu : z8k_wdata;
 
 trace_buffer trace (
     .clk        (clk),
-    .rst_n      (rst_n),
+    .rst_n      (sys_rst_n),
     .z8k_rst_n  (z8k_rst_n),
     .z8k_addr   (z8k_addr),
     .z8k_data   (trace_data),
