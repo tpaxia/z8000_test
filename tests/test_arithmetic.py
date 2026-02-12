@@ -387,60 +387,36 @@ TESTS = [
     ),
 
     # =========================================================================
-    # ADDB Rd, Rs (byte, register-register)
+    # ADDB Rbd, Rbs (byte, register-register)
+    # Byte register encoding: RH0-RH7 = 0-7, RL0-RL7 = 8-15
     # =========================================================================
     TestCase(
         name="addb_r_r_basic",
         mnemonic="ADDB",
-        description="ADDB RH0, RH1: 0x12 + 0x34 = 0x46",
+        description="ADDB RH0, RL0: 0x12 + 0x34 = 0x46",
         tags=["arithmetic", "byte", "R_mode"],
-        code=[0x8010],  # ADDB RH0(=R0 high byte), RH1(=R0 low byte)
-        # RH0 is high byte of R0, RH1 is low byte of R0
-        # Actually: RH0=reg 0 (high byte of R0), RH1=reg 1 (low byte of R0)
-        # ADDB Rbd, Rbs: 10000000_Rbs_Rbd
-        # ADDB RH0, RH1 = ADDB r0, r1 = 0x8010 (Rbs=1, Rbd=0)
-        regs={0: 0x1200, 1: 0x3400},
-        # Wait - byte registers: RH0 = high byte of R0, RL0 = low byte of R0
-        # In the reg file: Rbd=0 means RH0 (high byte of R0), Rbd=1 means RL0
-        # Rbd=2 means RH1 (high byte of R1), etc.
-        # So ADDB RH0, RH1: Rbs=2, Rbd=0 = 0x8020
-        # Let me use different registers to avoid confusion
-        # ADDB RL0, RL1: Rbs=3, Rbd=1 = 0x8031
-        # Actually this is getting complex. Let me use the R mode more simply.
-        # ADDB RH0, RL0: Rbs=1, Rbd=0 -> 0x8010
-        # R0 = 0xAABB -> RH0=0xAA, RL0=0xBB -> result RH0=AA+BB
-        expected_regs={},  # Skip for now, byte reg mapping is complex
+        # ADDB Rbd, Rbs: 10000000_Rbss_Rbdd
+        # RH0=0, RL0=8 -> Rbss=1000, Rbdd=0000 -> 0x8080
+        code=[0x8080],
+        regs={0: 0x1234},  # RH0=0x12, RL0=0x34
+        expected_regs={0: 0x4634},  # RH0 = 0x12+0x34 = 0x46, RL0 unchanged
+        expected_fcw_clear=["C", "Z", "S", "V"],
     ),
 
     # =========================================================================
-    # SUBB Rd, Rs (byte, register-register)
+    # SUBB Rbd, Rbs (byte, register-register)
     # =========================================================================
     TestCase(
         name="subb_r_r_basic",
         mnemonic="SUBB",
         description="SUBB RH0, RL0: 0xFF - 0x01 = 0xFE",
         tags=["arithmetic", "byte", "R_mode"],
-        code=[0x8210],  # SUBB Rbd=0(RH0), Rbs=1(RL0)
+        # SUBB Rbd, Rbs: 10000010_Rbss_Rbdd
+        # RH0=0, RL0=8 -> Rbss=1000, Rbdd=0000 -> 0x8280
+        code=[0x8280],
         regs={0: 0xFF01},  # RH0=0xFF, RL0=0x01
-        # Result: RH0 = 0xFF - 0x01 = 0xFE, RL0 unchanged
-        expected_regs={0: 0xFE01},
+        expected_regs={0: 0xFE01},  # RH0 = 0xFF-0x01 = 0xFE, RL0 unchanged
         expected_fcw_set=["S"],
         expected_fcw_clear=["C", "Z", "V"],
     ),
 ]
-
-# Remove the placeholder ADDB test that has empty expected_regs
-TESTS = [t for t in TESTS if t.expected_regs or t.name != "addb_r_r_basic"]
-
-# Replace with a proper ADDB test
-TESTS.append(TestCase(
-    name="addb_r_r_basic",
-    mnemonic="ADDB",
-    description="ADDB RH0, RL0: 0x12 + 0x34 = 0x46",
-    tags=["arithmetic", "byte", "R_mode"],
-    code=[0x8010],  # ADDB Rbd=0(RH0), Rbs=1(RL0)
-    regs={0: 0x1234},  # RH0=0x12, RL0=0x34
-    # Result: RH0 = 0x12 + 0x34 = 0x46, RL0 unchanged = 0x34
-    expected_regs={0: 0x4634},
-    expected_fcw_clear=["C", "Z", "S", "V"],
-))

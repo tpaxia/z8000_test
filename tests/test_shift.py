@@ -3,18 +3,15 @@
 from .defs import TestCase
 from .flags import FCW_SYS, fcw_with_flags
 
-# Shift/rotate opcodes: 10110011_Rddd_ssss + count_word
-# ssss = shift type: 0001=SLL, 0011=SRL, 1001=SLA, 1011=SRA
-# For single shifts: 10110011_Rddd_ssss, #count_word (positive=left, negative=right)
-# Actually the Z8000 shift encoding is:
-# SLL Rd, #n:  10110011_Rddd_0001 + n (positive count)
-# SRL Rd, #n:  10110011_Rddd_0001 + (-n & 0xFFFF) (negative count = right shift)
-# SLA Rd, #n:  10110011_Rddd_0011 + n
-# SRA Rd, #n:  10110011_Rddd_0011 + (-n & 0xFFFF)
-# RL Rd, #n:   10110011_Rddd_0000 + n
-# RLC Rd, #n:  10110011_Rddd_0010 + n
-# RR Rd, #n:   10110011_Rddd_0000 + (-n & 0xFFFF)
-# RRC Rd, #n:  10110011_Rddd_0010 + (-n & 0xFFFF)
+# Shift opcodes (2-word: opcode + count_word):
+# SLL/SRL Rd, #n: 10110011_Rddd_0001 + count (positive=left, negative=right)
+# SLA/SRA Rd, #n: 10110011_Rddd_1001 + count (positive=left, negative=right)
+#
+# Rotate opcodes (1-word, fixed count):
+# RL Rd, #1:  10110011_Rddd_0000    RL Rd, #2:  10110011_Rddd_0010
+# RR Rd, #1:  10110011_Rddd_0100    RR Rd, #2:  10110011_Rddd_0110
+# RLC Rd, #1: 10110011_Rddd_1000    RLC Rd, #2: 10110011_Rddd_1010
+# RRC Rd, #1: 10110011_Rddd_1100    RRC Rd, #2: 10110011_Rddd_1110
 
 TESTS = [
     # =========================================================================
@@ -95,7 +92,7 @@ TESTS = [
         mnemonic="SRA",
         description="SRA R0, #1: 0x0004 >> 1 = 0x0002 (positive, sign preserved)",
         tags=["shift", "word", "R_mode"],
-        code=[0xB303, 0xFFFF],  # SRA R0, #1 (arithmetic, count = -1)
+        code=[0xB309, 0xFFFF],  # SRA R0, #1 (SLA_OP, count = -1)
         regs={0: 0x0004},
         expected_regs={0: 0x0002},
         expected_fcw_clear=["C", "Z", "S"],
@@ -105,7 +102,7 @@ TESTS = [
         mnemonic="SRA",
         description="SRA R0, #1: 0x8002 >> 1 = 0xC001 (negative, sign preserved)",
         tags=["shift", "word", "R_mode"],
-        code=[0xB303, 0xFFFF],
+        code=[0xB309, 0xFFFF],  # SRA R0, #1 (SLA_OP, count = -1)
         regs={0: 0x8002},
         expected_regs={0: 0xC001},
         expected_fcw_set=["S"],
@@ -120,7 +117,7 @@ TESTS = [
         mnemonic="RL",
         description="RL R0, #1: rotate 0x8001 left by 1 = 0x0003",
         tags=["shift", "word", "R_mode"],
-        code=[0xB300, 0x0001],  # RL R0, #1
+        code=[0xB300],  # RL R0, #1 (single-word)
         regs={0: 0x8001},
         expected_regs={0: 0x0003},
         expected_fcw_set=["C"],  # MSB rotated out sets carry
@@ -135,7 +132,7 @@ TESTS = [
         mnemonic="RR",
         description="RR R0, #1: rotate 0x0001 right by 1 = 0x8000",
         tags=["shift", "word", "R_mode"],
-        code=[0xB300, 0xFFFF],  # RR R0, #1 (count = -1)
+        code=[0xB304],  # RR R0, #1 (single-word)
         regs={0: 0x0001},
         expected_regs={0: 0x8000},
         expected_fcw_set=["C", "S"],  # LSB rotated out sets carry
@@ -151,7 +148,7 @@ TESTS = [
         description="RLC R0, #1: rotate with carry=1, 0x0000 -> 0x0001",
         tags=["shift", "word", "R_mode", "flags"],
         fcw=fcw_with_flags(C=1),
-        code=[0xB302, 0x0001],  # RLC R0, #1
+        code=[0xB308],  # RLC R0, #1 (single-word)
         regs={0: 0x0000},
         expected_regs={0: 0x0001},
         expected_fcw_clear=["C", "Z", "S"],
@@ -166,7 +163,7 @@ TESTS = [
         description="RRC R0, #1: rotate with carry=1, 0x0000 -> 0x8000",
         tags=["shift", "word", "R_mode", "flags"],
         fcw=fcw_with_flags(C=1),
-        code=[0xB302, 0xFFFF],  # RRC R0, #1 (count = -1)
+        code=[0xB30C],  # RRC R0, #1 (single-word)
         regs={0: 0x0000},
         expected_regs={0: 0x8000},
         expected_fcw_set=["S"],
