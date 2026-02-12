@@ -98,23 +98,99 @@ TESTS = [
     TestCase(
         name="cpi_match",
         mnemonic="CPI",
-        description="CPI R0, @R1, R2, T: match found (Z=1)",
+        description="CPI R0, @R1, R2, EQ: match found (Z=1)",
         tags=["block", "word", "flags"],
-        code=_cpi(rs=1, rr=2, rd=0, cc=8),
+        code=_cpi(rs=1, rr=2, rd=0, cc=6),  # cc=6 (EQ): Z set when comparison is equal
         regs={0: 0x1234, 1: SRC_BUF, 2: 3},
         memory={SRC_BUF: 0x1234},
         expected_regs={1: SRC_BUF + 2, 2: 2},
         expected_fcw_set=["Z"],
+        expected_fcw_clear=["V"],  # V=0: counter 3->2, non-zero
     ),
     TestCase(
         name="cpi_no_match",
         mnemonic="CPI",
-        description="CPI R0, @R1, R2, T: no match (Z=0)",
+        description="CPI R0, @R1, R2, EQ: no match (Z=0)",
         tags=["block", "word", "flags"],
-        code=_cpi(rs=1, rr=2, rd=0, cc=8),
+        code=_cpi(rs=1, rr=2, rd=0, cc=6),  # cc=6 (EQ): Z clear when comparison is not equal
         regs={0: 0x1234, 1: SRC_BUF, 2: 3},
         memory={SRC_BUF: 0x5678},
         expected_regs={1: SRC_BUF + 2, 2: 2},
-        expected_fcw_clear=["Z"],
+        expected_fcw_clear=["Z", "V"],  # Z=0: no match; V=0: counter 3->2, non-zero
+    ),
+    TestCase(
+        name="cpi_counter_zero",
+        mnemonic="CPI",
+        description="CPI R0, @R1, R2, EQ: match with counter=1, V=1 after decrement",
+        tags=["block", "word", "flags"],
+        code=_cpi(rs=1, rr=2, rd=0, cc=6),
+        regs={0: 0x1234, 1: SRC_BUF, 2: 1},
+        memory={SRC_BUF: 0x1234},
+        expected_regs={0: 0x1234, 1: SRC_BUF + 2, 2: 0},
+        expected_fcw_set=["Z", "V"],  # Z=1: match; V=1: counter decremented to 0
+    ),
+    TestCase(
+        name="cpi_ne_not_equal",
+        mnemonic="CPI",
+        description="CPI R0, @R1, R2, NE: values differ, NE condition met (Z=1)",
+        tags=["block", "word", "flags"],
+        code=_cpi(rs=1, rr=2, rd=0, cc=14),  # cc=14 (NE): Z set when comparison is not equal
+        regs={0: 0x1234, 1: SRC_BUF, 2: 3},
+        memory={SRC_BUF: 0x5678},
+        expected_regs={1: SRC_BUF + 2, 2: 2},
+        expected_fcw_set=["Z"],  # Z=1: NE condition met (values differ)
+        expected_fcw_clear=["V"],
+    ),
+    TestCase(
+        name="cpi_ne_equal",
+        mnemonic="CPI",
+        description="CPI R0, @R1, R2, NE: values equal, NE condition not met (Z=0)",
+        tags=["block", "word", "flags"],
+        code=_cpi(rs=1, rr=2, rd=0, cc=14),  # cc=14 (NE): Z clear when comparison is equal
+        regs={0: 0x1234, 1: SRC_BUF, 2: 3},
+        memory={SRC_BUF: 0x1234},
+        expected_regs={1: SRC_BUF + 2, 2: 2},
+        expected_fcw_clear=["Z", "V"],  # Z=0: NE condition not met (values are equal)
+    ),
+
+    # =========================================================================
+    # CPIR Rd, @Rs, Rr, cc - compare, increment, repeat
+    # Repeats until condition met (Z=1) or counter exhausted (V=1)
+    # =========================================================================
+    TestCase(
+        name="cpir_match_mid",
+        mnemonic="CPIR",
+        description="CPIR R0, @R1, R2, EQ: find match at 2nd element",
+        tags=["block", "word", "flags"],
+        code=_cpir(rs=1, rr=2, rd=0, cc=6),
+        regs={0: 0xAAAA, 1: SRC_BUF, 2: 4},
+        memory={SRC_BUF: 0x1111, SRC_BUF + 2: 0xAAAA},
+        expected_regs={0: 0xAAAA, 1: SRC_BUF + 4, 2: 2},
+        expected_fcw_set=["Z"],  # Z=1: match found
+        expected_fcw_clear=["V"],  # V=0: counter=2, not exhausted
+    ),
+    TestCase(
+        name="cpir_no_match",
+        mnemonic="CPIR",
+        description="CPIR R0, @R1, R2, EQ: no match, counter exhausted",
+        tags=["block", "word", "flags"],
+        code=_cpir(rs=1, rr=2, rd=0, cc=6),
+        regs={0: 0xFFFF, 1: SRC_BUF, 2: 3},
+        memory={SRC_BUF: 0x1111, SRC_BUF + 2: 0x2222, SRC_BUF + 4: 0x3333},
+        expected_regs={0: 0xFFFF, 1: SRC_BUF + 6, 2: 0},
+        expected_fcw_clear=["Z"],  # Z=0: no match found
+        expected_fcw_set=["V"],  # V=1: counter exhausted
+    ),
+    TestCase(
+        name="cpir_match_first",
+        mnemonic="CPIR",
+        description="CPIR R0, @R1, R2, EQ: match at first element",
+        tags=["block", "word", "flags"],
+        code=_cpir(rs=1, rr=2, rd=0, cc=6),
+        regs={0: 0x1234, 1: SRC_BUF, 2: 3},
+        memory={SRC_BUF: 0x1234, SRC_BUF + 2: 0x5678},
+        expected_regs={0: 0x1234, 1: SRC_BUF + 2, 2: 2},
+        expected_fcw_set=["Z"],  # Z=1: match found immediately
+        expected_fcw_clear=["V"],  # V=0: counter=2
     ),
 ]

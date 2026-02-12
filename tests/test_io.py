@@ -20,14 +20,17 @@ from .flags import FCW_SYS
 # Reg 10(0x0108): Input byte     (special)
 # Reg 11(0x010A): Input word     (special)
 
-# IN  Rd, @Rs:  00111101_Rsnz_Rddd
-# IN  Rd, port: 00111101_0000_Rddd + port
-# OUT @Rd, Rs:  00111111_Rdnz_Rsss
-# OUT port, Rs: 00111111_0000_Rsss + port
+# IR (indirect register) mode - single word:
+# IN  Rd, @Rs:    00111101_Rsnz_Rddd
 # INB  Rbd, @Rs:  00111100_Rsnz_Rbdd
-# INB  Rbd, port: 00111100_0000_Rbdd + port
+# OUT @Rd, Rs:    00111111_Rdnz_Rsss
 # OUTB @Rd, Rbs:  00111110_Rdnz_Rbss
-# OUTB port, Rbs: 00111110_0000_Rbss + port
+#
+# DA (direct address) mode - two words (opcode + port):
+# IN  Rd, port:   00111011_Rddd_0100 + port
+# INB  Rbd, port: 00111010_Rbdd_0100 + port
+# OUT port, Rs:   00111011_Rsss_0110 + port
+# OUTB port, Rbs: 00111010_Rbss_0110 + port
 
 TESTS = [
     # =========================================================================
@@ -38,8 +41,8 @@ TESTS = [
         mnemonic="OUT",
         description="OUT 0x0106, R0: write R0 to output word reg",
         tags=["io", "word", "DA_mode"],
-        # OUT 0x0106, R0: 0x3F00, 0x0106
-        code=[0x3F00, 0x0106],
+        # OUT port, Rs: 00111011_Rsss_0110 + port; R0=0000
+        code=[0x3B06, 0x0106],
         regs={0: 0xABCD},
         expected_regs={0: 0xABCD},
         expected_io={3: 0xABCD},  # Reg 3 = standard output word
@@ -50,8 +53,8 @@ TESTS = [
         mnemonic="OUT",
         description="OUT 0x0102, R1: write R1 to loopback word reg",
         tags=["io", "word", "DA_mode"],
-        # OUT 0x0102, R1: 0x3F01, 0x0102
-        code=[0x3F01, 0x0102],
+        # OUT port, Rs: 00111011_Rsss_0110 + port; R1=0001
+        code=[0x3B16, 0x0102],
         regs={1: 0x1234},
         expected_regs={1: 0x1234},
         expected_io={1: 0x1234},  # Reg 1 = standard loopback word
@@ -65,8 +68,8 @@ TESTS = [
         mnemonic="IN",
         description="IN R0, 0x010A: read from input word reg",
         tags=["io", "word", "DA_mode"],
-        # IN R0, 0x010A: 0x3D00, 0x010A
-        code=[0x3D00, 0x010A],
+        # IN Rd, port: 00111011_Rddd_0100 + port; R0=0000
+        code=[0x3B04, 0x010A],
         regs={0: 0x0000},
         io_preloads={5: 0xBEEF},  # Reg 5 = standard input word
         expected_regs={0: 0xBEEF},
@@ -77,8 +80,8 @@ TESTS = [
         mnemonic="IN",
         description="IN R2, 0x0102: read from loopback word reg",
         tags=["io", "word", "DA_mode"],
-        # IN R2, 0x0102: 0x3D02, 0x0102
-        code=[0x3D02, 0x0102],
+        # IN Rd, port: 00111011_Rddd_0100 + port; R2=0010
+        code=[0x3B24, 0x0102],
         regs={2: 0x0000},
         io_preloads={1: 0xCAFE},  # Reg 1 = standard loopback word
         expected_regs={2: 0xCAFE},
@@ -92,9 +95,9 @@ TESTS = [
         mnemonic="OUT",
         description="OUT 0x0102, R0; IN R1, 0x0102: loopback roundtrip",
         tags=["io", "word", "DA_mode"],
-        # OUT 0x0102, R0:  0x3F00, 0x0102
-        # IN  R1, 0x0102:  0x3D01, 0x0102
-        code=[0x3F00, 0x0102, 0x3D01, 0x0102],
+        # OUT port, Rs: 00111011_0000_0110 + port (R0)
+        # IN  Rd, port: 00111011_0001_0100 + port (R1)
+        code=[0x3B06, 0x0102, 0x3B14, 0x0102],
         regs={0: 0x5A5A, 1: 0x0000},
         expected_regs={0: 0x5A5A, 1: 0x5A5A},
         expected_io={1: 0x5A5A},  # Loopback reg should have final value
@@ -108,8 +111,8 @@ TESTS = [
         mnemonic="OUTB",
         description="OUTB 0x0104, RH0: write byte to output byte reg",
         tags=["io", "byte", "DA_mode"],
-        # OUTB 0x0104, RH0: 0x3E00, 0x0104
-        code=[0x3E00, 0x0104],
+        # OUTB port, Rbs: 00111010_Rbss_0110 + port; RH0=0000
+        code=[0x3A06, 0x0104],
         regs={0: 0xAB00},  # RH0 = 0xAB
         expected_regs={0: 0xAB00},
         expected_io={2: 0xAB00},  # Reg 2 = standard output byte, high byte written
@@ -123,8 +126,8 @@ TESTS = [
         mnemonic="INB",
         description="INB RH0, 0x0108: read byte from input byte reg",
         tags=["io", "byte", "DA_mode"],
-        # INB RH0, 0x0108: 0x3C00, 0x0108
-        code=[0x3C00, 0x0108],
+        # INB Rbd, port: 00111010_Rbdd_0100 + port; RH0=0000
+        code=[0x3A04, 0x0108],
         regs={0: 0x0000},
         io_preloads={4: 0x42FF},  # Reg 4 = standard input byte, high byte = 0x42
         expected_regs={0: 0x4200},  # RH0 = high byte of port read
