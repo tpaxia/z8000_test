@@ -1,0 +1,51 @@
+{
+  "test": "push_multiple",
+  "mnemonic": "PUSH",
+  "exec_result": "HALT",
+  "cycle_count": 1,
+  "fetch_count": 42,
+  "trace": [
+    {
+      "addr": 3838,
+      "data": 4369,
+      "rw": "W",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 514,
+      "data": 37873,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 3836,
+      "data": 8738,
+      "rw": "W",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 518,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}

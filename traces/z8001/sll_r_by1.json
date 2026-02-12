@@ -1,0 +1,37 @@
+{
+  "test": "sll_r_by1",
+  "mnemonic": "SLL",
+  "exec_result": "HALT",
+  "cycle_count": 0,
+  "fetch_count": 41,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 1,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 518,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "test": "cpir_no_match",
+  "mnemonic": "CPIR",
+  "exec_result": "HALT",
+  "cycle_count": 0,
+  "fetch_count": 41,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 518,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1536,
+      "data": 4369,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1538,
+      "data": 8738,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1540,
+      "data": 13107,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 518,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}
