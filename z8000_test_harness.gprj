@@ -15,6 +15,8 @@
         <File path="z8000_micro/rtl/decode_rom.v" type="file.verilog" enable="1"/>
         <File path="z8000_micro/rtl/microcode_rom.v" type="file.verilog" enable="1"/>
         <File path="z8000_micro/rtl/ucode_defs.v" type="file.verilog" enable="1"/>
+        <File path="z8000_micro/rtl/z8000_biu.v" type="file.verilog" enable="1"/>
+        <File path="z8000_micro/rtl/z8000_muldiv.v" type="file.verilog" enable="1"/>
         <File path="z8000_micro/rtl/z8000_cpu.v" type="file.verilog" enable="1"/>
         <File path="src/z8000_bus_fpga.v" type="file.verilog" enable="1"/>
         <File path="src/z8000_test_harness_top.v" type="file.verilog" enable="1"/>
