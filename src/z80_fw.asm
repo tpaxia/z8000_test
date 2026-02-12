@@ -423,7 +423,7 @@ do_ex:
         ; Debug: show cycle limit
         call dbg_ex_limit
 
-        ; Assert reset first (clears counters, ensures clean start)
+        ; Assert reset first (ensures clean start; counters clear on release)
         xor a
         out (0x14), a
 
@@ -480,10 +480,12 @@ ex_lp:
         jp ex_lp
 
 ex_tout:
-        ; Cycle timeout - leave Z8000 halted (don't reset, preserves counters)
+        ; Cycle timeout - assert reset (counters clear on next EX, not on reset)
         call dbg_ex_status      ; Debug: show final status
         call dbg_ex_cycles      ; Debug: show cycle count
         call dbg_ex_fetches     ; Debug: show fetch count
+        xor a
+        out (0x14), a           ; Assert reset
         ld a, 'T'
         call put_char
         ld a, 'O'
@@ -496,10 +498,12 @@ ex_tout:
         jp main
 
 ex_ok:
-        ; Halted - leave Z8000 halted (don't reset, preserves counters)
+        ; Halted - assert reset (counters clear on next EX, not on reset)
         call dbg_ex_status      ; Debug: show final status
         call dbg_ex_cycles      ; Debug: show cycle count
         call dbg_ex_fetches     ; Debug: show fetch count
+        xor a
+        out (0x14), a           ; Assert reset
         ld a, 'H'
         call put_char
         ld a, 'A'

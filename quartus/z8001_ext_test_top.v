@@ -241,6 +241,7 @@ module z8001_ext_test_top (
 
     //------------------------------------------------------------------------
     // Instrumentation (Cycle/Fetch Counting)
+    // Clears on z8k_rst_n rising edge (reset release = new execution)
     //------------------------------------------------------------------------
     reg        bus_active;
     reg [31:0] cycle_count;
@@ -251,12 +252,16 @@ module z8001_ext_test_top (
     reg        cycle_timeout;
     wire [31:0] z8k_cycle_limit;
 
+    reg z8k_rst_n_prev;
+    always @(posedge sys_clk) z8k_rst_n_prev <= z8k_rst_n;
+    wire z8k_start = z8k_rst_n && !z8k_rst_n_prev;
+
     wire as_falling = prev_as_n && ~z8k_as_n_sync;
     wire opcode_fetch = as_falling && (z8k_st == 4'b1101);
     wire cpu_clk_rising = clk_4mhz && ~prev_cpu_clk;
 
-    always @(posedge sys_clk or negedge z8k_rst_n) begin
-        if (!z8k_rst_n) begin
+    always @(posedge sys_clk) begin
+        if (z8k_start) begin
             bus_active <= 1'b0;
             cycle_count <= 32'd0;
             fetch_count <= 16'd0;

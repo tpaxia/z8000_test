@@ -179,15 +179,19 @@ assign z8k_halt_n = cpu_halt_n_out;
 
 // ===========================================
 // Z8000 Instrumentation
-// Resets with z8k_rst_n (Z80-controlled)
+// Clears on z8k_rst_n rising edge (reset release = new execution)
 // ===========================================
+
+reg z8k_rst_n_prev;
+always @(posedge clk) z8k_rst_n_prev <= z8k_rst_n;
+wire z8k_start = z8k_rst_n && !z8k_rst_n_prev;
 
 wire as_falling = prev_as_n && ~cpu_as_n;
 wire opcode_fetch = as_falling && (cpu_st == 4'b1101);
 wire z8k_clk_rising = z8k_cpu_clk && ~prev_z8k_clk;
 
-always @(posedge clk or negedge z8k_rst_n) begin
-    if (!z8k_rst_n) begin
+always @(posedge clk) begin
+    if (z8k_start) begin
         bus_active <= 1'b0;
         cycle_count <= 32'd0;
         fetch_count <= 16'd0;
