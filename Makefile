@@ -28,6 +28,8 @@ Z80_HARNESS_SRCS = \
 # Z8000 sources
 Z8K_SRCS = \
 	$(Z8K_RTL_DIR)/z8000_cpu.v \
+	$(Z8K_RTL_DIR)/z8000_biu.v \
+	$(Z8K_RTL_DIR)/z8000_muldiv.v \
 	$(Z8K_RTL_DIR)/microcode_rom.v \
 	$(Z8K_RTL_DIR)/decode_rom.v
 
