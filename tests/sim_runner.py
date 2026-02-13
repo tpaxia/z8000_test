@@ -42,11 +42,14 @@ class SimRunner:
             os.path.join(src, "src", "z8k_io_ports.v"),
             os.path.join(src, "src", "trace_buffer.v"),
             os.path.join(z8k_rtl, "z8000_cpu.v"),
-            os.path.join(z8k_rtl, "z8000_biu.v"),
             os.path.join(z8k_rtl, "z8000_muldiv.v"),
             os.path.join(z8k_rtl, "microcode_rom.v"),
             os.path.join(z8k_rtl, "decode_rom.v"),
         ]
+        # BIU is a separate file only on post-BIU branches
+        biu_path = os.path.join(z8k_rtl, "z8000_biu.v")
+        if os.path.exists(biu_path):
+            srcs.append(biu_path)
 
         cmd = [
             "iverilog", "-g2012", "-DSIMULATION",
