@@ -3,9 +3,11 @@
 # Input clock (50 MHz oscillator)
 create_clock -name clk_50mhz -period 20.000 [get_ports clk_50mhz]
 
-# PLL-generated clocks (will be auto-derived by Quartus)
+# PLL-generated clocks (auto-derived by Quartus from ALTPLL)
 # clk_16mhz: 16 MHz system clock
 # clk_4mhz:  4 MHz Z8001 CPU clock
+derive_pll_clocks
+derive_clock_uncertainty
 
 # Z8001 CPU clock output (directly driven accent accent)
 create_generated_clock -name z8k_clk -source [get_pins {pll_inst|*}] -divide_by 4 [get_ports z8k_clk]

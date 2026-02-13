@@ -1,20 +1,23 @@
 //============================================================================
-// Z8001 External Test Harness - Top Level Module
+// Z8002 Internal Test Harness - Top Level Module
 // Target: Altera Cyclone IV (Quartus project)
 //
-// Wires an external Z8001 CPU to FPGA BRAM via 74LVC245 level shifters.
-// Z80 harness controller manages test execution over UART.
+// Synthesizes the Verilog Z8002 CPU core on the Cyclone IV FPGA,
+// using the same QMTECH board as the Z8001 external test project.
+//
+// The external Z8001 CPU is held in reset with bus buffers disabled
+// and all Z8001-facing pins driven to safe states.
 //
 // Features:
-// - Z8001 bus interface via z8001_bus_external
-// - 8KB dual-port BRAM (Port A: Z80, Port B: Z8001)
-// - I/O LED latch (any Z8001 I/O write sets LED register)
-// - Halt detection via opcode sniffing (0x7A00 on first fetch)
+// - Internal Z8002 CPU core (z8000_cpu)
+// - 8KB dual-port BRAM (Port A: Z80, Port B: Z8002)
+// - I/O LED latch
+// - Direct halt_n from CPU (no opcode sniffing needed)
 // - Cycle/fetch counting instrumentation
 // - Bus trace capture buffer (1024 entries, address-gated)
 //============================================================================
 
-module z8001_ext_test_top (
+module z8002_int_test_top (
     // System
     input  wire        clk,             // 50 MHz oscillator (T2)
     input  wire        n_reset,         // Active-low reset button (W13)
@@ -32,9 +35,9 @@ module z8001_ext_test_top (
     output wire        n_sRamOE,        // SRAM output enable (C4)
     output wire        n_sRamWE,        // SRAM write enable (E1)
 
-    // Z8001 CPU control outputs
-    output wire        fclk,            // CPU clock 4MHz (F1)
-    output wire        freset,          // CPU reset, active-high (B17)
+    // Z8001 CPU control outputs (directly directly driven to safe states)
+    output wire        fclk,            // CPU clock 4MHz (F1) - still driven
+    output wire        freset,          // CPU reset, active-high (B17) - held in reset
     output wire        fbreq,           // Bus request (H2)
     output wire        fwait,           // Wait state (J2)
     output wire        fnvi,            // Non-vectored interrupt (F2)
@@ -42,10 +45,10 @@ module z8001_ext_test_top (
     output wire        fnmi,            // NMI (B3)
 
     // Z8001 bus buffer control
-    output wire        fbuscs,          // Bus buffer OE, active-low (R2)
+    output wire        fbuscs,          // Bus buffer OE, active-low (R2) - disabled
     output wire        fbusrd,          // Bus buffer direction (P2)
 
-    // Z8001 CPU inputs (from CPU via level shifters)
+    // Z8001 CPU inputs (directly directly directly directly directly directly driven as inputs from disconnected CPU)
     input  wire        fas,             // Address strobe (A8)
     input  wire        fds,             // Data strobe (A9)
     input  wire        fbw,             // Byte/Word (A7)
@@ -54,8 +57,8 @@ module z8001_ext_test_top (
     input  wire [3:0]  fst,             // Status ST0-ST3 (D2,C1,C2,B1)
     input  wire [3:0]  fsn,             // Segment SN0-SN3 (R1,N1,N2,M1)
 
-    // Z8001 AD bus (via 74LVC245)
-    inout  wire [15:0] sramData         // Bidirectional data bus
+    // Z8001 AD bus (directly directly directly directly directly directly directly directly via 74LVC245 - buffers disabled, directly directly directly FPGA does not drive)
+    input  wire [15:0] sramData         // Changed to input - FPGA never drives this
 );
 
     //------------------------------------------------------------------------
@@ -79,6 +82,28 @@ module z8001_ext_test_top (
     );
 
     wire sys_clk = clk_16mhz;
+
+    //------------------------------------------------------------------------
+    // Derived 4MHz CPU Clock (divide-by-4 from 16MHz)
+    // Keeps CPU in the same clock domain as the rest of the design.
+    // PLL c1 (clk_4mhz) is only used for external Z8001 fclk pin.
+    //------------------------------------------------------------------------
+    reg [1:0] cpu_clk_div;
+    reg       z8k_cpu_clk;
+
+    always @(posedge sys_clk) begin
+        if (!pll_locked) begin
+            cpu_clk_div <= 2'd0;
+            z8k_cpu_clk <= 1'b0;
+        end else begin
+            if (cpu_clk_div == 2'd1) begin
+                cpu_clk_div <= 2'd0;
+                z8k_cpu_clk <= ~z8k_cpu_clk;
+            end else begin
+                cpu_clk_div <= cpu_clk_div + 1'b1;
+            end
+        end
+    end
 
     //------------------------------------------------------------------------
     // Reset Generation
@@ -110,64 +135,81 @@ module z8001_ext_test_top (
     assign n_sRamWE  = 1'b1;
 
     //------------------------------------------------------------------------
-    // Z8001 CPU Control
+    // External Z8001 - DISABLED
+    // Hold in reset, disable bus buffers, drive control pins inactive.
+    // The sramData bus is declared as input so FPGA pins are high-Z.
+    // fas/fds/fbw/fmreq/frw/fst/fsn are inputs (CPU can't drive with
+    // buffers disabled anyway).
+    //------------------------------------------------------------------------
+    assign fclk    = clk_4mhz;          // Keep clock running (harmless)
+    assign freset  = 1'b0;              // Z8001 freset active-low: 0 = held in reset
+    assign fbreq   = 1'b1;              // No bus request (inactive)
+    assign fwait   = 1'b1;              // No wait (inactive)
+    assign fnvi    = 1'b1;              // No NVI (inactive)
+    assign fvi     = 1'b1;              // No VI (inactive)
+    assign fnmi    = 1'b1;              // No NMI (inactive)
+    assign fbuscs  = 1'b1;              // Bus buffers OE DISABLED (active-low)
+    assign fbusrd  = 1'b0;              // Direction don't-care (buffers disabled)
+
+    //------------------------------------------------------------------------
+    // Internal Z8002 CPU
     //------------------------------------------------------------------------
     wire z8k_rst_n;                      // From Z80 harness
 
-    assign fclk    = clk_4mhz;
-    assign freset  = z8k_rst_n;         // 0=reset, 1=run (matches original bring-up convention)
-    assign fbreq   = 1'b1;              // No bus request
-    assign fwait   = 1'b1;              // No wait states
-    assign fnvi    = 1'b1;              // No non-vectored interrupt
-    assign fvi     = 1'b1;              // No vectored interrupt
-    assign fnmi    = 1'b1;              // No NMI
+    wire [15:0] ad_bus;
+    wire        cpu_as_n, cpu_ds_n, cpu_rw_n, cpu_mreq_n, cpu_bw_n;
+    wire [3:0]  cpu_st;
+    wire        cpu_halt_n;
+    wire        cpu_busack_n, cpu_ns;
 
-    //------------------------------------------------------------------------
-    // Z8001 Bus Interface
-    //------------------------------------------------------------------------
-    wire [15:0] z8k_addr;               // Latched address from bus interface
-    wire [15:0] z8k_wdata;              // Write data from CPU
-    wire [15:0] data_to_cpu;            // Read data to CPU
-    wire [3:0]  z8k_st;                 // Latched status
-    wire        z8k_as_n_sync;          // Synchronized AS
-    wire        z8k_ds_n_sync;          // Synchronized DS
-    wire        z8k_rw_n_sync;          // Synchronized R/W
-    wire        z8k_mreq_n_sync;        // Synchronized MREQ
-    wire        z8k_bw_n_sync;          // Synchronized B/W
+    // Read data driven onto AD bus during CPU read cycles
+    reg  [15:0] data_to_cpu;
+    assign ad_bus = (cpu_rw_n && ~cpu_ds_n) ? data_to_cpu : 16'bz;
 
-    z8001_bus_external bus_if (
-        .clk        (sys_clk),
-        .rst_n      (sys_rst_n),
-        .z8k_rst_n  (z8k_rst_n),
-        .cpu_clk    (clk_4mhz),
-        .as_n       (fas),
-        .ds_n       (fds),
-        .bw_n       (fbw),
-        .mreq_n     (fmreq),
-        .rw_n       (frw),
-        .st         (fst),
-        .sn         (fsn),
-        .ad_bus     (sramData),
-        .buf_oe_n   (fbuscs),
-        .buf_dir    (fbusrd),
-        .addr       (z8k_addr),
-        .wdata      (z8k_wdata),
-        .rdata      (data_to_cpu),
-        .st_latched (z8k_st),
-        .as_n_out   (z8k_as_n_sync),
-        .ds_n_out   (z8k_ds_n_sync),
-        .rw_n_out   (z8k_rw_n_sync),
-        .mreq_n_out (z8k_mreq_n_sync),
-        .bw_n_out   (z8k_bw_n_sync)
+    z8000_cpu cpu (
+        .clk        (z8k_cpu_clk),
+        .rst_n      (z8k_rst_n),
+        .ad         (ad_bus),
+        .as_n       (cpu_as_n),
+        .ds_n       (cpu_ds_n),
+        .rw_n       (cpu_rw_n),
+        .mreq_n     (cpu_mreq_n),
+        .b_w_n      (cpu_bw_n),
+        .st         (cpu_st),
+        .wait_n     (1'b1),
+        .busreq_n   (1'b1),
+        .busack_n   (cpu_busack_n),
+        .nmi_n      (1'b1),
+        .vi_n       (1'b1),
+        .nvi_n      (1'b1),
+        .n_s        (cpu_ns),
+        .halt_n     (cpu_halt_n)
     );
+
+    // Write data from CPU
+    wire [15:0] z8k_wdata = ad_bus;
+
+    //------------------------------------------------------------------------
+    // Address Latch
+    // Level-sensitive capture while AS_n is low.
+    // Sampled at 16MHz for minimum latency.
+    //------------------------------------------------------------------------
+    reg [15:0] z8k_addr;
+
+    always @(posedge sys_clk or negedge sys_rst_n) begin
+        if (!sys_rst_n)
+            z8k_addr <= 16'd0;
+        else if (~cpu_as_n)
+            z8k_addr <= ad_bus;
+    end
 
     //------------------------------------------------------------------------
     // Address Decode
     //------------------------------------------------------------------------
-    wire io_std_sel = (z8k_st == 4'b0010);   // Standard I/O (ST=0010)
-    wire io_spc_sel = (z8k_st == 4'b0011);   // Special I/O (ST=0011)
+    wire io_std_sel = (cpu_st == 4'b0010);   // Standard I/O (ST=0010)
+    wire io_spc_sel = (cpu_st == 4'b0011);   // Special I/O (ST=0011)
     wire io_sel  = io_std_sel || io_spc_sel;
-    wire ram_sel = ~z8k_mreq_n_sync && ~io_sel;
+    wire ram_sel = ~cpu_mreq_n && ~io_sel;
 
     // I/O port address match: Z8000 addresses 0x0100-0x010A
     wire io_port_match = io_sel && (z8k_addr[15:4] == 12'h010);
@@ -199,47 +241,6 @@ module z8001_ext_test_top (
     );
 
     //------------------------------------------------------------------------
-    // Halt Detection - Opcode Sniffing
-    // Detect HALT by matching opcode 0x7A00 during first opcode fetch (ST=1101)
-    //
-    // data_to_cpu depends on ram_sel (uses synchronized MREQ). At ds_rising,
-    // MREQ may have already deasserted, making data_to_cpu = 0xFFFF.
-    // Fix: latch data_to_cpu while DS is active, check latched value at ds_rising.
-    //------------------------------------------------------------------------
-    reg halt_detected;
-    reg ds_n_prev;
-    wire ds_rising = ~ds_n_prev && z8k_ds_n_sync;
-    wire z8k_ds_falling = ds_n_prev && ~z8k_ds_n_sync;
-    wire first_fetch_cycle = (z8k_st == 4'b1101);
-
-    always @(posedge sys_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n)
-            ds_n_prev <= 1'b1;
-        else
-            ds_n_prev <= z8k_ds_n_sync;
-    end
-
-    // Latch data while DS is active (ram_sel still valid during data phase)
-    reg [15:0] latched_cpu_data;
-    always @(posedge sys_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n)
-            latched_cpu_data <= 16'h0000;
-        else if (~z8k_ds_n_sync)
-            latched_cpu_data <= data_to_cpu;
-    end
-
-    always @(posedge sys_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n)
-            halt_detected <= 1'b0;
-        else if (!z8k_rst_n)
-            halt_detected <= 1'b0;      // Clear on CPU reset
-        else if (ds_rising && first_fetch_cycle && latched_cpu_data == 16'h7A00)
-            halt_detected <= 1'b1;       // HALT opcode fetched
-    end
-
-    wire z8k_halt_n = ~halt_detected;
-
-    //------------------------------------------------------------------------
     // Instrumentation (Cycle/Fetch Counting)
     // Clears on z8k_rst_n rising edge (reset release = new execution)
     //------------------------------------------------------------------------
@@ -256,9 +257,9 @@ module z8001_ext_test_top (
     always @(posedge sys_clk) z8k_rst_n_prev <= z8k_rst_n;
     wire z8k_start = z8k_rst_n && !z8k_rst_n_prev;
 
-    wire as_falling = prev_as_n && ~z8k_as_n_sync;
-    wire opcode_fetch = as_falling && (z8k_st == 4'b1101);
-    wire cpu_clk_rising = clk_4mhz && ~prev_cpu_clk;
+    wire as_falling = prev_as_n && ~cpu_as_n;
+    wire opcode_fetch = as_falling && (cpu_st == 4'b1101);
+    wire cpu_clk_rising = z8k_cpu_clk && ~prev_cpu_clk;
 
     always @(posedge sys_clk) begin
         if (z8k_start) begin
@@ -270,19 +271,19 @@ module z8001_ext_test_top (
             counting <= 1'b1;
             cycle_timeout <= 1'b0;
         end else begin
-            prev_as_n <= z8k_as_n_sync;
-            prev_cpu_clk <= clk_4mhz;
+            prev_as_n <= cpu_as_n;
+            prev_cpu_clk <= z8k_cpu_clk;
 
             if (as_falling && !bus_active)
                 bus_active <= 1'b1;
 
-            if (halt_detected)
+            if (!cpu_halt_n)
                 counting <= 1'b0;
 
-            if (counting && !halt_detected && cpu_clk_rising)
+            if (counting && cpu_halt_n && cpu_clk_rising)
                 cycle_count <= cycle_count + 1'b1;
 
-            if (counting && !halt_detected && opcode_fetch)
+            if (counting && cpu_halt_n && opcode_fetch)
                 fetch_count <= fetch_count + 1'b1;
 
             if (counting && (z8k_cycle_limit != 32'd0) && (cycle_count >= z8k_cycle_limit))
@@ -297,7 +298,7 @@ module z8001_ext_test_top (
     wire [35:0] trace_rd_data;
     wire [9:0]  trace_wr_count;
 
-    wire [15:0] trace_data = z8k_rw_n_sync ? data_to_cpu : z8k_wdata;
+    wire [15:0] trace_data = cpu_rw_n ? data_to_cpu : z8k_wdata;
 
     trace_buffer_altera trace (
         .clk        (sys_clk),
@@ -305,12 +306,12 @@ module z8001_ext_test_top (
         .z8k_rst_n  (z8k_rst_n),
         .z8k_addr   (z8k_addr),
         .z8k_data   (trace_data),
-        .z8k_as_n   (z8k_as_n_sync),
-        .z8k_ds_n   (z8k_ds_n_sync),
-        .z8k_rw_n   (z8k_rw_n_sync),
-        .z8k_bw_n   (z8k_bw_n_sync),
-        .z8k_mreq_n (z8k_mreq_n_sync),
-        .z8k_st     (z8k_st),
+        .z8k_as_n   (cpu_as_n),
+        .z8k_ds_n   (cpu_ds_n),
+        .z8k_rw_n   (cpu_rw_n),
+        .z8k_bw_n   (cpu_bw_n),
+        .z8k_mreq_n (cpu_mreq_n),
+        .z8k_st     (cpu_st),
         .rd_addr    (trace_rd_addr),
         .rd_data    (trace_rd_data),
         .wr_count   (trace_wr_count)
@@ -344,8 +345,8 @@ module z8001_ext_test_top (
         .uart_tx_valid  (uart_tx_valid),
         .uart_tx_ready  (uart_tx_ready),
         .z8k_rst_n      (z8k_rst_n),
-        .z8k_halt_n     (z8k_halt_n),
-        .z8k_st         (z8k_st),
+        .z8k_halt_n     (cpu_halt_n),
+        .z8k_st         (cpu_st),
         .z8k_mem_we     (z8k_mem_we),
         .z80_addr       (z80_addr),
         .z8k_mem_wdata  (z8k_mem_wdata),
@@ -369,18 +370,13 @@ module z8001_ext_test_top (
     //------------------------------------------------------------------------
     // Dual-Port BRAM (8KB)
     // Port A: Z80 harness (load/read test code)
-    // Port B: Z8001 CPU (fetch/execute)
+    // Port B: Z8002 CPU (fetch/execute)
     //------------------------------------------------------------------------
 
-    // Z8001 write logic - edge-detected to avoid trailing garbage
-    // After real DS rises, the CPU stops driving data but z8k_ds_n_sync
-    // stays low for 2 more clocks (synchronizer delay). Level-based write
-    // enables would let the BRAM capture whatever garbage is on the floating
-    // bus during those trailing cycles. Using DS falling edge ensures a
-    // single-pulse write when data is guaranteed valid.
-    wire z8k_ram_write = ram_sel && ~z8k_rw_n_sync && z8k_ds_falling;
-    wire z8k_we_hi = z8k_ram_write && (z8k_bw_n_sync || ~z8k_addr[0]);
-    wire z8k_we_lo = z8k_ram_write && (z8k_bw_n_sync ||  z8k_addr[0]);
+    // Z8002 write logic - level-based (internal CPU, no synchronizer delay)
+    wire z8k_ram_write = ram_sel && ~cpu_rw_n && ~cpu_ds_n;
+    wire z8k_we_hi = z8k_ram_write && (cpu_bw_n || ~z8k_addr[0]);
+    wire z8k_we_lo = z8k_ram_write && (cpu_bw_n ||  z8k_addr[0]);
 
     wire [15:0] z80_rd_data;
     wire [15:0] z8k_rd_data;
@@ -393,7 +389,7 @@ module z8001_ext_test_top (
         .addra   (z80_addr[12:0]),
         .dina    (z8k_mem_wdata),
         .douta   (z80_rd_data),
-        // Port B - Z8001 CPU
+        // Port B - Z8002 CPU
         .clkb    (sys_clk),
         .web_hi  (z8k_we_hi),
         .web_lo  (z8k_we_lo),
@@ -407,7 +403,7 @@ module z8001_ext_test_top (
     //------------------------------------------------------------------------
     // I/O Port Registers
     //------------------------------------------------------------------------
-    wire z8k_io_wr = io_port_match && ~z8k_rw_n_sync && z8k_ds_falling;
+    wire z8k_io_wr = io_port_match && ~cpu_rw_n && ~cpu_ds_n;
 
     z8k_io_ports io_ports (
         .clk           (sys_clk),
@@ -417,7 +413,7 @@ module z8001_ext_test_top (
         .z8k_wdata     (z8k_wdata),
         .z8k_rdata     (z8k_io_rdata),
         .z8k_wr        (z8k_io_wr),
-        .z8k_bw_n      (z8k_bw_n_sync),
+        .z8k_bw_n      (cpu_bw_n),
         .z8k_addr_lsb  (z8k_addr[0]),
         // Z80 side
         .z80_reg_sel   (z80_io_reg_sel),
@@ -427,17 +423,22 @@ module z8001_ext_test_top (
         .z80_wr_hi     (z80_io_wr_hi)
     );
 
-    // Z8001 data bus mux
-    assign data_to_cpu = ram_sel     ? z8k_rd_data :
-                         io_port_match ? z8k_io_rdata :
-                                         16'hFFFF;
+    // Z8002 data bus mux
+    always @(*) begin
+        if (ram_sel)
+            data_to_cpu = z8k_rd_data;
+        else if (io_port_match)
+            data_to_cpu = z8k_io_rdata;
+        else
+            data_to_cpu = 16'hFFFF;
+    end
 
     //------------------------------------------------------------------------
     // I/O LED Latch
-    // Any Z8001 I/O write captures wdata; LED driven from bit 0
+    // Any Z8002 I/O write captures wdata; LED driven from bit 0
     //------------------------------------------------------------------------
     reg [15:0] io_led_reg;
-    wire io_write = io_sel && ~z8k_rw_n_sync && z8k_ds_falling;
+    wire io_write = io_sel && ~cpu_rw_n && ~cpu_ds_n;
 
     always @(posedge sys_clk or negedge sys_rst_n) begin
         if (!sys_rst_n)

@@ -37,7 +37,7 @@ module trace_buffer_altera (
 );
 
     // I/O detect (same as in top module)
-    wire io_cycle = (z8k_st == 4'b0010) || (z8k_st == 4'b0100);
+    wire io_cycle = (z8k_st == 4'b0010) || (z8k_st == 4'b0011);
 
     // Capture on DS_n rising edge (end of bus cycle - data is valid)
     reg ds_n_prev;

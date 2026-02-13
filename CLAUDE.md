@@ -57,16 +57,19 @@ FPGA-based test harness for a Z8000 CPU implementation. Supports Tang Nano 20K (
 - `z8000_test_harness.gprj` - Gowin EDA project file (Tang Nano 20K)
 - `z8000_test_harness_primer20k.gprj` - Gowin EDA project file (Tang Primer 20K dock)
 - `Makefile` - Build automation
-- `quartus/` - Quartus project for external Z8001 CPU testing
-  - `z8001_ext_test_top.v` - Top-level module (bus wiring, halt detect, instrumentation)
+- `quartus/` - Quartus projects for Cyclone IV (QMTECH EP4CE15F23C8)
+  - `z8001_ext_test_top.v` - Top-level: external Z8001 (bus wiring, halt detect)
+  - `z8002_int_test_top.v` - Top-level: internal Z8002 (CPU core, Z8001 disabled)
   - `z8001_bus_external.v` - External Z8001 bus interface (sync, latch, buffer control)
   - `trace_buffer_altera.v` - Bus trace capture (behavioral RAM, no Gowin SDPB)
   - `z80_harness_quartus.v` - Z80 harness (Altera altsyncram for Z80 RAM)
   - `ram16_altera.v` - Dual-port RAM (Altera altsyncram)
   - `pll.v` - PLL wrapper (replace with MegaWizard output)
   - `gen_mif.py` - Binary-to-MIF converter
-  - `z8001_ext_test.qsf` - Pin assignments and source file list
-  - `z8001_ext_test.sdc` - Timing constraints
+  - `z8001_ext_test.qsf` - Pin assignments for external Z8001 project
+  - `z8002_int_test.qsf` - Pin assignments for internal Z8002 project
+  - `z8001_ext_test.sdc` - Timing constraints (external Z8001)
+  - `z8002_int_test.sdc` - Timing constraints (internal Z8002)
   - `Makefile` - Firmware build automation
 
 ## Build Commands
@@ -82,10 +85,10 @@ make wave       # View VCD waveform in GTKWave
 make clean      # Clean build artifacts
 ```
 
-### Quartus (External Z8001)
+### Quartus (Cyclone IV)
 
 ```bash
-cd quartus && make firmware   # Build shared firmware with -DZ8001 -> .bin -> .hex -> .mif
+cd quartus && make firmware   # Build Z80 firmware -> .bin -> .hex -> .mif
 ```
 
 ## Running Tests
@@ -245,23 +248,32 @@ Uses `ifdef SIMULATION` to switch between:
 
 See README.md for full documentation.
 
-## Quartus Project (External Z8001)
+## Quartus Projects (Cyclone IV)
 
-Separate Quartus project in `quartus/` for testing a **physical Z8001 CPU** on a
-QMTECH Cyclone IV EP4CE15F23C8 board, using pin assignments from the M20FPGA project.
+Two Quartus projects in `quartus/` targeting the same QMTECH Cyclone IV EP4CE15F23C8
+board, using pin assignments from the M20FPGA project.
 
-### Key Differences from Gowin Version
+### z8001_ext_test - External Z8001 CPU
 
-| Aspect | Gowin (Tang Nano 20K) | Quartus (Cyclone IV) |
-|--------|----------------------|---------------------|
-| CPU | Verilog Z8002 (internal) | Physical Z8001 (external, 5V via 74LVC245) |
-| Clock | 27MHz, /3.5 divider | 50MHz PLL -> 16MHz sys + 4MHz CPU |
-| BRAM | Gowin DPB primitives | Altera altsyncram |
-| Trace RAM | Gowin SDPB | Behavioral (Quartus infers BRAM) |
-| Halt detect | Direct halt_n pin from CPU | Opcode sniffing (0x7A00 on ST=1101) |
-| I/O ports | 12x16-bit register file (shared z8k_io_ports.v) | Same shared module + LED latch |
-| Firmware | Shared z80_fw.asm (Z8002 mode) | Shared z80_fw.asm (-DZ8001, segmented vectors) |
-| Bus interface | Direct CPU wires | 74LVC245 level shifters + 2-stage synchronizers |
+Tests a **physical Z8001 CPU** via 74LVC245 level shifters.
+
+### z8002_int_test - Internal Z8002 CPU
+
+Synthesizes the **Verilog Z8002 CPU core** on the Cyclone IV. The external Z8001 is
+held in reset (`freset=0`), bus buffers disabled (`fbuscs=1`), and all Z8001-facing
+FPGA pins are inputs (high-Z). Shares the same board and pin assignments.
+
+### Comparison
+
+| Aspect | Gowin (Tang Nano 20K) | Quartus z8001_ext | Quartus z8002_int |
+|--------|----------------------|-------------------|-------------------|
+| CPU | Verilog Z8002 (internal) | Physical Z8001 (external) | Verilog Z8002 (internal) |
+| Clock | 27MHz, /3.5 divider | 50MHz PLL -> 16MHz + 4MHz | 50MHz PLL -> 16MHz + 4MHz |
+| BRAM | Gowin DPB primitives | Altera altsyncram | Altera altsyncram |
+| Trace RAM | Gowin SDPB | Behavioral | Behavioral |
+| Halt detect | Direct halt_n | Opcode sniffing | Direct halt_n |
+| Bus interface | Direct CPU wires | 74LVC245 + synchronizers | Direct CPU wires |
+| External Z8001 | N/A | Active (running) | Held in reset, buffers off |
 
 ### Bus Buffer Control (74LVC245)
 
@@ -286,12 +298,13 @@ would get the previous cycle's status.
 
 ### Shared Firmware
 
-Both platforms use the same `src/z80_fw.asm` firmware source. The Z80 firmware
-no longer embeds the Z8000 bootstrap — it is uploaded at runtime by the Python
-test framework via `upload_bootstrap()`. Target-specific reset vectors (Z8001
-segmented vs Z8002 non-segmented) are built by the Python code.
+All platforms use the same `src/z80_fw.asm` firmware source and produce the same
+binary. The Z80 firmware no longer embeds the Z8000 bootstrap — it is uploaded at
+runtime by the Python test framework via `upload_bootstrap()`. Target-specific
+reset vectors (Z8001 segmented vs Z8002 non-segmented) are built by the Python code.
 
-Build: `cd quartus && make firmware` assembles and generates MIF.
+Build: `cd quartus && make firmware` assembles and generates MIF (shared by both
+Quartus projects).
 
 See `quartus/README.md` for full pin assignments, expected output, and build details.
 

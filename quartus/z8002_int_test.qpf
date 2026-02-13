@@ -1,0 +1,7 @@
+# Quartus Project File for Z8002 Internal Test Harness
+# Internal Verilog Z8002 CPU on Cyclone IV, external Z8001 disabled
+
+QUARTUS_VERSION = "13.0"
+DATE = "2026-02-11"
+
+PROJECT_REVISION = "z8002_int_test"
