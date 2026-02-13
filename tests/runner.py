@@ -4,8 +4,8 @@ import fnmatch
 import time
 
 from .defs import TestCase, TestResult
-from .flags import FLAG_BITS, get_flag, format_flags
 from .helpers import CODE_BASE, JP_DUMP
+from .verify import verify_result
 
 
 class TestRunner:
@@ -17,8 +17,6 @@ class TestRunner:
     def run_test(self, tc):
         """Run a single test case and return TestResult."""
         self.harness.init()
-
-        failures = []
 
         # 1. Reset and set up FCW
         self.harness.write_fcw(tc.fcw)
@@ -43,78 +41,35 @@ class TestRunner:
         # 5. Execute
         exec_result = self.harness.execute()
 
-        # 6. Check execution result
-        if exec_result != tc.expected_result:
-            failures.append(
-                f"Execution: expected {tc.expected_result}, got {exec_result}"
-            )
-
-        # 7. Read back registers
+        # 6. Read back registers
         actual_regs = {}
         for reg in set(list(tc.expected_regs.keys()) + list(tc.regs.keys())):
             actual_regs[reg] = self.harness.read_reg(reg)
 
-        # 8. Read back FCW
+        # 7. Read back FCW
         actual_fcw = self.harness.read_fcw()
 
-        # 9. Read back memory
+        # 8. Read back memory
         actual_memory = {}
         for addr in tc.expected_memory:
             actual_memory[addr] = self.harness.read_mem(addr)
 
-        # 10. Read cycle/fetch counts and trace
+        # 9. Read cycle/fetch counts and trace
         cycle_count = self.harness.cycle_count()
         fetch_count = self.harness.fetch_count()
         trace = self.harness.read_all_trace()
 
-        # 10b. Read I/O port registers (requires reset first)
+        # 9b. Read I/O port registers (requires reset first)
         actual_io = {}
         if tc.expected_io:
             self.harness.reset()
             for idx in tc.expected_io:
                 actual_io[idx] = self.harness.read_io_port(idx)
 
-        # 11. Verify registers
-        for reg, expected in tc.expected_regs.items():
-            actual = actual_regs.get(reg)
-            if actual != expected:
-                failures.append(
-                    f"R{reg}: expected 0x{expected:04X}, got "
-                    f"0x{actual:04X}" if actual is not None else "None"
-                )
-
-        # 12. Verify flags
-        if actual_fcw is not None:
-            for flag_name in tc.expected_fcw_set:
-                if get_flag(actual_fcw, flag_name) != 1:
-                    failures.append(
-                        f"Flag {flag_name}: expected SET, got CLEAR "
-                        f"(FCW=0x{actual_fcw:04X} {format_flags(actual_fcw)})"
-                    )
-            for flag_name in tc.expected_fcw_clear:
-                if get_flag(actual_fcw, flag_name) != 0:
-                    failures.append(
-                        f"Flag {flag_name}: expected CLEAR, got SET "
-                        f"(FCW=0x{actual_fcw:04X} {format_flags(actual_fcw)})"
-                    )
-
-        # 13. Verify memory
-        for addr, expected in tc.expected_memory.items():
-            actual = actual_memory.get(addr)
-            if actual != expected:
-                failures.append(
-                    f"Mem[0x{addr:04X}]: expected 0x{expected:04X}, got "
-                    f"0x{actual:04X}" if actual is not None else "None"
-                )
-
-        # 14. Verify I/O ports
-        for idx, expected in tc.expected_io.items():
-            actual = actual_io.get(idx)
-            if actual != expected:
-                failures.append(
-                    f"IO[0x{idx:02X}]: expected 0x{expected:04X}, got "
-                    f"0x{actual:04X}" if actual is not None else "None"
-                )
+        # 10. Verify
+        failures = verify_result(
+            tc, exec_result, actual_regs, actual_fcw, actual_memory, actual_io
+        )
 
         passed = len(failures) == 0
         return TestResult(

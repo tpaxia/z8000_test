@@ -63,6 +63,7 @@ help:
 	@echo "Simulation:"
 	@echo "  sim        - Run Z80 harness simulation (6 command tests)"
 	@echo "  sim-full   - Run full system simulation with Z8000 CPU"
+	@echo "  sim-compile - Compile testbench for Python --sim mode"
 	@echo "  wave       - Open waveform viewer (gtkwave)"
 	@echo ""
 	@echo "Build:"
@@ -130,6 +131,17 @@ sim-full: $(SRC_DIR)/z8000_full_tb.v $(Z8K_SRCS)
 		$(Z8K_SRCS)
 	vvp z8000_full_tb.vvp
 
+# Compile simulation testbench for Python test framework (--sim mode)
+.PHONY: sim-compile
+sim-compile: $(SRC_DIR)/z8000_sim_tb.v $(Z8K_SRCS)
+	iverilog -g2012 -DSIMULATION $(VERILOG_INCS) -o z8000_sim_tb.vvp \
+		$(SRC_DIR)/z8000_sim_tb.v \
+		$(SRC_DIR)/z8000_bus_fpga.v \
+		$(SRC_DIR)/ram16.v \
+		$(SRC_DIR)/z8k_io_ports.v \
+		$(SRC_DIR)/trace_buffer.v \
+		$(Z8K_SRCS)
+
 
 #
 # Waveform Viewer
@@ -163,6 +175,7 @@ $(SRC_DIR)/bootstrap.bin: $(SRC_DIR)/bootstrap.s
 .PHONY: clean
 clean:
 	rm -f *.vvp *.vcd z80_fw.hex
+	rm -rf .sim_tmp
 	rm -f $(SRC_DIR)/z80_fw.bin $(SRC_DIR)/z80_fw.hex
 	rm -f $(SRC_DIR)/bootstrap.bin $(SRC_DIR)/bootstrap.o $(SRC_DIR)/bootstrap.elf
 	rm -f $(SRC_DIR)/bootstrap.lst $(SRC_DIR)/bootstrap_body.inc
