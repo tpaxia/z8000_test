@@ -19,6 +19,9 @@ src/bootstrap.inc
 # Build artifacts - FPGA synthesis
 impl/
 
+# Simulation temp files
+.sim_tmp/
+
 # Build artifacts - misc
 *.mi
 src/a.out
