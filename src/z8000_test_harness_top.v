@@ -230,7 +230,7 @@ assign led[3] = cpu_halt_n_out;                     // Z8000 halted
 // Address decode
 // ===========================================
 wire io_std_sel = (cpu_st == 4'b0010);   // Standard I/O (ST=0010)
-wire io_spc_sel = (cpu_st == 4'b0100);   // Special I/O (ST=0100)
+wire io_spc_sel = (cpu_st == 4'b0011);   // Special I/O (ST=0011)
 wire io_sel  = io_std_sel || io_spc_sel;
 wire ram_sel = ~cpu_mreq_n && ~io_sel;
 
