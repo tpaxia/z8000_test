@@ -85,6 +85,12 @@ def collect_all_tests():
     except ImportError:
         pass
 
+    try:
+        from . import test_cpu_bugs
+        test_modules.append(test_cpu_bugs)
+    except ImportError:
+        pass
+
     for mod in test_modules:
         if hasattr(mod, 'TESTS'):
             all_tests.extend(mod.TESTS)
