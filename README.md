@@ -211,6 +211,16 @@ This generates:
 
 Note: `make firmware` automatically rebuilds bootstrap if needed.
 
+### Emulator Test Driver
+
+Build the C++ emulator test driver (for `python -m tests --emu`):
+
+```bash
+make emu-build
+```
+
+This builds `z8000_emu/build/libz8000.a` and compiles `emu/z8000_test_driver`. The driver is also built automatically on first `--emu` run.
+
 ### Simulation
 
 Run the Z80 harness simulation (tests harness commands without Z8000):
@@ -269,7 +279,16 @@ instructions/
 │   ├── test_block.py           # LDI, LDIR, LDD, CPI
 │   ├── test_exchange.py        # EX, EXTSB, EXTS
 │   ├── test_control.py         # NOP, SETFLG, RESFLG, COMFLG, TCC
-│   └── test_io.py              # IN, OUT (trace-verified)
+│   ├── test_io.py              # IN, OUT (trace-verified)
+│   ├── sim_runner.py           # SimRunner (iverilog/vvp backend)
+│   ├── emu_runner.py           # EmuRunner (z8000_emu C++ backend)
+│   └── verify.py               # Shared result verification logic
+├── emu/                        # Emulator test driver
+│   ├── z8000_test_driver.cpp   # C++ driver (reads spec, runs z8002_device)
+│   └── test_io_ports.h         # Custom I/O ports (replicates z8k_io_ports.v)
+├── z8000_emu/                  # Z8000 C++ emulator (git submodule)
+│   ├── include/                # z8000.h, z8000_intf.h, memory.h
+│   └── build/libz8000.a       # Static library
 ├── z8000_test_harness.gprj     # Gowin IDE project
 ├── rtl/                        # Z8000 CPU (copied from ../z8000_micro)
 │   ├── z8000_cpu.v             # Main CPU module
@@ -314,11 +333,12 @@ instructions/
 
 ## Test Framework
 
-The `tests/` package provides a declarative test framework with 125 tests across 48 Z8000 mnemonics.
+The `tests/` package provides a declarative test framework with 138 tests across 48 Z8000 mnemonics. Three execution backends are available: FPGA hardware (via UART), iverilog simulation, and C++ emulator.
 
 ### Running Tests
 
 ```bash
+# Hardware mode (FPGA via UART)
 python -m tests -p /dev/ttyUSB0                     # Run all tests
 python -m tests -p /dev/ttyUSB0 --tags arithmetic   # Filter by tag
 python -m tests -p /dev/ttyUSB0 --mnemonic ADD      # Filter by mnemonic
@@ -326,6 +346,16 @@ python -m tests -p /dev/ttyUSB0 --name "add_r_*"    # Filter by name glob
 python -m tests -p /dev/ttyUSB0 --target z8002      # Target CPU filter
 python -m tests -p /dev/ttyUSB0 --list               # List without running
 python -m tests -p /dev/ttyUSB0 -v                   # Verbose output
+
+# Simulation mode (iverilog/vvp, no hardware needed)
+python -m tests --sim                                # Run all in simulation
+python -m tests --sim --name "add_r_*" -v            # Single test
+python -m tests --sim --recompile                    # Force recompile
+
+# Emulator mode (z8000_emu C++ emulator, no hardware or iverilog needed)
+python -m tests --emu                                # Run all via emulator
+python -m tests --emu --name "add_r_*" -v            # Single test
+python -m tests --emu --recompile                    # Force rebuild driver
 ```
 
 ### Target Selection

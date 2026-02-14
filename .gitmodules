@@ -4,3 +4,6 @@
 [submodule "z8000_micro"]
 	path = z8000_micro
 	url = git@github.com:tpaxia/z8000_micro.git
+[submodule "z8000_emu"]
+	path = z8000_emu
+	url = https://github.com/tpaxia/z8000_emu.git

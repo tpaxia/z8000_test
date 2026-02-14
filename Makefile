@@ -66,6 +66,9 @@ help:
 	@echo "  sim-compile - Compile testbench for Python --sim mode"
 	@echo "  wave       - Open waveform viewer (gtkwave)"
 	@echo ""
+	@echo "Emulator:"
+	@echo "  emu-build  - Build z8000_emu test driver for Python --emu mode"
+	@echo ""
 	@echo "Build:"
 	@echo "  clean      - Remove all generated files"
 	@echo ""
@@ -144,6 +147,18 @@ sim-compile: $(SRC_DIR)/z8000_sim_tb.v $(Z8K_SRCS)
 
 
 #
+# Emulator test driver (for Python --emu mode)
+#
+CXX ?= c++
+
+.PHONY: emu-build
+emu-build:
+	$(MAKE) -C z8000_emu libz8000
+	$(CXX) -std=c++17 -O2 -Iz8000_emu/include \
+		-o emu/z8000_test_driver emu/z8000_test_driver.cpp \
+		-Lz8000_emu/build -lz8000
+
+#
 # Waveform Viewer
 #
 .PHONY: wave
@@ -175,7 +190,8 @@ $(SRC_DIR)/bootstrap.bin: $(SRC_DIR)/bootstrap.s
 .PHONY: clean
 clean:
 	rm -f *.vvp *.vcd z80_fw.hex
-	rm -rf .sim_tmp
+	rm -rf .sim_tmp .emu_tmp
+	rm -f emu/z8000_test_driver
 	rm -f $(SRC_DIR)/z80_fw.bin $(SRC_DIR)/z80_fw.hex
 	rm -f $(SRC_DIR)/bootstrap.bin $(SRC_DIR)/bootstrap.o $(SRC_DIR)/bootstrap.elf
 	rm -f $(SRC_DIR)/bootstrap.lst $(SRC_DIR)/bootstrap_body.inc

@@ -22,6 +22,10 @@ impl/
 # Simulation temp files
 .sim_tmp/
 
+# Emulator temp files and driver binary
+.emu_tmp/
+emu/z8000_test_driver
+
 # Build artifacts - misc
 *.mi
 src/a.out

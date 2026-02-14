@@ -14,6 +14,11 @@ Simulation mode (no hardware needed):
     python -m tests --sim --name "add_r_*" -v                # Single test
     python -m tests --sim --recompile                        # Force recompile
 
+Emulator mode (no hardware or iverilog needed):
+    python -m tests --emu                                    # Run all via emulator
+    python -m tests --emu --name "add_r_*" -v                # Single test
+    python -m tests --emu --recompile                        # Force rebuild driver
+
 Trace capture and comparison:
     python -m tests -p /dev/ttyUSB0 --save-traces traces/z8002
     python -m tests -p /dev/ttyUSB0 --save-traces traces/z8001 --compare-traces traces/z8002
@@ -38,8 +43,10 @@ def main():
                         help='Baud rate (default: 115200)')
     parser.add_argument('--sim', action='store_true',
                         help='Run in simulation mode (iverilog/vvp, no hardware)')
+    parser.add_argument('--emu', action='store_true',
+                        help='Run via z8000_emu emulator (no hardware or iverilog)')
     parser.add_argument('--recompile', action='store_true',
-                        help='Force recompile of simulation testbench')
+                        help='Force recompile of simulation testbench or emu driver')
     parser.add_argument('--tags', '-t', nargs='+',
                         help='Filter by tags')
     parser.add_argument('--mnemonic', '-m',
@@ -60,14 +67,18 @@ def main():
 
     args = parser.parse_args()
 
-    # --sim implies z8002 target (the Verilog CPU is Z8002)
-    if args.sim and args.target is None:
+    # --sim and --emu are mutually exclusive
+    if args.sim and args.emu:
+        parser.error("--sim and --emu are mutually exclusive")
+
+    # --sim/--emu implies z8002 target
+    if (args.sim or args.emu) and args.target is None:
         args.target = "z8002"
     elif args.target is None:
         args.target = "common"
 
     # --port defaults
-    if not args.sim and args.port is None:
+    if not args.sim and not args.emu and args.port is None:
         args.port = "/dev/ttyUSB0"
 
     # Collect all tests
@@ -107,6 +118,8 @@ def main():
 
     if args.sim:
         _run_sim(args, all_tests, filtered)
+    elif args.emu:
+        _run_emu(args, all_tests, filtered)
     else:
         _run_hardware(args, all_tests, filtered)
 
@@ -124,6 +137,74 @@ def _run_sim(args, all_tests, filtered):
         print()
 
         print(f"Running {len(filtered)} tests (simulation)...")
+        print("=" * 60)
+
+        results, passed, failed = runner.run_tests(
+            all_tests,
+            tags=args.tags,
+            mnemonic=args.mnemonic,
+            name_pattern=args.name,
+        )
+
+        print("=" * 60)
+        print(f"Results: {passed} passed, {failed} failed "
+              f"(of {passed + failed} run)")
+
+        if failed > 0:
+            print()
+            print("Failed tests:")
+            for r in results:
+                if not r.passed:
+                    print(f"  {r.test.name}: {', '.join(r.failures)}")
+
+        # Save traces
+        if args.save_traces:
+            from .traces import save_traces
+            n = save_traces(results, args.save_traces)
+            print(f"\nSaved {n} traces to {args.save_traces}/")
+
+        # Compare against reference traces
+        if args.compare_traces:
+            from .traces import load_traces, compare_traces
+
+            ref = load_traces(args.compare_traces)
+            if not ref:
+                print(f"\nNo traces found in {args.compare_traces}/")
+                sys.exit(1)
+
+            comparisons = compare_traces(results, ref)
+            mismatches = [(n, d) for n, d in comparisons if d]
+            matched = len(comparisons) - len(mismatches)
+
+            print(f"\nTrace comparison vs {args.compare_traces}: "
+                  f"{matched} match, {len(mismatches)} differ")
+            for name, diffs in mismatches:
+                print(f"  {name}:")
+                for d in diffs:
+                    print(f"    {d}")
+
+        sys.exit(0 if failed == 0 else 1)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def _run_emu(args, all_tests, filtered):
+    """Run tests via z8000_emu emulator."""
+    from .emu_runner import EmuRunner
+
+    try:
+        runner = EmuRunner(target=args.target, verbose=args.verbose)
+
+        print("Building emulator driver...", end=" ", flush=True)
+        runner.compile(force=args.recompile)
+        print("done")
+        print()
+
+        print(f"Running {len(filtered)} tests (emulator)...")
         print("=" * 60)
 
         results, passed, failed = runner.run_tests(

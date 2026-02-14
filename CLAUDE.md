@@ -26,10 +26,21 @@ FPGA-based test harness for a Z8000 CPU implementation. Supports Tang Nano 20K (
   - `z8000_full_tb.v` - Full system testbench (Z8000 + BRAM, no UART)
   - `top.cst` - FPGA pin constraints (Tang Nano 20K)
   - `top_primer20k.cst` - FPGA pin constraints (Tang Primer 20K dock)
+- `z8000_emu/` - Z8000 C++ emulator (git submodule: z8000_emu)
+  - `include/z8000.h` - z8002_device / z8001_device classes
+  - `include/z8000_intf.h` - Abstract bus interfaces (z8000_memory_bus, z8000_io_bus)
+  - `include/memory.h` - MemoryRegion and IOPorts implementations
+  - `build/libz8000.a` - Static library (built by `make libz8000`)
+- `emu/` - Emulator test driver
+  - `z8000_test_driver.cpp` - C++ driver: reads spec file, runs z8002_device, prints results
+  - `test_io_ports.h` - Custom I/O port handler (replicates z8k_io_ports.v behavior)
 - `tests/` - Python test framework
   - `harness.py` - Z8000TestHarness class (serial communication with FPGA)
   - `defs.py` - TestCase, TestResult dataclasses
   - `runner.py` - TestRunner (setup, execute, verify, report)
+  - `sim_runner.py` - SimRunner (iverilog/vvp simulation backend)
+  - `emu_runner.py` - EmuRunner (z8000_emu C++ emulator backend)
+  - `verify.py` - Shared result verification logic
   - `traces.py` - Trace save/load/compare utilities
   - `flags.py` - FCW flag bit definitions and reference flag computation
   - `helpers.py` - Memory layout constants and preload helpers
@@ -82,6 +93,7 @@ make firmware   # Assemble Z80 firmware (z80_fw.asm -> z80_fw.bin/hex)
 make bootstrap  # Assemble Z8000 bootstrap code (requires z8k-coff-as)
 make sim        # Run Z80 harness simulation
 make sim-full   # Run full system simulation with Z8000 CPU
+make emu-build  # Build z8000_emu test driver (libz8000.a + emu/z8000_test_driver)
 make wave       # View VCD waveform in GTKWave
 make clean      # Clean build artifacts
 ```
@@ -95,7 +107,7 @@ cd quartus && make firmware   # Build Z80 firmware -> .bin -> .hex -> .mif
 ## Running Tests
 
 ```bash
-# Full test framework (125 tests across 48 mnemonics)
+# Hardware mode (FPGA via UART, 138 tests across 48 mnemonics)
 python -m tests -p /dev/ttyUSB0                     # Run all tests
 python -m tests -p /dev/ttyUSB0 --tags arithmetic   # Filter by tag
 python -m tests -p /dev/ttyUSB0 --mnemonic ADD      # Filter by mnemonic
@@ -103,6 +115,16 @@ python -m tests -p /dev/ttyUSB0 --name "add_r_*"    # Filter by name glob
 python -m tests -p /dev/ttyUSB0 --target z8002      # Target CPU filter
 python -m tests -p /dev/ttyUSB0 --list               # List without running
 python -m tests -p /dev/ttyUSB0 -v                   # Verbose output
+
+# Simulation mode (iverilog/vvp, no hardware needed)
+python -m tests --sim                                # Run all in simulation
+python -m tests --sim --name "add_r_*" -v            # Single test
+python -m tests --sim --recompile                    # Force recompile
+
+# Emulator mode (z8000_emu C++ emulator, no hardware or iverilog needed)
+python -m tests --emu                                # Run all via emulator
+python -m tests --emu --name "add_r_*" -v            # Single test
+python -m tests --emu --recompile                    # Force rebuild driver
 
 # Verification report (JSON + markdown, grouped by mnemonic and failure category)
 python scripts/gen_report.py -p /dev/ttyUSB0 --target z8002
