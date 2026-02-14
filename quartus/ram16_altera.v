@@ -67,77 +67,35 @@ module ram16_altera (
 
 `else
     //------------------------------------------------------------------------
-    // Synthesis - Altera altsyncram (two 4Kx8 instances)
+    // Synthesis - MegaWizard-generated dual-port RAM (two 4Kx8 instances)
     //------------------------------------------------------------------------
     wire [7:0] douta_hi, douta_lo;
     wire [7:0] doutb_hi, doutb_lo;
 
-    // High byte RAM
-    altsyncram #(
-        .operation_mode("BIDIR_DUAL_PORT"),
-        .width_a(8),
-        .widthad_a(12),
-        .width_b(8),
-        .widthad_b(12),
-        .outdata_reg_a("UNREGISTERED"),
-        .outdata_reg_b("UNREGISTERED"),
-        .read_during_write_mode_port_a("NEW_DATA_NO_NBE_READ"),
-        .read_during_write_mode_port_b("NEW_DATA_NO_NBE_READ"),
-        .power_up_uninitialized("FALSE"),
-        .intended_device_family("Cyclone IV E")
-    ) ram_hi (
-        .clock0(clka),
-        .address_a(addra_w),
-        .data_a(dina[15:8]),
-        .wren_a(wea_hi),
-        .q_a(douta_hi),
-        .clock1(clkb),
-        .address_b(addrb_w),
-        .data_b(dinb[15:8]),
-        .wren_b(web_hi),
-        .q_b(doutb_hi),
-        // Unused
-        .aclr0(1'b0), .aclr1(1'b0),
-        .addressstall_a(1'b0), .addressstall_b(1'b0),
-        .byteena_a(1'b1), .byteena_b(1'b1),
-        .clocken0(1'b1), .clocken1(1'b1),
-        .clocken2(1'b1), .clocken3(1'b1),
-        .rden_a(1'b1), .rden_b(1'b1),
-        .eccstatus()
+    // High byte RAM (MegaWizard-generated)
+    ram_hi ram_hi_inst (
+        .clock      (clka),
+        .address_a  (addra_w),
+        .data_a     (dina[15:8]),
+        .wren_a     (wea_hi),
+        .q_a        (douta_hi),
+        .address_b  (addrb_w),
+        .data_b     (dinb[15:8]),
+        .wren_b     (web_hi),
+        .q_b        (doutb_hi)
     );
 
-    // Low byte RAM
-    altsyncram #(
-        .operation_mode("BIDIR_DUAL_PORT"),
-        .width_a(8),
-        .widthad_a(12),
-        .width_b(8),
-        .widthad_b(12),
-        .outdata_reg_a("UNREGISTERED"),
-        .outdata_reg_b("UNREGISTERED"),
-        .read_during_write_mode_port_a("NEW_DATA_NO_NBE_READ"),
-        .read_during_write_mode_port_b("NEW_DATA_NO_NBE_READ"),
-        .power_up_uninitialized("FALSE"),
-        .intended_device_family("Cyclone IV E")
-    ) ram_lo (
-        .clock0(clka),
-        .address_a(addra_w),
-        .data_a(dina[7:0]),
-        .wren_a(wea_lo),
-        .q_a(douta_lo),
-        .clock1(clkb),
-        .address_b(addrb_w),
-        .data_b(dinb[7:0]),
-        .wren_b(web_lo),
-        .q_b(doutb_lo),
-        // Unused
-        .aclr0(1'b0), .aclr1(1'b0),
-        .addressstall_a(1'b0), .addressstall_b(1'b0),
-        .byteena_a(1'b1), .byteena_b(1'b1),
-        .clocken0(1'b1), .clocken1(1'b1),
-        .clocken2(1'b1), .clocken3(1'b1),
-        .rden_a(1'b1), .rden_b(1'b1),
-        .eccstatus()
+    // Low byte RAM (MegaWizard-generated)
+    ram_lo ram_lo_inst (
+        .clock      (clka),
+        .address_a  (addra_w),
+        .data_a     (dina[7:0]),
+        .wren_a     (wea_lo),
+        .q_a        (douta_lo),
+        .address_b  (addrb_w),
+        .data_b     (dinb[7:0]),
+        .wren_b     (web_lo),
+        .q_b        (doutb_lo)
     );
 
     assign douta = {douta_hi, douta_lo};

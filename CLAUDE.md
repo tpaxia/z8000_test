@@ -63,7 +63,8 @@ FPGA-based test harness for a Z8000 CPU implementation. Supports Tang Nano 20K (
   - `z8001_bus_external.v` - External Z8001 bus interface (sync, latch, buffer control)
   - `trace_buffer_altera.v` - Bus trace capture (behavioral RAM, no Gowin SDPB)
   - `z80_harness_quartus.v` - Z80 harness (Altera altsyncram for Z80 RAM)
-  - `ram16_altera.v` - Dual-port RAM (Altera altsyncram)
+  - `ram16_altera.v` - Dual-port RAM wrapper (instantiates ram_hi/ram_lo)
+  - `ram_hi.v` / `ram_lo.v` - MegaWizard-generated true dual-port RAM (4Kx8 each)
   - `pll.v` - PLL wrapper (replace with MegaWizard output)
   - `gen_mif.py` - Binary-to-MIF converter
   - `z8001_ext_test.qsf` - Pin assignments for external Z8001 project
@@ -269,7 +270,7 @@ FPGA pins are inputs (high-Z). Shares the same board and pin assignments.
 |--------|----------------------|-------------------|-------------------|
 | CPU | Verilog Z8002 (internal) | Physical Z8001 (external) | Verilog Z8002 (internal) |
 | Clock | 27MHz, /3.5 divider | 50MHz PLL -> 16MHz + 4MHz | 50MHz PLL -> 16MHz + 4MHz |
-| BRAM | Gowin DPB primitives | Altera altsyncram | Altera altsyncram |
+| BRAM | Gowin DPB primitives | Altera altsyncram | MegaWizard dual-port RAM |
 | Trace RAM | Gowin SDPB | Behavioral | Behavioral |
 | Halt detect | Direct halt_n | Opcode sniffing | Direct halt_n |
 | Bus interface | Direct CPU wires | 74LVC245 + synchronizers | Direct CPU wires |
@@ -323,7 +324,20 @@ See `quartus/README.md` for full pin assignments, expected output, and build det
 
 Both boards share the same Verilog sources and Gowin DPB/SDPB IP.
 
+## Rules for Code Changes
+
+- Do NOT make speculative fixes. Diagnose first with tracing/evidence, then propose a targeted fix.
+- Do NOT chain multiple untested changes. Make one change, test it, confirm the result before moving on.
+- Do NOT modify clock domains, PLL configurations, or bus timing without explicit approval.
+- Do NOT add/remove/rename module ports without explicit approval.
+- Do NOT modify shared files (src/, z8000_micro/) when debugging a platform-specific issue (quartus/, gowin/).
+- When debugging, prefer adding instrumentation (trace points, debug signals) over changing functional logic.
+- Always revert failed changes before trying a different approach. Do not accumulate untested modifications.
+
 ## Protected Code
 
 Do NOT modify the following without explicitly asking first:
 - `quartus/z8001_bus_external.v`: `bus_as_active` logic and `buf_dir` assignment (M20FPGA bus buffer direction control)
+- `z8000_micro/rtl/` - CPU core submodule (shared across all platforms)
+- `quartus/pll.v` - PLL configuration (clock generation)
+- `src/z8000_bus_fpga.v` - Gowin bus interface (working, reference implementation)
