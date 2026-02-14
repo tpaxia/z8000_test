@@ -1,39 +1,104 @@
 // Z80-based Z8000 Test Harness Top Module
 // Uses TV80 Z80 core to control Z8000 testing via UART
 //
-// Clock: 27MHz (clk) - Single clock domain for all logic
+// Synthesis: Gowin rPLL multiplies 27MHz -> 16.03125MHz.
+//   EU runs at 16MHz, BIU divides by 4 -> ~4MHz bus rate.
+// Simulation: raw clk, no PLL, BUS_DIVIDER=1 (/3.5 divider).
 //
 // Target: Tang Nano 20K (GW2AR-18C)
 
 `timescale 1ns / 1ps
 
 module z8000_test_harness_top (
-    input         clk,       // 27MHz system clock
+    input         clk,       // 27MHz crystal oscillator
     input         uart_rx,   // UART receive pin
     output        uart_tx,   // UART transmit pin
     output [3:0]  led        // LEDs (active low): [0]=heartbeat, [1]=Z80 alive,
                              //   [2]=Z8000 in reset, [3]=Z8000 halted
 );
 
-parameter CLK_FRE   = 27;     // 27MHz system clock
-parameter UART_BAUD = 115200; // Standard baud for 27MHz (234 cycles/bit)
+// ===========================================
+// PLL and System Clock
+// ===========================================
+// Synthesis: rPLL 27MHz -> 16.03125MHz (IDIV=4, FBDIV=19, ODIV=8)
+//   FVCO = 27 * 19 * 8 / 4 = 1026 MHz (range: 500-1250)
+//   FOUT = 27 * 19 / (4 * 8) = 16.03125 MHz
+// Simulation: use raw clk directly
+
+`ifdef SIMULATION
+    wire sys_clk  = clk;
+    wire pll_lock = 1'b1;
+`else
+    wire sys_clk;
+    wire pll_lock;
+
+    rPLL #(
+        .FCLKIN         ("27"),
+        .IDIV_SEL       (3),       // IDIV = 4
+        .FBDIV_SEL      (18),      // FBDIV = 19
+        .ODIV_SEL       (8),       // ODIV = 8
+        .DYN_IDIV_SEL   ("false"),
+        .DYN_FBDIV_SEL  ("false"),
+        .DYN_ODIV_SEL   ("false"),
+        .PSDA_SEL       ("0000"),
+        .DYN_DA_EN      ("false"),
+        .DUTYDA_SEL     ("1000"),
+        .CLKOUT_FT_DIR  (1'b1),
+        .CLKOUTP_FT_DIR (1'b1),
+        .CLKOUT_DLY_STEP(0),
+        .CLKOUTP_DLY_STEP(0),
+        .CLKFB_SEL      ("internal"),
+        .CLKOUT_BYPASS   ("false"),
+        .CLKOUTP_BYPASS  ("false"),
+        .CLKOUTD_BYPASS  ("false"),
+        .CLKOUTD_SRC     ("CLKOUT"),
+        .CLKOUTD3_SRC    ("CLKOUT"),
+        .DEVICE           ("GW2AR-18C")
+    ) pll (
+        .CLKOUT  (sys_clk),
+        .LOCK    (pll_lock),
+        .CLKIN   (clk),
+        .CLKFB   (1'b0),
+        .RESET   (1'b0),
+        .RESET_P (1'b0),
+        .FBDSEL  (6'b0),
+        .IDSEL   (6'b0),
+        .ODSEL   (6'b0),
+        .PSDA    (4'b0),
+        .DUTYDA  (4'b0),
+        .FDLY    (4'b0)
+    );
+`endif
+
+`ifdef SIMULATION
+    parameter CLK_FRE   = 27;     // Simulation: 27MHz
+`else
+    parameter CLK_FRE   = 16;     // Synthesis: 16.03125MHz (use 16 for baud calc)
+`endif
+parameter UART_BAUD = 115200;
 
 // ===========================================
-// Power-on Reset (~20ms at 27MHz)
+// Power-on Reset (~20ms)
 // ===========================================
 reg [19:0] por_cnt = 20'd0;
 reg        por_active = 1'b1;
 
-always @(posedge clk) begin
+`ifdef SIMULATION
+    localparam POR_LIMIT = 20'd539_999;   // 20ms at 27MHz
+`else
+    localparam POR_LIMIT = 20'd319_999;   // 20ms at 16MHz
+`endif
+
+always @(posedge sys_clk) begin
     if (por_active) begin
-        if (por_cnt < 20'd539_999)
+        if (por_cnt < POR_LIMIT)
             por_cnt <= por_cnt + 1'b1;
         else
             por_active <= 1'b0;
     end
 end
 
-wire sys_rst_n = ~por_active;
+wire sys_rst_n = ~por_active && pll_lock;
 
 // ===========================================
 // LED Heartbeat
@@ -41,11 +106,17 @@ wire sys_rst_n = ~por_active;
 reg [23:0] led_counter;
 reg        led_reg;
 
-always @(posedge clk or negedge sys_rst_n) begin
+`ifdef SIMULATION
+    localparam HEARTBEAT_LIMIT = 24'd13_499_999;  // 0.5s at 27MHz
+`else
+    localparam HEARTBEAT_LIMIT = 24'd7_999_999;   // 0.5s at 16MHz
+`endif
+
+always @(posedge sys_clk or negedge sys_rst_n) begin
     if (!sys_rst_n) begin
         led_counter <= 24'd0;
         led_reg <= 1'b0;
-    end else if (led_counter == 24'd13_499_999) begin  // 0.5s at 27MHz
+    end else if (led_counter == HEARTBEAT_LIMIT) begin
         led_counter <= 24'd0;
         led_reg <= ~led_reg;
     end else begin
@@ -60,13 +131,13 @@ wire [7:0]  uart_tx_data, uart_rx_data;
 wire        uart_tx_valid, uart_tx_ready, uart_rx_valid, uart_rx_ready;
 
 uart_tx #(.CLK_FRE(CLK_FRE), .BAUD_RATE(UART_BAUD)) uart_tx_inst (
-    .clk(clk), .rst_n(sys_rst_n),
+    .clk(sys_clk), .rst_n(sys_rst_n),
     .tx_data(uart_tx_data), .tx_data_valid(uart_tx_valid),
     .tx_data_ready(uart_tx_ready), .tx_pin(uart_tx)
 );
 
 uart_rx #(.CLK_FRE(CLK_FRE), .BAUD_RATE(UART_BAUD)) uart_rx_inst (
-    .clk(clk), .rst_n(sys_rst_n),
+    .clk(sys_clk), .rst_n(sys_rst_n),
     .rx_data(uart_rx_data), .rx_data_valid(uart_rx_valid),
     .rx_data_ready(uart_rx_ready), .rx_pin(uart_rx)
 );
@@ -124,7 +195,7 @@ reg        cycle_timeout;
 // Z80 Harness Controller
 // ===========================================
 z80_harness z80 (
-    .clk            (clk),
+    .clk            (sys_clk),
     .rst_n          (sys_rst_n),
     .uart_rx_data   (uart_rx_data),
     .uart_rx_valid  (uart_rx_valid),
@@ -156,10 +227,14 @@ z80_harness z80 (
 );
 
 // ===========================================
-// Z8000 Bus Interface (CPU + clock divider)
+// Z8000 Bus Interface (CPU + clock generation)
 // ===========================================
-z8000_bus_fpga bus_if (
-    .clk        (clk),
+// BUS_DIVIDER=4 -> EU at sys_clk, BIU at sys_clk/4
+
+z8000_bus_fpga #(
+    .BUS_DIVIDER(4)
+) bus_if (
+    .clk        (sys_clk),
     .rst_n      (sys_rst_n),
     .z8k_rst_n  (z8k_rst_n),
     .rdata      (data_to_cpu),
@@ -183,14 +258,14 @@ assign z8k_halt_n = cpu_halt_n_out;
 // ===========================================
 
 reg z8k_rst_n_prev;
-always @(posedge clk) z8k_rst_n_prev <= z8k_rst_n;
+always @(posedge sys_clk) z8k_rst_n_prev <= z8k_rst_n;
 wire z8k_start = z8k_rst_n && !z8k_rst_n_prev;
 
 wire as_falling = prev_as_n && ~cpu_as_n;
 wire opcode_fetch = as_falling && (cpu_st == 4'b1101);
 wire z8k_clk_rising = z8k_cpu_clk && ~prev_z8k_clk;
 
-always @(posedge clk) begin
+always @(posedge sys_clk) begin
     if (z8k_start) begin
         bus_active <= 1'b0;
         cycle_count <= 32'd0;
@@ -240,7 +315,7 @@ wire io_port_match = io_sel && (z8k_addr[15:4] == 12'h010);
 wire [3:0] z8k_io_reg_sel = z8k_addr[3:1] + (io_spc_sel ? 4'd6 : 4'd0);
 
 // ===========================================
-// True Dual-Port BRAM (27MHz, Gowin DPB)
+// True Dual-Port BRAM (Gowin DPB)
 // Port A: Z80 harness  - always connected, no mux
 // Port B: Z8000 CPU    - always connected, no mux
 // Both ports independent, no contention possible.
@@ -256,14 +331,14 @@ wire [15:0] z8k_rd_data;   // Port B read (Z8000)
 
 ram16 bram (
     // Port A - Z80 harness (load/verify test code)
-    .clka    (clk),               // 27MHz
+    .clka    (sys_clk),
     .wea_hi  (z8k_mem_we),
     .wea_lo  (z8k_mem_we),
     .addra   (z80_addr[12:0]),
     .dina    (z8k_mem_wdata),
     .douta   (z80_rd_data),
     // Port B - Z8000 CPU (fetch/execute)
-    .clkb    (clk),               // 27MHz
+    .clkb    (sys_clk),
     .web_hi  (z8k_we_hi),
     .web_lo  (z8k_we_lo),
     .addrb   (z8k_addr[12:0]),
@@ -279,7 +354,7 @@ assign z8k_mem_rdata = z80_rd_data;   // Z80 reads via Port A
 wire z8k_io_wr = io_port_match && ~cpu_rw_n && ~cpu_ds_n;
 
 z8k_io_ports io_ports (
-    .clk           (clk),
+    .clk           (sys_clk),
     .rst_n         (sys_rst_n),
     // Z8000 bus side
     .z8k_reg_sel   (z8k_io_reg_sel),
@@ -312,7 +387,7 @@ end
 wire [15:0] trace_data = cpu_rw_n ? data_to_cpu : z8k_wdata;
 
 trace_buffer trace (
-    .clk        (clk),
+    .clk        (sys_clk),
     .rst_n      (sys_rst_n),
     .z8k_rst_n  (z8k_rst_n),
     .z8k_addr   (z8k_addr),
