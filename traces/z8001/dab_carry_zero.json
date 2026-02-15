@@ -2,8 +2,9 @@
   "test": "dab_carry_zero",
   "mnemonic": "DAB",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 410,
   "fetch_count": 42,
+  "instr_cycle_count": 16,
   "trace": [
     {
       "addr": 514,

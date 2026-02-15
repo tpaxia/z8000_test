@@ -2,8 +2,9 @@
   "test": "comflg_carry_clear",
   "mnemonic": "COMFLG",
   "exec_result": "HALT",
-  "cycle_count": 960,
+  "cycle_count": 959,
   "fetch_count": 42,
+  "instr_cycle_count": 30,
   "trace": [
     {
       "addr": 514,

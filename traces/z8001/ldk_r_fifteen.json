@@ -2,8 +2,9 @@
   "test": "ldk_r_fifteen",
   "mnemonic": "LDK",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 407,
   "fetch_count": 41,
+  "instr_cycle_count": 12,
   "trace": [
     {
       "addr": 514,

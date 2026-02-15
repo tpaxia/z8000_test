@@ -2,8 +2,9 @@
   "test": "in_port_word",
   "mnemonic": "IN",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 413,
   "fetch_count": 41,
+  "instr_cycle_count": 19,
   "trace": [
     {
       "addr": 514,

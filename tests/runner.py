@@ -57,6 +57,7 @@ class TestRunner:
         # 9. Read cycle/fetch counts and trace
         cycle_count = self.harness.cycle_count()
         fetch_count = self.harness.fetch_count()
+        instr_cycle_count = self.harness.instr_cycle_count()
         trace = self.harness.read_all_trace()
 
         # 9b. Read I/O port registers (requires reset first)
@@ -83,6 +84,7 @@ class TestRunner:
             actual_io=actual_io,
             cycle_count=cycle_count,
             fetch_count=fetch_count,
+            instr_cycle_count=instr_cycle_count,
             trace=trace,
         )
 

@@ -159,6 +159,7 @@ wire [31:0] z8k_cycle_limit;
 wire [9:0]  trace_rd_addr;
 wire [35:0] trace_rd_data;
 wire [9:0]  trace_wr_count;
+wire        trace_active;
 
 // Z8000 bus interface signals
 wire        cpu_as_n, cpu_ds_n, cpu_rw_n, cpu_mreq_n, cpu_bw_n;
@@ -190,6 +191,7 @@ reg        prev_as_n;
 reg        prev_z8k_clk;
 reg        counting;
 reg        cycle_timeout;
+reg [31:0] instr_cycle_count;
 
 // ===========================================
 // Z80 Harness Controller
@@ -223,6 +225,7 @@ z80_harness z80 (
     .io_port_rdata  (z80_io_rdata),
     .io_port_wr_lo  (z80_io_wr_lo),
     .io_port_wr_hi  (z80_io_wr_hi),
+    .z8k_instr_cycle_count(instr_cycle_count),
     .z80_alive      (z80_alive)
 );
 
@@ -274,6 +277,7 @@ always @(posedge sys_clk) begin
         prev_z8k_clk <= 1'b0;
         counting <= 1'b1;
         cycle_timeout <= 1'b0;
+        instr_cycle_count <= 32'd0;
     end else begin
         prev_as_n <= cpu_as_n;
         prev_z8k_clk <= z8k_cpu_clk;
@@ -292,6 +296,9 @@ always @(posedge sys_clk) begin
 
         if (counting && (z8k_cycle_limit != 32'd0) && (cycle_count >= z8k_cycle_limit))
             cycle_timeout <= 1'b1;
+
+        if (trace_active && z8k_clk_rising)
+            instr_cycle_count <= instr_cycle_count + 1'b1;
     end
 end
 
@@ -411,7 +418,8 @@ trace_buffer trace (
     .z8k_st     (cpu_st),
     .rd_addr    (trace_rd_addr),
     .rd_data    (trace_rd_data),
-    .wr_count   (trace_wr_count)
+    .wr_count   (trace_wr_count),
+    .trace_active(trace_active)
 );
 
 endmodule

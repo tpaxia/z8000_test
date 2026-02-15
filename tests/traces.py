@@ -22,6 +22,7 @@ def save_traces(results, trace_dir):
             "exec_result": r.exec_result,
             "cycle_count": r.cycle_count,
             "fetch_count": r.fetch_count,
+            "instr_cycle_count": r.instr_cycle_count,
             "trace": _normalize_trace(r.trace),
         }
         with open(path, 'w') as f:

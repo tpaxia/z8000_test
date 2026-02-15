@@ -2,8 +2,9 @@
   "test": "res_r_high_bit",
   "mnemonic": "RES",
   "exec_result": "HALT",
-  "cycle_count": 963,
+  "cycle_count": 962,
   "fetch_count": 42,
+  "instr_cycle_count": 33,
   "trace": [
     {
       "addr": 514,

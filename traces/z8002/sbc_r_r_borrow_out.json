@@ -2,8 +2,9 @@
   "test": "sbc_r_r_borrow_out",
   "mnemonic": "SBC",
   "exec_result": "HALT",
-  "cycle_count": 961,
+  "cycle_count": 960,
   "fetch_count": 42,
+  "instr_cycle_count": 31,
   "trace": [
     {
       "addr": 514,

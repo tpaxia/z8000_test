@@ -30,7 +30,10 @@ module trace_buffer (
     // Z80 read interface
     input  [9:0]  rd_addr,        // Read address (0-1023)
     output [35:0] rd_data,        // Read data (36 bits)
-    output [9:0]  wr_count        // Number of entries captured
+    output [9:0]  wr_count,       // Number of entries captured
+
+    // Address-gated trace active indicator
+    output reg    trace_active
 );
 
     // I/O detect (uses latched ST, see below)
@@ -65,7 +68,6 @@ module trace_buffer (
     // Address-range gating: only trace when executing test code (>= 0x0200).
     // Tracks first opcode fetch (ST=1101) address to set/clear trace_active.
     // All bus cycles (data, I/O, stack) while trace_active are captured.
-    reg trace_active;
     wire first_fetch = (z8k_st == 4'b1101);
 
     // Latch ST at AS_n (valid at start of bus cycle)

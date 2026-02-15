@@ -33,7 +33,10 @@ module trace_buffer_altera (
     // Z80 read interface
     input  [9:0]  rd_addr,        // Read address (0-1023)
     output [35:0] rd_data,        // Read data (36 bits)
-    output [9:0]  wr_count        // Number of entries captured
+    output [9:0]  wr_count,       // Number of entries captured
+
+    // Address-gated trace active indicator
+    output reg    trace_active
 );
 
     // I/O detect (same as in top module)
@@ -74,7 +77,6 @@ module trace_buffer_altera (
     // st_latched is updated on AS rising edge, which precedes DS rising.
     // (The AS-falling latch approach from the Gowin version doesn't work here
     // because z8k_st is already one latch step delayed from the raw signals.)
-    reg trace_active;
 
     // Update trace_active on completed bus cycles that are first opcode fetches
     always @(posedge clk or negedge rst_n) begin

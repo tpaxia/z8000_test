@@ -4,6 +4,7 @@
 ;      0x1C-0x1F=cycle limit (write)
 ;      0x20-0x21=trace read addr, 0x22-0x26=trace data (36-bit)
 ;      0x27-0x28=trace write count, 0x29=Z8000 ST (4-bit)
+;      0x2A-0x2D=instr cycle count (address-gated)
 ;
 ; Commands:
 ;   ST - Status (returns H or R)
@@ -21,6 +22,7 @@
 ;   DP - Dump I/O ports (debug)
 ;   TOxxxxxxxx - Set cycle timeout (32-bit, 0=no timeout)
 ;   CC - Read cycle count
+;   IC - Read instruction cycle count (address-gated)
 ;   FC - Read fetch count
 ;   TC - Read trace buffer count
 ;   TR - Dump first 16 trace entries
@@ -137,6 +139,8 @@ do_to:
 cmd_in:
         call get_char
         call to_upper
+        cp 'C'
+        jp z, do_ic_eol
         cp 'N'
         jp nz, cmd_err
         call get_char
@@ -149,6 +153,10 @@ cmd_in:
         jp nz, cmd_err
         call skip_eol
         jp do_init
+
+do_ic_eol:
+        call skip_eol
+        jp do_ic
 
 cmd_st:
         call get_char
@@ -795,6 +803,21 @@ do_cc:
         in a, (0x17)
         call phex2
         in a, (0x16)
+        call phex2
+        call put_crlf
+        jp main
+
+; IC - Read instruction cycle count (32-bit, 8 hex digits, address-gated)
+do_ic:
+        ; Read 4 bytes from ports 0x2A-0x2D and print as hex
+        ; Print high byte first (big endian output)
+        in a, (0x2D)
+        call phex2
+        in a, (0x2C)
+        call phex2
+        in a, (0x2B)
+        call phex2
+        in a, (0x2A)
         call phex2
         call put_crlf
         jp main

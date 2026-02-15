@@ -2,8 +2,9 @@
   "test": "sdll_right_nonzero",
   "mnemonic": "SDLL",
   "exec_result": "HALT",
-  "cycle_count": 978,
+  "cycle_count": 979,
   "fetch_count": 42,
+  "instr_cycle_count": 49,
   "trace": [
     {
       "addr": 514,

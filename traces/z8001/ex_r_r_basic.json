@@ -2,8 +2,9 @@
   "test": "ex_r_r_basic",
   "mnemonic": "EX",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 407,
   "fetch_count": 41,
+  "instr_cycle_count": 13,
   "trace": [
     {
       "addr": 514,

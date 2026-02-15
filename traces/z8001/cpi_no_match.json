@@ -2,8 +2,9 @@
   "test": "cpi_no_match",
   "mnemonic": "CPI",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 421,
   "fetch_count": 41,
+  "instr_cycle_count": 27,
   "trace": [
     {
       "addr": 514,

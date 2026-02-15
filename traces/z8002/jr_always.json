@@ -2,8 +2,9 @@
   "test": "jr_always",
   "mnemonic": "JR",
   "exec_result": "HALT",
-  "cycle_count": 981,
+  "cycle_count": 982,
   "fetch_count": 43,
+  "instr_cycle_count": 52,
   "trace": [
     {
       "addr": 518,

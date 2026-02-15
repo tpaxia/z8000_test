@@ -2,8 +2,9 @@
   "test": "rrdb_link_update_zeros",
   "mnemonic": "RRDB",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 410,
   "fetch_count": 41,
+  "instr_cycle_count": 16,
   "trace": [
     {
       "addr": 514,

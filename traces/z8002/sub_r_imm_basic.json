@@ -2,8 +2,9 @@
   "test": "sub_r_imm_basic",
   "mnemonic": "SUB",
   "exec_result": "HALT",
-  "cycle_count": 969,
+  "cycle_count": 970,
   "fetch_count": 42,
+  "instr_cycle_count": 40,
   "trace": [
     {
       "addr": 514,

@@ -2,8 +2,9 @@
   "test": "testl_s_flag_high_zero",
   "mnemonic": "TESTL",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 415,
   "fetch_count": 41,
+  "instr_cycle_count": 20,
   "trace": [
     {
       "addr": 514,

@@ -2,8 +2,9 @@
   "test": "rrdb_z_flag_set",
   "mnemonic": "RRDB",
   "exec_result": "HALT",
-  "cycle_count": 963,
+  "cycle_count": 962,
   "fetch_count": 42,
+  "instr_cycle_count": 33,
   "trace": [
     {
       "addr": 514,

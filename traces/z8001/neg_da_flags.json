@@ -2,8 +2,9 @@
   "test": "neg_da_flags",
   "mnemonic": "NEG",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 416,
   "fetch_count": 41,
+  "instr_cycle_count": 22,
   "trace": [
     {
       "addr": 514,

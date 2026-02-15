@@ -2,8 +2,9 @@
   "test": "extsb_positive",
   "mnemonic": "EXTSB",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 412,
   "fetch_count": 41,
+  "instr_cycle_count": 18,
   "trace": [
     {
       "addr": 514,

@@ -2,8 +2,9 @@
   "test": "or_r_r_basic",
   "mnemonic": "OR",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 405,
   "fetch_count": 41,
+  "instr_cycle_count": 11,
   "trace": [
     {
       "addr": 514,

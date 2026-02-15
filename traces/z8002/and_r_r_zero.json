@@ -2,8 +2,9 @@
   "test": "and_r_r_zero",
   "mnemonic": "AND",
   "exec_result": "HALT",
-  "cycle_count": 961,
+  "cycle_count": 962,
   "fetch_count": 42,
+  "instr_cycle_count": 32,
   "trace": [
     {
       "addr": 514,

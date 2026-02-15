@@ -130,6 +130,7 @@ class EmuRunner:
             "trace": [],
             "cycle_count": 0,
             "fetch_count": 0,
+            "instr_cycle_count": None,
         }
 
         for line in stdout.splitlines():
@@ -199,6 +200,7 @@ class EmuRunner:
             actual_io=actual_io,
             cycle_count=parsed["cycle_count"],
             fetch_count=parsed["fetch_count"],
+            instr_cycle_count=parsed["instr_cycle_count"],
             trace=parsed["trace"],
         )
 

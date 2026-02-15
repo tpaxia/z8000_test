@@ -180,6 +180,7 @@ class SimRunner:
             "trace": [],
             "cycle_count": 0,
             "fetch_count": 0,
+            "instr_cycle_count": None,
         }
 
         for line in stdout.splitlines():
@@ -216,6 +217,10 @@ class SimRunner:
             elif line.startswith("FETCHES:"):
                 v = self._parse_hex(line.split(":", 1)[1])
                 result["fetch_count"] = v if v is not None else 0
+
+            elif line.startswith("INSTR_CYCLES:"):
+                v = self._parse_hex(line.split(":", 1)[1])
+                result["instr_cycle_count"] = v
 
             elif line.startswith("TRACE:"):
                 parts = line.split(":")
@@ -265,6 +270,7 @@ class SimRunner:
             actual_io=actual_io,
             cycle_count=parsed["cycle_count"],
             fetch_count=parsed["fetch_count"],
+            instr_cycle_count=parsed["instr_cycle_count"],
             trace=parsed["trace"],
         )
 

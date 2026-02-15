@@ -2,8 +2,9 @@
   "test": "sra_r_positive",
   "mnemonic": "SRA",
   "exec_result": "HALT",
-  "cycle_count": 974,
+  "cycle_count": 975,
   "fetch_count": 42,
+  "instr_cycle_count": 45,
   "trace": [
     {
       "addr": 514,

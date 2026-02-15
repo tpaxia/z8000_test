@@ -2,8 +2,9 @@
   "test": "slll_cross_word",
   "mnemonic": "SLLL",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 418,
   "fetch_count": 41,
+  "instr_cycle_count": 23,
   "trace": [
     {
       "addr": 514,

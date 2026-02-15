@@ -2,8 +2,9 @@
   "test": "pop_basic",
   "mnemonic": "POP",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 410,
   "fetch_count": 41,
+  "instr_cycle_count": 15,
   "trace": [
     {
       "addr": 3838,

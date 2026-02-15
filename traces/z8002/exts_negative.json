@@ -2,8 +2,9 @@
   "test": "exts_negative",
   "mnemonic": "EXTS",
   "exec_result": "HALT",
-  "cycle_count": 959,
+  "cycle_count": 960,
   "fetch_count": 42,
+  "instr_cycle_count": 30,
   "trace": [
     {
       "addr": 514,

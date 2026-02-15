@@ -2,8 +2,9 @@
   "test": "out_in_loopback",
   "mnemonic": "OUT",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 426,
   "fetch_count": 42,
+  "instr_cycle_count": 31,
   "trace": [
     {
       "addr": 514,

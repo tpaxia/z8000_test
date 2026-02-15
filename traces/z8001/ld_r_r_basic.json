@@ -2,8 +2,9 @@
   "test": "ld_r_r_basic",
   "mnemonic": "LD",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 404,
   "fetch_count": 41,
+  "instr_cycle_count": 10,
   "trace": [
     {
       "addr": 514,

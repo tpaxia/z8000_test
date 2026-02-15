@@ -2,8 +2,9 @@
   "test": "jp_z_taken",
   "mnemonic": "JP",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 415,
   "fetch_count": 42,
+  "instr_cycle_count": 21,
   "trace": [
     {
       "addr": 514,

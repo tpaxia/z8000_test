@@ -2,8 +2,9 @@
   "test": "call_ret_basic",
   "mnemonic": "CALL",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 444,
   "fetch_count": 45,
+  "instr_cycle_count": 50,
   "trace": [
     {
       "addr": 514,

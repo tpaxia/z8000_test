@@ -2,8 +2,9 @@
   "test": "adc_r_r_carry_in_carry_out",
   "mnemonic": "ADC",
   "exec_result": "HALT",
-  "cycle_count": 960,
+  "cycle_count": 961,
   "fetch_count": 42,
+  "instr_cycle_count": 31,
   "trace": [
     {
       "addr": 514,

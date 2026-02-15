@@ -2,8 +2,9 @@
   "test": "add_r_da_basic",
   "mnemonic": "ADD",
   "exec_result": "HALT",
-  "cycle_count": 975,
+  "cycle_count": 974,
   "fetch_count": 42,
+  "instr_cycle_count": 45,
   "trace": [
     {
       "addr": 514,

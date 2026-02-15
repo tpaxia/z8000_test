@@ -247,9 +247,9 @@ module z8001_ext_test_top (
     reg [31:0] cycle_count;
     reg [15:0] fetch_count;
     reg        prev_as_n;
-    reg        prev_cpu_clk;
     reg        counting;
     reg        cycle_timeout;
+    reg [31:0] instr_cycle_count;
     wire [31:0] z8k_cycle_limit;
 
     reg z8k_rst_n_prev;
@@ -258,7 +258,31 @@ module z8001_ext_test_top (
 
     wire as_falling = prev_as_n && ~z8k_as_n_sync;
     wire opcode_fetch = as_falling && (z8k_st == 4'b1101);
-    wire cpu_clk_rising = clk_4mhz && ~prev_cpu_clk;
+
+    // CPU clock edge detection: clk_4mhz is a PLL output on the global
+    // clock network and cannot be sampled as data by sys_clk flip-flops.
+    // Use a toggle register in the clk_4mhz domain, then detect edges
+    // of the synchronized toggle in the sys_clk domain.
+    reg cpu_clk_toggle;
+    always @(posedge clk_4mhz or negedge sys_rst_n) begin
+        if (!sys_rst_n)
+            cpu_clk_toggle <= 1'b0;
+        else
+            cpu_clk_toggle <= ~cpu_clk_toggle;
+    end
+
+    reg cpu_clk_toggle_s1, cpu_clk_toggle_s2;
+    always @(posedge sys_clk or negedge sys_rst_n) begin
+        if (!sys_rst_n) begin
+            cpu_clk_toggle_s1 <= 1'b0;
+            cpu_clk_toggle_s2 <= 1'b0;
+        end else begin
+            cpu_clk_toggle_s1 <= cpu_clk_toggle;
+            cpu_clk_toggle_s2 <= cpu_clk_toggle_s1;
+        end
+    end
+
+    wire cpu_clk_rising = cpu_clk_toggle_s1 ^ cpu_clk_toggle_s2;
 
     always @(posedge sys_clk) begin
         if (z8k_start) begin
@@ -266,12 +290,11 @@ module z8001_ext_test_top (
             cycle_count <= 32'd0;
             fetch_count <= 16'd0;
             prev_as_n <= 1'b1;
-            prev_cpu_clk <= 1'b0;
             counting <= 1'b1;
             cycle_timeout <= 1'b0;
+            instr_cycle_count <= 32'd0;
         end else begin
             prev_as_n <= z8k_as_n_sync;
-            prev_cpu_clk <= clk_4mhz;
 
             if (as_falling && !bus_active)
                 bus_active <= 1'b1;
@@ -287,6 +310,9 @@ module z8001_ext_test_top (
 
             if (counting && (z8k_cycle_limit != 32'd0) && (cycle_count >= z8k_cycle_limit))
                 cycle_timeout <= 1'b1;
+
+            if (trace_active && cpu_clk_rising)
+                instr_cycle_count <= instr_cycle_count + 1'b1;
         end
     end
 
@@ -296,6 +322,7 @@ module z8001_ext_test_top (
     wire [9:0]  trace_rd_addr;
     wire [35:0] trace_rd_data;
     wire [9:0]  trace_wr_count;
+    wire        trace_active;
 
     wire [15:0] trace_data = z8k_rw_n_sync ? data_to_cpu : z8k_wdata;
 
@@ -313,7 +340,8 @@ module z8001_ext_test_top (
         .z8k_st     (z8k_st),
         .rd_addr    (trace_rd_addr),
         .rd_data    (trace_rd_data),
-        .wr_count   (trace_wr_count)
+        .wr_count   (trace_wr_count),
+        .trace_active(trace_active)
     );
 
     //------------------------------------------------------------------------
@@ -363,6 +391,7 @@ module z8001_ext_test_top (
         .io_port_rdata  (z80_io_rdata),
         .io_port_wr_lo  (z80_io_wr_lo),
         .io_port_wr_hi  (z80_io_wr_hi),
+        .z8k_instr_cycle_count(instr_cycle_count),
         .z80_alive      ()
     );
 

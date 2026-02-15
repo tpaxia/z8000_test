@@ -2,8 +2,9 @@
   "test": "dab_sign_flag",
   "mnemonic": "DAB",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 411,
   "fetch_count": 42,
+  "instr_cycle_count": 16,
   "trace": [
     {
       "addr": 514,

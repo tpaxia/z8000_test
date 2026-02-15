@@ -4,6 +4,7 @@
   "exec_result": "HALT",
   "cycle_count": 964,
   "fetch_count": 42,
+  "instr_cycle_count": 35,
   "trace": [
     {
       "addr": 262,

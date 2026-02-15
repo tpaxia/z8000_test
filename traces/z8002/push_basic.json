@@ -2,8 +2,9 @@
   "test": "push_basic",
   "mnemonic": "PUSH",
   "exec_result": "HALT",
-  "cycle_count": 966,
+  "cycle_count": 965,
   "fetch_count": 42,
+  "instr_cycle_count": 36,
   "trace": [
     {
       "addr": 3838,

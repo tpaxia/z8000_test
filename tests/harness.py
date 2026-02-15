@@ -190,6 +190,14 @@ class Z8000TestHarness:
         except:
             return None
 
+    def instr_cycle_count(self):
+        """Read instruction cycle count (address-gated, test code only)"""
+        resp = self.send_command('IC')
+        try:
+            return int(resp, 16)
+        except:
+            return None
+
     def fetch_count(self):
         """Read opcode fetch count (instructions fetched)"""
         resp = self.send_command('FC')

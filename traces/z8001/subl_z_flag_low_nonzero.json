@@ -2,8 +2,9 @@
   "test": "subl_z_flag_low_nonzero",
   "mnemonic": "SUBL",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 409,
   "fetch_count": 41,
+  "instr_cycle_count": 15,
   "trace": [
     {
       "addr": 514,

@@ -2,8 +2,9 @@
   "test": "cpsir_exhausted",
   "mnemonic": "CPSIR",
   "exec_result": "HALT",
-  "cycle_count": 1005,
+  "cycle_count": 1004,
   "fetch_count": 42,
+  "instr_cycle_count": 75,
   "trace": [
     {
       "addr": 514,

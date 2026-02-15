@@ -2,8 +2,9 @@
   "test": "neg_r_zero",
   "mnemonic": "NEG",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 408,
   "fetch_count": 41,
+  "instr_cycle_count": 14,
   "trace": [
     {
       "addr": 514,

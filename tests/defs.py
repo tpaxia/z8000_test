@@ -42,4 +42,5 @@ class TestResult:
     actual_io: dict[int, int] = field(default_factory=dict)
     cycle_count: int | None = None
     fetch_count: int | None = None
+    instr_cycle_count: int | None = None
     trace: list[dict] = field(default_factory=list)  # Bus trace entries

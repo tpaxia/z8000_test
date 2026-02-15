@@ -2,8 +2,9 @@
   "test": "res_r_already_clear",
   "mnemonic": "RES",
   "exec_result": "HALT",
-  "cycle_count": 1,
+  "cycle_count": 406,
   "fetch_count": 41,
+  "instr_cycle_count": 11,
   "trace": [
     {
       "addr": 514,

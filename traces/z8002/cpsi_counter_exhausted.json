@@ -2,8 +2,9 @@
   "test": "cpsi_counter_exhausted",
   "mnemonic": "CPSI",
   "exec_result": "HALT",
-  "cycle_count": 982,
+  "cycle_count": 983,
   "fetch_count": 42,
+  "instr_cycle_count": 53,
   "trace": [
     {
       "addr": 514,

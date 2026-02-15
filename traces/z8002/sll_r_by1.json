@@ -2,8 +2,9 @@
   "test": "sll_r_by1",
   "mnemonic": "SLL",
   "exec_result": "HALT",
-  "cycle_count": 974,
+  "cycle_count": 973,
   "fetch_count": 42,
+  "instr_cycle_count": 44,
   "trace": [
     {
       "addr": 514,

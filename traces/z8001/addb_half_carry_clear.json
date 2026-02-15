@@ -2,8 +2,9 @@
   "test": "addb_half_carry_clear",
   "mnemonic": "ADDB",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 405,
   "fetch_count": 41,
+  "instr_cycle_count": 11,
   "trace": [
     {
       "addr": 514,

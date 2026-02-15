@@ -36,6 +36,7 @@ module z8000_sim_tb;
     reg  [9:0]  trace_rd_addr;
     wire [35:0] trace_rd_data;
     wire [9:0]  trace_wr_count;
+    wire        trace_active;
 
     // I/O port signals
     wire [15:0] z8k_io_rdata;
@@ -43,6 +44,7 @@ module z8000_sim_tb;
     // Instrumentation
     reg [31:0] cycle_count = 32'd0;
     reg [15:0] fetch_count = 16'd0;
+    reg [31:0] instr_cycle_count = 32'd0;
     reg        prev_as_n = 1'b1;
     reg        counting = 1'b1;
 
@@ -91,6 +93,19 @@ module z8000_sim_tb;
             prev_as_n <= cpu_as_n;
             if (prev_as_n && ~cpu_as_n && cpu_st == 4'b1101)
                 fetch_count <= fetch_count + 1'b1;
+        end
+    end
+
+    // Count CPU clock cycles while trace_active (address-gated test code)
+    reg prev_cpu_clk_ic = 1'b0;
+    always @(posedge clk) begin
+        if (!z8k_rst_n) begin
+            instr_cycle_count <= 32'd0;
+            prev_cpu_clk_ic <= 1'b0;
+        end else begin
+            prev_cpu_clk_ic <= z8k_cpu_clk;
+            if (trace_active && z8k_cpu_clk && ~prev_cpu_clk_ic)
+                instr_cycle_count <= instr_cycle_count + 1'b1;
         end
     end
 
@@ -196,7 +211,8 @@ module z8000_sim_tb;
         .z8k_st     (cpu_st),
         .rd_addr    (trace_rd_addr),
         .rd_data    (trace_rd_data),
-        .wr_count   (trace_wr_count)
+        .wr_count   (trace_wr_count),
+        .trace_active(trace_active)
     );
 
     // ==========================================
@@ -301,6 +317,7 @@ module z8000_sim_tb;
         // Cycle/fetch counts
         $display("CYCLES:%08x", cycle_count);
         $display("FETCHES:%04x", fetch_count);
+        $display("INSTR_CYCLES:%08x", instr_cycle_count);
 
         // Trace entries — synchronous BRAM read, need clock edges
         for (i = 0; i < trace_wr_count; i = i + 1) begin

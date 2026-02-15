@@ -2,8 +2,9 @@
   "test": "inc_ir_zero_flag",
   "mnemonic": "INC",
   "exec_result": "HALT",
-  "cycle_count": 970,
+  "cycle_count": 969,
   "fetch_count": 42,
+  "instr_cycle_count": 40,
   "trace": [
     {
       "addr": 1024,

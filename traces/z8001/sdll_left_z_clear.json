@@ -2,8 +2,9 @@
   "test": "sdll_left_z_clear",
   "mnemonic": "SDLL",
   "exec_result": "HALT",
-  "cycle_count": 0,
+  "cycle_count": 419,
   "fetch_count": 41,
+  "instr_cycle_count": 25,
   "trace": [
     {
       "addr": 514,

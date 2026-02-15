@@ -2,8 +2,9 @@
   "test": "cpir_match_mid",
   "mnemonic": "CPIR",
   "exec_result": "HALT",
-  "cycle_count": 993,
+  "cycle_count": 992,
   "fetch_count": 42,
+  "instr_cycle_count": 63,
   "trace": [
     {
       "addr": 514,

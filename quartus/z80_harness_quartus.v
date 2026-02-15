@@ -23,6 +23,7 @@
 //   0x22-0x26: Trace data (R, 36-bit: addr[15:0], data[15:0], flags[3:0])
 //   0x27-0x28: Trace write count (R, 10-bit)
 //   0x29: Z8000 ST (R, 4-bit status type from CPU)
+//   0x2A-0x2D: Instr cycle count (R, 32-bit little-endian, address-gated)
 //   0x30-0x47: I/O port registers (12 regs, 2 bytes each: even=low, odd=high)
 
 `timescale 1ns / 1ps
@@ -70,6 +71,9 @@ module z80_harness (
     input  [15:0]     io_port_rdata,    // Read data (full word)
     output reg        io_port_wr_lo,    // Write low byte strobe
     output reg        io_port_wr_hi,    // Write high byte strobe
+
+    // Instruction cycle counter (address-gated)
+    input  [31:0]     z8k_instr_cycle_count,
 
     // Alive indicator
     output            z80_alive          // Toggles while Z80 firmware polls UART
@@ -204,6 +208,10 @@ always @(*) begin
         8'h27: io_dout = trace_wr_count[7:0];             // Trace write count low
         8'h28: io_dout = {6'b0, trace_wr_count[9:8]};     // Trace write count high
         8'h29: io_dout = {4'b0, z8k_st};                  // Z8000 ST (status type)
+        8'h2A: io_dout = z8k_instr_cycle_count[7:0];      // Instr cycle count byte 0
+        8'h2B: io_dout = z8k_instr_cycle_count[15:8];     // Instr cycle count byte 1
+        8'h2C: io_dout = z8k_instr_cycle_count[23:16];    // Instr cycle count byte 2
+        8'h2D: io_dout = z8k_instr_cycle_count[31:24];    // Instr cycle count byte 3
         default: begin
             if (io_port_sel)
                 io_dout = io_port_byte_hi ? io_port_rdata[15:8] : io_port_rdata[7:0];
