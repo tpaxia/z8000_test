@@ -20,6 +20,7 @@ TESTS = [
     TestCase(
         name="sll_r_by1",
         mnemonic="SLL",
+        instruction="SLL R0, #1",
         description="SLL R0, #1: 0x0001 << 1 = 0x0002",
         tags=["shift", "word", "R_mode"],
         code=[0xB301, 0x0001],  # SLL R0, #1
@@ -30,6 +31,7 @@ TESTS = [
     TestCase(
         name="sll_r_carry",
         mnemonic="SLL",
+        instruction="SLL R0, #1",
         description="SLL R0, #1: 0x8000 << 1 = 0x0000 (carry out)",
         tags=["shift", "word", "R_mode", "flags"],
         code=[0xB301, 0x0001],
@@ -41,6 +43,7 @@ TESTS = [
     TestCase(
         name="sll_r_by4",
         mnemonic="SLL",
+        instruction="SLL R0, #4",
         description="SLL R0, #4: 0x0012 << 4 = 0x0120",
         tags=["shift", "word", "R_mode"],
         code=[0xB301, 0x0004],
@@ -55,6 +58,7 @@ TESTS = [
     TestCase(
         name="srl_r_by1",
         mnemonic="SRL",
+        instruction="SRL R0, #1",
         description="SRL R0, #1: 0x0002 >> 1 = 0x0001",
         tags=["shift", "word", "R_mode"],
         code=[0xB301, 0xFFFF],  # SRL R0, #1 (count = -1 = 0xFFFF)
@@ -65,6 +69,7 @@ TESTS = [
     TestCase(
         name="srl_r_carry",
         mnemonic="SRL",
+        instruction="SRL R0, #1",
         description="SRL R0, #1: 0x0001 >> 1 = 0x0000 (carry out)",
         tags=["shift", "word", "R_mode", "flags"],
         code=[0xB301, 0xFFFF],
@@ -76,6 +81,7 @@ TESTS = [
     TestCase(
         name="srl_r_msb_clear",
         mnemonic="SRL",
+        instruction="SRL R0, #1",
         description="SRL R0, #1: 0x8000 >> 1 = 0x4000 (MSB cleared)",
         tags=["shift", "word", "R_mode"],
         code=[0xB301, 0xFFFF],
@@ -90,6 +96,7 @@ TESTS = [
     TestCase(
         name="sra_r_positive",
         mnemonic="SRA",
+        instruction="SRA R0, #1",
         description="SRA R0, #1: 0x0004 >> 1 = 0x0002 (positive, sign preserved)",
         tags=["shift", "word", "R_mode"],
         code=[0xB309, 0xFFFF],  # SRA R0, #1 (SLA_OP, count = -1)
@@ -100,6 +107,7 @@ TESTS = [
     TestCase(
         name="sra_r_negative",
         mnemonic="SRA",
+        instruction="SRA R0, #1",
         description="SRA R0, #1: 0x8002 >> 1 = 0xC001 (negative, sign preserved)",
         tags=["shift", "word", "R_mode"],
         code=[0xB309, 0xFFFF],  # SRA R0, #1 (SLA_OP, count = -1)
@@ -115,6 +123,7 @@ TESTS = [
     TestCase(
         name="rl_r_by1",
         mnemonic="RL",
+        instruction="RL R0, #1",
         description="RL R0, #1: rotate 0x8001 left by 1 = 0x0003",
         tags=["shift", "word", "R_mode"],
         code=[0xB300],  # RL R0, #1 (single-word)
@@ -130,6 +139,7 @@ TESTS = [
     TestCase(
         name="rr_r_by1",
         mnemonic="RR",
+        instruction="RR R0, #1",
         description="RR R0, #1: rotate 0x0001 right by 1 = 0x8000",
         tags=["shift", "word", "R_mode"],
         code=[0xB304],  # RR R0, #1 (single-word)
@@ -145,6 +155,7 @@ TESTS = [
     TestCase(
         name="rlc_r_carry_in",
         mnemonic="RLC",
+        instruction="RLC R0, #1",
         description="RLC R0, #1: rotate with carry=1, 0x0000 -> 0x0001",
         tags=["shift", "word", "R_mode", "flags"],
         fcw=fcw_with_flags(C=1),
@@ -160,6 +171,7 @@ TESTS = [
     TestCase(
         name="rrc_r_carry_in",
         mnemonic="RRC",
+        instruction="RRC R0, #1",
         description="RRC R0, #1: rotate with carry=1, 0x0000 -> 0x8000",
         tags=["shift", "word", "R_mode", "flags"],
         fcw=fcw_with_flags(C=1),

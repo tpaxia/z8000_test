@@ -10,6 +10,7 @@ TESTS = [
     TestCase(
         name="and_r_r_basic",
         mnemonic="AND",
+        instruction="AND R0, R1",
         description="AND R0, R1: 0xFF00 & 0x0F0F = 0x0F00",
         tags=["logical", "word", "R_mode"],
         code=[0x8710],  # AND R0, R1
@@ -20,6 +21,7 @@ TESTS = [
     TestCase(
         name="and_r_r_zero",
         mnemonic="AND",
+        instruction="AND R0, R1",
         description="AND R0, R1: 0xFF00 & 0x00FF = 0x0000 (zero)",
         tags=["logical", "word", "R_mode", "flags"],
         code=[0x8710],
@@ -31,6 +33,7 @@ TESTS = [
     TestCase(
         name="and_r_r_sign",
         mnemonic="AND",
+        instruction="AND R0, R1",
         description="AND R0, R1: 0xF0F0 & 0xFF00 = 0xF000 (sign)",
         tags=["logical", "word", "R_mode", "flags"],
         code=[0x8710],
@@ -42,6 +45,7 @@ TESTS = [
     TestCase(
         name="and_r_imm",
         mnemonic="AND",
+        instruction="AND R0, #0x00FF",
         description="AND R0, #0x00FF: 0x1234 & 0x00FF = 0x0034",
         tags=["logical", "word", "IM_mode"],
         code=[0x0700, 0x00FF],  # AND R0, #0x00FF
@@ -56,6 +60,7 @@ TESTS = [
     TestCase(
         name="or_r_r_basic",
         mnemonic="OR",
+        instruction="OR R0, R1",
         description="OR R0, R1: 0xFF00 | 0x00FF = 0xFFFF",
         tags=["logical", "word", "R_mode"],
         code=[0x8510],
@@ -67,6 +72,7 @@ TESTS = [
     TestCase(
         name="or_r_r_zero",
         mnemonic="OR",
+        instruction="OR R0, R1",
         description="OR R0, R1: 0x0000 | 0x0000 = 0x0000 (zero)",
         tags=["logical", "word", "R_mode", "flags"],
         code=[0x8510],
@@ -78,6 +84,7 @@ TESTS = [
     TestCase(
         name="or_r_imm",
         mnemonic="OR",
+        instruction="OR R0, #0xFF00",
         description="OR R0, #0xFF00: 0x00FF | 0xFF00 = 0xFFFF",
         tags=["logical", "word", "IM_mode"],
         code=[0x0500, 0xFF00],  # OR R0, #0xFF00
@@ -93,6 +100,7 @@ TESTS = [
     TestCase(
         name="xor_r_r_basic",
         mnemonic="XOR",
+        instruction="XOR R0, R1",
         description="XOR R0, R1: 0xAAAA ^ 0x5555 = 0xFFFF",
         tags=["logical", "word", "R_mode"],
         code=[0x8910],
@@ -104,6 +112,7 @@ TESTS = [
     TestCase(
         name="xor_r_r_zero",
         mnemonic="XOR",
+        instruction="XOR R0, R1",
         description="XOR R0, R1: 0x1234 ^ 0x1234 = 0x0000 (zero)",
         tags=["logical", "word", "R_mode", "flags"],
         code=[0x8910],
@@ -115,6 +124,7 @@ TESTS = [
     TestCase(
         name="xor_r_imm",
         mnemonic="XOR",
+        instruction="XOR R0, #0xFFFF",
         description="XOR R0, #0xFFFF: 0xAAAA ^ 0xFFFF = 0x5555",
         tags=["logical", "word", "IM_mode"],
         code=[0x0900, 0xFFFF],  # XOR R0, #0xFFFF
@@ -129,6 +139,7 @@ TESTS = [
     TestCase(
         name="com_r_basic",
         mnemonic="COM",
+        instruction="COM R0",
         description="COM R0: ~0x00FF = 0xFF00",
         tags=["logical", "word", "R_mode"],
         code=[0x8D00],  # COM R0: 10001101_0000_0000
@@ -140,6 +151,7 @@ TESTS = [
     TestCase(
         name="com_r_zero",
         mnemonic="COM",
+        instruction="COM R0",
         description="COM R0: ~0xFFFF = 0x0000",
         tags=["logical", "word", "R_mode", "flags"],
         code=[0x8D00],
@@ -155,6 +167,7 @@ TESTS = [
     TestCase(
         name="clr_r_basic",
         mnemonic="CLR",
+        instruction="CLR R0",
         description="CLR R0: R0 = 0x0000",
         tags=["logical", "word", "R_mode"],
         code=[0x8D08],  # CLR R0: 10001101_0000_1000
@@ -164,6 +177,7 @@ TESTS = [
     TestCase(
         name="clr_r_other_reg",
         mnemonic="CLR",
+        instruction="CLR R5",
         description="CLR R5: R5 = 0x0000",
         tags=["logical", "word", "R_mode"],
         code=[0x8D58],  # CLR R5: 10001101_0101_1000

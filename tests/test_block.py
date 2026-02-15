@@ -45,6 +45,7 @@ TESTS = [
     TestCase(
         name="ldi_basic",
         mnemonic="LDI",
+        instruction="LDI @R3, @R1, R2",
         description="LDI @R3, @R1, R2: copy one word, counter=3",
         tags=["block", "word"],
         code=_ldi(rs=1, rr=2, rd=3),
@@ -60,6 +61,7 @@ TESTS = [
     TestCase(
         name="ldir_three_words",
         mnemonic="LDIR",
+        instruction="LDIR @R3, @R1, R2",
         description="LDIR @R3, @R1, R2: copy 3 words",
         tags=["block", "word"],
         code=_ldir(rs=1, rr=2, rd=3),
@@ -83,6 +85,7 @@ TESTS = [
     TestCase(
         name="ldd_basic",
         mnemonic="LDD",
+        instruction="LDD @R3, @R1, R2",
         description="LDD @R3, @R1, R2: copy one word, decrement ptrs",
         tags=["block", "word"],
         code=_ldd(rs=1, rr=2, rd=3),
@@ -98,6 +101,7 @@ TESTS = [
     TestCase(
         name="cpi_match",
         mnemonic="CPI",
+        instruction="CPI R0, @R1, R2, EQ",
         description="CPI R0, @R1, R2, EQ: match found (Z=1)",
         tags=["block", "word", "flags"],
         code=_cpi(rs=1, rr=2, rd=0, cc=6),  # cc=6 (EQ): Z set when comparison is equal
@@ -110,6 +114,7 @@ TESTS = [
     TestCase(
         name="cpi_no_match",
         mnemonic="CPI",
+        instruction="CPI R0, @R1, R2, EQ",
         description="CPI R0, @R1, R2, EQ: no match (Z=0)",
         tags=["block", "word", "flags"],
         code=_cpi(rs=1, rr=2, rd=0, cc=6),  # cc=6 (EQ): Z clear when comparison is not equal
@@ -121,6 +126,7 @@ TESTS = [
     TestCase(
         name="cpi_counter_zero",
         mnemonic="CPI",
+        instruction="CPI R0, @R1, R2, EQ",
         description="CPI R0, @R1, R2, EQ: match with counter=1, V=1 after decrement",
         tags=["block", "word", "flags"],
         code=_cpi(rs=1, rr=2, rd=0, cc=6),
@@ -132,6 +138,7 @@ TESTS = [
     TestCase(
         name="cpi_ne_not_equal",
         mnemonic="CPI",
+        instruction="CPI R0, @R1, R2, NE",
         description="CPI R0, @R1, R2, NE: values differ, NE condition met (Z=1)",
         tags=["block", "word", "flags"],
         code=_cpi(rs=1, rr=2, rd=0, cc=14),  # cc=14 (NE): Z set when comparison is not equal
@@ -144,6 +151,7 @@ TESTS = [
     TestCase(
         name="cpi_ne_equal",
         mnemonic="CPI",
+        instruction="CPI R0, @R1, R2, NE",
         description="CPI R0, @R1, R2, NE: values equal, NE condition not met (Z=0)",
         tags=["block", "word", "flags"],
         code=_cpi(rs=1, rr=2, rd=0, cc=14),  # cc=14 (NE): Z clear when comparison is equal
@@ -160,6 +168,7 @@ TESTS = [
     TestCase(
         name="cpir_match_mid",
         mnemonic="CPIR",
+        instruction="CPIR R0, @R1, R2, EQ",
         description="CPIR R0, @R1, R2, EQ: find match at 2nd element",
         tags=["block", "word", "flags"],
         code=_cpir(rs=1, rr=2, rd=0, cc=6),
@@ -172,6 +181,7 @@ TESTS = [
     TestCase(
         name="cpir_no_match",
         mnemonic="CPIR",
+        instruction="CPIR R0, @R1, R2, EQ",
         description="CPIR R0, @R1, R2, EQ: no match, counter exhausted",
         tags=["block", "word", "flags"],
         code=_cpir(rs=1, rr=2, rd=0, cc=6),
@@ -184,6 +194,7 @@ TESTS = [
     TestCase(
         name="cpir_match_first",
         mnemonic="CPIR",
+        instruction="CPIR R0, @R1, R2, EQ",
         description="CPIR R0, @R1, R2, EQ: match at first element",
         tags=["block", "word", "flags"],
         code=_cpir(rs=1, rr=2, rd=0, cc=6),

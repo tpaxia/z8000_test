@@ -9,6 +9,7 @@ class TestCase:
     mnemonic: str                                    # "ADD"
     description: str                                 # "ADD R0, R1: 0x1234+0x5678"
     tags: list[str]                                  # ["arithmetic", "word", "R_mode"]
+    instruction: str = ""                            # "ADD R0, R1"
     target: str = "common"                           # "common" | "z8001" | "z8002"
 
     # Initial state

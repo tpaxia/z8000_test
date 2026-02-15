@@ -30,6 +30,7 @@ TESTS = [
     TestCase(
         name="jp_always",
         mnemonic="JP",
+        instruction="JP T",
         description="JP T (always): unconditional jump",
         tags=["branch", "word", "DA_mode"],
         # Code layout at 0x0200:
@@ -48,6 +49,7 @@ TESTS = [
     TestCase(
         name="jp_never",
         mnemonic="JP",
+        instruction="JP F",
         description="JP F (never): never jump, fall through",
         tags=["branch", "word", "DA_mode"],
         # 0x0200: JP F, 0x0208     (never taken)
@@ -63,6 +65,7 @@ TESTS = [
     TestCase(
         name="jp_z_taken",
         mnemonic="JP",
+        instruction="JP Z",
         description="JP Z: zero flag set, jump taken",
         tags=["branch", "word", "DA_mode", "flags"],
         fcw=fcw_with_flags(Z=1),
@@ -77,6 +80,7 @@ TESTS = [
     TestCase(
         name="jp_z_not_taken",
         mnemonic="JP",
+        instruction="JP Z",
         description="JP Z: zero flag clear, not taken",
         tags=["branch", "word", "DA_mode", "flags"],
         fcw=FCW_SYS,  # Z=0
@@ -93,6 +97,7 @@ TESTS = [
     TestCase(
         name="jp_c_taken",
         mnemonic="JP",
+        instruction="JP C",
         description="JP C: carry flag set, jump taken",
         tags=["branch", "word", "DA_mode", "flags"],
         fcw=fcw_with_flags(C=1),
@@ -112,6 +117,7 @@ TESTS = [
     TestCase(
         name="jr_always",
         mnemonic="JR",
+        instruction="JR T",
         description="JR T: relative jump forward by 2 words",
         tags=["branch", "word", "RA_mode"],
         # At 0x0200: JR T, +2 -> skip 2 words to 0x0206
@@ -134,6 +140,7 @@ TESTS = [
     TestCase(
         name="djnz_loop",
         mnemonic="DJNZ",
+        instruction="DJNZ R1",
         description="DJNZ R1: loop 3 times, incrementing R0",
         tags=["branch", "word", "RA_mode"],
         # At 0x0200: INC R0, #1     (0xA900)
@@ -156,6 +163,7 @@ TESTS = [
     TestCase(
         name="call_ret_basic",
         mnemonic="CALL",
+        instruction="CALL 0x0210; RET T",
         description="CALL / RET: basic subroutine call and return",
         tags=["branch", "word", "DA_mode", "stack"],
         # Code layout at 0x0200:

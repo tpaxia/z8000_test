@@ -39,6 +39,7 @@ TESTS = [
     TestCase(
         name="out_port_word",
         mnemonic="OUT",
+        instruction="OUT 0x0106, R0",
         description="OUT 0x0106, R0: write R0 to output word reg",
         tags=["io", "word", "DA_mode"],
         # OUT port, Rs: 00111011_Rsss_0110 + port; R0=0000
@@ -51,6 +52,7 @@ TESTS = [
     TestCase(
         name="out_port_loopback",
         mnemonic="OUT",
+        instruction="OUT 0x0102, R1",
         description="OUT 0x0102, R1: write R1 to loopback word reg",
         tags=["io", "word", "DA_mode"],
         # OUT port, Rs: 00111011_Rsss_0110 + port; R1=0001
@@ -66,6 +68,7 @@ TESTS = [
     TestCase(
         name="in_port_word",
         mnemonic="IN",
+        instruction="IN R0, 0x010A",
         description="IN R0, 0x010A: read from input word reg",
         tags=["io", "word", "DA_mode"],
         # IN Rd, port: 00111011_Rddd_0100 + port; R0=0000
@@ -78,6 +81,7 @@ TESTS = [
     TestCase(
         name="in_port_loopback",
         mnemonic="IN",
+        instruction="IN R2, 0x0102",
         description="IN R2, 0x0102: read from loopback word reg",
         tags=["io", "word", "DA_mode"],
         # IN Rd, port: 00111011_Rddd_0100 + port; R2=0010
@@ -93,6 +97,7 @@ TESTS = [
     TestCase(
         name="out_in_loopback",
         mnemonic="OUT",
+        instruction="OUT 0x0102, R0; IN R1, 0x0102",
         description="OUT 0x0102, R0; IN R1, 0x0102: loopback roundtrip",
         tags=["io", "word", "DA_mode"],
         # OUT port, Rs: 00111011_0000_0110 + port (R0)
@@ -109,6 +114,7 @@ TESTS = [
     TestCase(
         name="outb_port_byte",
         mnemonic="OUTB",
+        instruction="OUTB 0x0104, RH0",
         description="OUTB 0x0104, RH0: write byte to output byte reg",
         tags=["io", "byte", "DA_mode"],
         # OUTB port, Rbs: 00111010_Rbss_0110 + port; RH0=0000
@@ -124,6 +130,7 @@ TESTS = [
     TestCase(
         name="inb_port_byte",
         mnemonic="INB",
+        instruction="INB RH0, 0x0108",
         description="INB RH0, 0x0108: read byte from input byte reg",
         tags=["io", "byte", "DA_mode"],
         # INB Rbd, port: 00111010_Rbdd_0100 + port; RH0=0000
@@ -139,6 +146,7 @@ TESTS = [
     TestCase(
         name="out_indirect",
         mnemonic="OUT",
+        instruction="OUT @R1, R0",
         description="OUT @R1, R0: write R0 to port addressed by R1",
         tags=["io", "word", "IR_mode"],
         # OUT @R1, R0: 0x3F10, R1=port addr
@@ -154,6 +162,7 @@ TESTS = [
     TestCase(
         name="in_indirect",
         mnemonic="IN",
+        instruction="IN R0, @R1",
         description="IN R0, @R1: read from port addressed by R1",
         tags=["io", "word", "IR_mode"],
         # IN R0, @R1: 0x3D10

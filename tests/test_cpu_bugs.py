@@ -30,6 +30,7 @@ TESTS = [
     TestCase(
         name="addb_half_carry_set",
         mnemonic="ADDB",
+        instruction="ADDB RH0, RL0",
         description="ADDB RH0, RL0: 0x09 + 0x08 = 0x11, H=1 (low nibble 9+8=17>15)",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug1_h_flag"],
         # ADDB RH0(0), RL0(8): 10000000_1000_0000 = 0x8080
@@ -42,6 +43,7 @@ TESTS = [
     TestCase(
         name="addb_half_carry_clear",
         mnemonic="ADDB",
+        instruction="ADDB RH0, RL0",
         description="ADDB RH0, RL0: 0x01 + 0x02 = 0x03, H=0 (low nibble 1+2=3<16)",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug1_h_flag"],
         code=[0x8080],
@@ -52,6 +54,7 @@ TESTS = [
     TestCase(
         name="subb_half_borrow",
         mnemonic="SUBB",
+        instruction="SUBB RH0, RL0",
         description="SUBB RH0, RL0: 0x10 - 0x01 = 0x0F, H=1 (borrow from bit 4)",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug1_h_flag"],
         # SUBB RH0(0), RL0(8): 10000010_1000_0000 = 0x8280
@@ -69,6 +72,7 @@ TESTS = [
     TestCase(
         name="dab_carry_zero",
         mnemonic="DAB",
+        instruction="ADDB RH0, RL0; DAB RH0",
         description="ADDB 0x99+0x01=0x9A, DAB -> 0x00, C=1 Z=1 S=0",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug2_dab_flags"],
         # ADDB RH0, RL0 then DAB RH0
@@ -82,6 +86,7 @@ TESTS = [
     TestCase(
         name="dab_sign_flag",
         mnemonic="DAB",
+        instruction="ADDB RH0, RL0; DAB RH0",
         description="ADDB 0x50+0x49=0x99, DAB -> 0x99, S=1 Z=0 C=0",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug2_dab_flags"],
         code=[0x8080, 0xB000],
@@ -97,6 +102,7 @@ TESTS = [
     TestCase(
         name="inc_ir_zero_flag",
         mnemonic="INC",
+        instruction="INC @R1, #1",
         description="INC @R1, #1: 0xFFFF + 1 = 0x0000, Z must be set",
         tags=["arithmetic", "word", "IR_mode", "flags", "bug3_mem_flags"],
         # INC @Rs, #n: 00101001_ssss_nnnn = 0x2900 | (rs << 4) | (n-1)
@@ -109,6 +115,7 @@ TESTS = [
     TestCase(
         name="inc_ir_sign_flag",
         mnemonic="INC",
+        instruction="INC @R1, #1",
         description="INC @R1, #1: 0x7FFF + 1 = 0x8000, S=1 V=1",
         tags=["arithmetic", "word", "IR_mode", "flags", "bug3_mem_flags"],
         code=[0x2910],
@@ -121,6 +128,7 @@ TESTS = [
     TestCase(
         name="dec_ir_zero_flag",
         mnemonic="DEC",
+        instruction="DEC @R1, #1",
         description="DEC @R1, #1: 0x0001 - 1 = 0x0000, Z must be set",
         tags=["arithmetic", "word", "IR_mode", "flags", "bug3_mem_flags"],
         # DEC @Rs, #n: 00101011_ssss_nnnn = 0x2B00 | (rs << 4) | (n-1)
@@ -134,6 +142,7 @@ TESTS = [
     TestCase(
         name="neg_ir_flags",
         mnemonic="NEG",
+        instruction="NEG @R1",
         description="NEG @R1: 0 - 0x0001 = 0xFFFF, C=1 S=1",
         tags=["arithmetic", "word", "IR_mode", "flags", "bug3_mem_flags"],
         # NEG @Rs: 00001101_ssss_0010 = 0x0D00 | (rs << 4) | 0x02
@@ -147,6 +156,7 @@ TESTS = [
     TestCase(
         name="inc_da_zero_flag",
         mnemonic="INC",
+        instruction="INC 0x0400, #1",
         description="INC 0x0400, #1: 0xFFFF + 1 = 0x0000, Z must be set",
         tags=["arithmetic", "word", "DA_mode", "flags", "bug3_mem_flags"],
         # INC addr, #n: [0x6900 | (n-1), addr]
@@ -158,6 +168,7 @@ TESTS = [
     TestCase(
         name="neg_da_flags",
         mnemonic="NEG",
+        instruction="NEG 0x0400",
         description="NEG 0x0400: 0 - 0x0001 = 0xFFFF, C=1 S=1",
         tags=["arithmetic", "word", "DA_mode", "flags", "bug3_mem_flags"],
         # NEG addr: [0x4D02, addr]
@@ -175,6 +186,7 @@ TESTS = [
     TestCase(
         name="addl_z_flag_low_nonzero",
         mnemonic="ADDL",
+        instruction="ADDL RR0, RR2",
         description="ADDL RR0, RR2: 0xFFFF0000+0x00010001=0x00000001, Z must be clear",
         tags=["arithmetic", "word", "R_mode", "flags", "bug4_long_z"],
         # ADDL RRd, RRs: 10010110_ssss_dddd = 0x9600 | (rs << 4) | rd
@@ -187,6 +199,7 @@ TESTS = [
     TestCase(
         name="addl_z_flag_true_zero",
         mnemonic="ADDL",
+        instruction="ADDL RR0, RR2",
         description="ADDL RR0, RR2: 0xFFFFFFFF+0x00000001=0x00000000, Z must be set",
         tags=["arithmetic", "word", "R_mode", "flags", "bug4_long_z"],
         code=[0x9620],
@@ -197,6 +210,7 @@ TESTS = [
     TestCase(
         name="subl_z_flag_low_nonzero",
         mnemonic="SUBL",
+        instruction="SUBL RR0, RR2",
         description="SUBL RR0, RR2: 0x00010005-0x00010001=0x00000004, Z must be clear",
         tags=["arithmetic", "word", "R_mode", "flags", "bug4_long_z"],
         # SUBL RRd, RRs: 10010010_ssss_dddd
@@ -212,6 +226,7 @@ TESTS = [
     TestCase(
         name="cpl_z_flag_low_differs",
         mnemonic="CPL",
+        instruction="CPL RR0, RR2",
         description="CPL RR0, RR2: 0x00001234 vs 0x00005678, Z must be clear",
         tags=["compare", "word", "R_mode", "flags", "bug5_cpl_z"],
         # CPL RRd, RRs: 10010000_ssss_dddd
@@ -225,6 +240,7 @@ TESTS = [
     TestCase(
         name="cpl_z_flag_equal",
         mnemonic="CPL",
+        instruction="CPL RR0, RR2",
         description="CPL RR0, RR2: 0x12345678 vs 0x12345678, Z must be set",
         tags=["compare", "word", "R_mode", "flags", "bug5_cpl_z"],
         code=[0x9020],
@@ -241,6 +257,7 @@ TESTS = [
     TestCase(
         name="testl_s_flag_high_zero",
         mnemonic="TESTL",
+        instruction="TESTL RR0",
         description="TESTL RR0: 0x00008000 - S=0 (bit31=0), Z=0",
         tags=["compare", "word", "R_mode", "flags", "bug6_testl_s"],
         # TESTL RRd: 10011100_dddd_1000
@@ -251,6 +268,7 @@ TESTS = [
     TestCase(
         name="testl_s_flag_negative",
         mnemonic="TESTL",
+        instruction="TESTL RR0",
         description="TESTL RR0: 0x80000000 - S=1 (bit31=1), Z=0",
         tags=["compare", "word", "R_mode", "flags", "bug6_testl_s"],
         code=[0x9C08],
@@ -266,6 +284,7 @@ TESTS = [
     TestCase(
         name="rrdb_link_update",
         mnemonic="RRDB",
+        instruction="RRDB RH0, RL0",
         description="RRDB RH0, RL0: [A5][B3] -> [A3][5B], link reg must update",
         tags=["shift", "byte", "R_mode", "bug7_rrdb"],
         # RRDB Rbl, Rbs: 10111100_Rbss_Rbdd
@@ -277,6 +296,7 @@ TESTS = [
     TestCase(
         name="rrdb_link_update_zeros",
         mnemonic="RRDB",
+        instruction="RRDB RH0, RL0",
         description="RRDB RH0, RL0: [00][12] -> [02][01]",
         tags=["shift", "byte", "R_mode", "bug7_rrdb"],
         code=[0xBC80],
@@ -291,6 +311,7 @@ TESTS = [
     TestCase(
         name="sdll_left_z_clear",
         mnemonic="SDLL",
+        instruction="SDLL RR0, #1",
         description="SDLL RR0, #1: 0x00000001 << 1 = 0x00000002, Z must be clear",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
         # SDLL RRd, #n: 10110011_dddd_0111 + count
@@ -302,6 +323,7 @@ TESTS = [
     TestCase(
         name="sdll_left_carry",
         mnemonic="SDLL",
+        instruction="SDLL RR0, #1",
         description="SDLL RR0, #1: 0x80000000 << 1 = 0x00000000, C=1 Z=1",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
         code=[0xB307, 0x0001],
@@ -313,6 +335,7 @@ TESTS = [
     TestCase(
         name="sdal_left_sign",
         mnemonic="SDAL",
+        instruction="SDAL RR0, #1",
         description="SDAL RR0, #1: 0x40000000 << 1 = 0x80000000, S=1",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
         # SDAL RRd, #n: 10110011_dddd_1111 + count
@@ -325,6 +348,7 @@ TESTS = [
     TestCase(
         name="sdll_right_nonzero",
         mnemonic="SDLL",
+        instruction="SDLL RR0, #-1",
         description="SDLL RR0, #-1: 0x00020000 >> 1 = 0x00010000, Z must be clear",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
         code=[0xB307, 0xFFFF],  # SDLL RR0, count=-1 (shift right by 1)
@@ -341,6 +365,7 @@ TESTS = [
     TestCase(
         name="cpsi_counter_decrement",
         mnemonic="CPSI",
+        instruction="CPSI @R3, @R1, R0, always",
         description="CPSI @R3, @R1, R0, always: match, counter 3->2",
         tags=["block", "word", "flags", "bug9_cpsi"],
         # CPSI: 10111011_ssss_0010 + 0000_rrrr_dddd_cccc
@@ -355,6 +380,7 @@ TESTS = [
     TestCase(
         name="cpsi_counter_exhausted",
         mnemonic="CPSI",
+        instruction="CPSI @R3, @R1, R0, always",
         description="CPSI @R3, @R1, R0, always: counter 1->0, V=1",
         tags=["block", "word", "flags", "bug9_cpsi"],
         code=[0xBB12, 0x0038],
@@ -366,6 +392,7 @@ TESTS = [
     TestCase(
         name="cpsd_counter_decrement",
         mnemonic="CPSD",
+        instruction="CPSD @R3, @R1, R0, always",
         description="CPSD @R3, @R1, R0, always: match, counter 3->2, ptrs decremented",
         tags=["block", "word", "flags", "bug9_cpsi"],
         # CPSD: 10111011_ssss_1010
@@ -385,6 +412,7 @@ TESTS = [
     TestCase(
         name="trtib_rh1_load",
         mnemonic="TRTIB",
+        instruction="TRTIB @R3, @R4, R2",
         description="TRTIB: source byte 0x02, table[2]=0xAB -> RH1 must be 0xAB",
         tags=["block", "byte", "flags", "bug10_trt"],
         # TRTIB @Rs, @Rd, Rr: 10111000_ssss_0010 + 0000_rrrr_dddd_0000

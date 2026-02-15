@@ -10,6 +10,7 @@ TESTS = [
     TestCase(
         name="nop_basic",
         mnemonic="NOP",
+        instruction="NOP",
         description="NOP: no operation, registers unchanged",
         tags=["control", "word"],
         code=[0x8D07],  # NOP
@@ -25,6 +26,7 @@ TESTS = [
     TestCase(
         name="setflg_carry",
         mnemonic="SETFLG",
+        instruction="SETFLG C",
         description="SETFLG C: set carry flag",
         tags=["control", "flags"],
         fcw=FCW_SYS,  # All flags clear
@@ -35,6 +37,7 @@ TESTS = [
     TestCase(
         name="setflg_zero",
         mnemonic="SETFLG",
+        instruction="SETFLG Z",
         description="SETFLG Z: set zero flag",
         tags=["control", "flags"],
         fcw=FCW_SYS,
@@ -45,6 +48,7 @@ TESTS = [
     TestCase(
         name="setflg_all",
         mnemonic="SETFLG",
+        instruction="SETFLG CZSV",
         description="SETFLG CZSV: set all flags",
         tags=["control", "flags"],
         fcw=FCW_SYS,
@@ -59,6 +63,7 @@ TESTS = [
     TestCase(
         name="resflg_carry",
         mnemonic="RESFLG",
+        instruction="RESFLG C",
         description="RESFLG C: clear carry flag",
         tags=["control", "flags"],
         fcw=fcw_with_flags(C=1, Z=1, S=1, V=1),
@@ -69,6 +74,7 @@ TESTS = [
     TestCase(
         name="resflg_all",
         mnemonic="RESFLG",
+        instruction="RESFLG CZSV",
         description="RESFLG CZSV: clear all flags",
         tags=["control", "flags"],
         fcw=fcw_with_flags(C=1, Z=1, S=1, V=1),
@@ -83,6 +89,7 @@ TESTS = [
     TestCase(
         name="comflg_carry",
         mnemonic="COMFLG",
+        instruction="COMFLG C",
         description="COMFLG C: toggle carry flag (0->1)",
         tags=["control", "flags"],
         fcw=FCW_SYS,
@@ -93,6 +100,7 @@ TESTS = [
     TestCase(
         name="comflg_carry_clear",
         mnemonic="COMFLG",
+        instruction="COMFLG C",
         description="COMFLG C: toggle carry flag (1->0)",
         tags=["control", "flags"],
         fcw=fcw_with_flags(C=1),
@@ -102,6 +110,7 @@ TESTS = [
     TestCase(
         name="comflg_all",
         mnemonic="COMFLG",
+        instruction="COMFLG CZSV",
         description="COMFLG CZSV: toggle all flags (all 0 -> all 1)",
         tags=["control", "flags"],
         fcw=FCW_SYS,
@@ -116,6 +125,7 @@ TESTS = [
     TestCase(
         name="tcc_z_set",
         mnemonic="TCC",
+        instruction="TCC Z, R0",
         description="TCC Z, R0: Z=1, R0 |= 1",
         tags=["control", "word", "R_mode", "flags"],
         fcw=fcw_with_flags(Z=1),
@@ -126,6 +136,7 @@ TESTS = [
     TestCase(
         name="tcc_z_clear",
         mnemonic="TCC",
+        instruction="TCC Z, R0",
         description="TCC Z, R0: Z=0, R0 unchanged",
         tags=["control", "word", "R_mode", "flags"],
         fcw=FCW_SYS,
@@ -136,6 +147,7 @@ TESTS = [
     TestCase(
         name="tcc_always",
         mnemonic="TCC",
+        instruction="TCC T, R0",
         description="TCC T, R0: always true, R0 |= 1",
         tags=["control", "word", "R_mode"],
         code=[0xAF08],  # TCC T (always), R0

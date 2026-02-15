@@ -14,6 +14,7 @@ TESTS = [
     TestCase(
         name="push_basic",
         mnemonic="PUSH",
+        instruction="PUSH @R15, R0",
         description="PUSH @R15, R0: push R0 onto stack",
         tags=["stack", "word", "R_mode"],
         code=[0x93F0],  # PUSH @R15, R0
@@ -24,6 +25,7 @@ TESTS = [
     TestCase(
         name="push_multiple",
         mnemonic="PUSH",
+        instruction="PUSH @R15, R0; PUSH @R15, R1",
         description="PUSH @R15, R0 then PUSH @R15, R1",
         tags=["stack", "word", "R_mode"],
         code=[
@@ -44,6 +46,7 @@ TESTS = [
     TestCase(
         name="pop_basic",
         mnemonic="POP",
+        instruction="POP R0, @R15",
         description="POP R0, @R15: pop from stack into R0",
         tags=["stack", "word", "R_mode"],
         code=[0x97F0],  # POP R0, @R15
@@ -58,6 +61,7 @@ TESTS = [
     TestCase(
         name="push_pop_roundtrip",
         mnemonic="PUSH",
+        instruction="PUSH @R15, R0; POP R1, @R15",
         description="PUSH R0, then POP into R1: round-trip test",
         tags=["stack", "word", "R_mode"],
         code=[

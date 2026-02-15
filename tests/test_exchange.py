@@ -14,6 +14,7 @@ TESTS = [
     TestCase(
         name="ex_r_r_basic",
         mnemonic="EX",
+        instruction="EX R0, R1",
         description="EX R0, R1: swap R0 and R1",
         tags=["exchange", "word", "R_mode"],
         code=[0xAD10],  # EX R0, R1
@@ -23,6 +24,7 @@ TESTS = [
     TestCase(
         name="ex_r_r_same",
         mnemonic="EX",
+        instruction="EX R0, R0",
         description="EX R0, R0: swap with self (no-op)",
         tags=["exchange", "word", "R_mode"],
         code=[0xAD00],  # EX R0, R0
@@ -36,6 +38,7 @@ TESTS = [
     TestCase(
         name="extsb_positive",
         mnemonic="EXTSB",
+        instruction="EXTSB R0",
         description="EXTSB R0: 0x007F -> 0x007F (positive byte)",
         tags=["exchange", "word", "R_mode"],
         code=[0xB100],  # EXTSB R0
@@ -45,6 +48,7 @@ TESTS = [
     TestCase(
         name="extsb_negative",
         mnemonic="EXTSB",
+        instruction="EXTSB R0",
         description="EXTSB R0: 0x0080 -> 0xFF80 (negative byte, sign extended)",
         tags=["exchange", "word", "R_mode"],
         code=[0xB100],  # EXTSB R0
@@ -54,6 +58,7 @@ TESTS = [
     TestCase(
         name="extsb_zero",
         mnemonic="EXTSB",
+        instruction="EXTSB R0",
         description="EXTSB R0: 0xFF00 -> 0x0000 (zero byte)",
         tags=["exchange", "word", "R_mode"],
         code=[0xB100],
@@ -67,6 +72,7 @@ TESTS = [
     TestCase(
         name="exts_positive",
         mnemonic="EXTS",
+        instruction="EXTS RR0",
         description="EXTS RR0: R1=0x7FFF -> RR0 = 0x00007FFF",
         tags=["exchange", "long", "R_mode"],
         code=[0xB10A],  # EXTS RR0 (RRd=0, subop=1010)
@@ -76,6 +82,7 @@ TESTS = [
     TestCase(
         name="exts_negative",
         mnemonic="EXTS",
+        instruction="EXTS RR0",
         description="EXTS RR0: R1=0x8000 -> RR0 = 0xFFFF8000",
         tags=["exchange", "long", "R_mode"],
         code=[0xB10A],  # EXTS RR0
