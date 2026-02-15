@@ -436,6 +436,7 @@ TESTS = [
     TestCase(
         name="adcb_half_carry",
         mnemonic="ADCB",
+        instruction="ADCB RH0, RL0",
         description="ADCB RH0, RL0 with C=1: 0x08 + 0x08 + 1 = 0x11, H=1",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug1_h_flag"],
         # ADCB RH0(0), RL0(8): 10110100_1000_0000 = 0xB480
@@ -449,6 +450,7 @@ TESTS = [
     TestCase(
         name="sbcb_half_borrow",
         mnemonic="SBCB",
+        instruction="SBCB RH0, RL0",
         description="SBCB RH0, RL0 with C=1: 0x10 - 0x02 - 1 = 0x0D, H=1",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug1_h_flag"],
         # SBCB RH0(0), RL0(8): 10110110_1000_0000 = 0xB680
@@ -466,6 +468,7 @@ TESTS = [
     TestCase(
         name="rldb_link_update",
         mnemonic="RLDB",
+        instruction="RLDB RH0, RL0",
         description="RLDB RH0, RL0: [A5][B3] -> [AB][35], link reg must update",
         tags=["shift", "byte", "R_mode", "bug7_rrdb"],
         # RLDB Rbl, Rbs: 10111110_Rbss_Rbdd = 0xBE80
@@ -476,6 +479,7 @@ TESTS = [
     TestCase(
         name="rldb_z_flag_set",
         mnemonic="RLDB",
+        instruction="RLDB RH0, RL0",
         description="RLDB RH0, RL0: [0A][0B] -> [00][BA], Z=1 S=0 (link=0x00)",
         tags=["shift", "byte", "R_mode", "flags", "bug7_rrdb"],
         # Z/S flags are from link register (Rbl=RH0), not source
@@ -489,6 +493,7 @@ TESTS = [
     TestCase(
         name="rrdb_z_flag_set",
         mnemonic="RRDB",
+        instruction="RRDB RH0, RL0",
         description="RRDB RH0, RL0: [05][B0] -> [00][5B], Z=1 S=0 (link=0x00)",
         tags=["shift", "byte", "R_mode", "flags", "bug7_rrdb"],
         # After: RH0=[old_high|old_src_low]=[0|0]=0x00, RL0=[5|B]=0x5B
@@ -506,6 +511,7 @@ TESTS = [
     TestCase(
         name="slll_cross_word",
         mnemonic="SLLL",
+        instruction="SLLL RR0, #1",
         description="SLLL RR0: 0x00008000 << 1 = 0x00010000, bit crosses word boundary",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
         # SLLL RRd: 10110011_dddd_0101 = 0xB305 for RR0
@@ -517,6 +523,7 @@ TESTS = [
     TestCase(
         name="slll_carry_zero",
         mnemonic="SLLL",
+        instruction="SLLL RR0, #1",
         description="SLLL RR0: 0x80000000 << 1 = 0x00000000, C=1 Z=1",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
         code=[0xB305],
@@ -528,6 +535,7 @@ TESTS = [
     TestCase(
         name="slal_sign_overflow",
         mnemonic="SLAL",
+        instruction="SLAL RR0, #1",
         description="SLAL RR0: 0x40000000 << 1 = 0x80000000, S=1 V=1",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
         # SLAL RRd: 10110011_dddd_1101 = 0xB30D for RR0
@@ -546,6 +554,7 @@ TESTS = [
     TestCase(
         name="cpsir_match_found",
         mnemonic="CPSIR",
+        instruction="CPSIR @R3, @R1, R0, eq",
         description="CPSIR @R3, @R1, R0, eq: match on 1st element, V=0",
         tags=["block", "word", "flags", "bug9_cpsi"],
         # CPSIR: 10111011_ssss_0110 + 0000_rrrr_dddd_cccc
@@ -560,6 +569,7 @@ TESTS = [
     TestCase(
         name="cpsir_exhausted",
         mnemonic="CPSIR",
+        instruction="CPSIR @R3, @R1, R0, eq",
         description="CPSIR @R3, @R1, R0, eq: no match, counter 2->0, V=1",
         tags=["block", "word", "flags", "bug9_cpsi"],
         code=[0xBB16, 0x0036],
@@ -575,6 +585,7 @@ TESTS = [
     TestCase(
         name="cpsdr_match_found",
         mnemonic="CPSDR",
+        instruction="CPSDR @R3, @R1, R0, eq",
         description="CPSDR @R3, @R1, R0, eq: match on 1st element, V=0, ptrs decremented",
         tags=["block", "word", "flags", "bug9_cpsi"],
         # CPSDR: 10111011_ssss_1110
