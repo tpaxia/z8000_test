@@ -1,0 +1,100 @@
+{
+  "test": "call_ret_basic",
+  "mnemonic": "CALL",
+  "exec_result": "HALT",
+  "cycle_count": 535,
+  "fetch_count": 46,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 1,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 24320,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 518,
+      "data": 528,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 3838,
+      "data": 520,
+      "rw": "W",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 528,
+      "data": 8448,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 530,
+      "data": 2,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 532,
+      "data": 40456,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 3838,
+      "data": 520,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 520,
+      "data": 8448,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 522,
+      "data": 3,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 524,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 526,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "test": "jp_z_not_taken",
+  "mnemonic": "JP",
+  "exec_result": "HALT",
+  "cycle_count": 505,
+  "fetch_count": 43,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 520,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 8448,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 518,
+      "data": 24589,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 520,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 522,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}

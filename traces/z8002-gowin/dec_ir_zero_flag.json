@@ -1,0 +1,44 @@
+{
+  "test": "dec_ir_zero_flag",
+  "mnemonic": "DEC",
+  "exec_result": "HALT",
+  "cycle_count": 500,
+  "fetch_count": 42,
+  "trace": [
+    {
+      "addr": 1024,
+      "data": 1,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1024,
+      "data": 0,
+      "rw": "W",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 514,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "test": "neg_ir_flags",
+  "mnemonic": "NEG",
+  "exec_result": "HALT",
+  "cycle_count": 500,
+  "fetch_count": 42,
+  "trace": [
+    {
+      "addr": 1024,
+      "data": 1,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1024,
+      "data": 65535,
+      "rw": "W",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 514,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}

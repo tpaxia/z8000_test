@@ -1,0 +1,79 @@
+{
+  "test": "cpsir_exhausted",
+  "mnemonic": "CPSIR",
+  "exec_result": "HALT",
+  "cycle_count": 524,
+  "fetch_count": 43,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 54,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1536,
+      "data": 4369,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1792,
+      "data": 8738,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 512,
+      "data": 47894,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 514,
+      "data": 54,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1538,
+      "data": 13107,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 1794,
+      "data": 17476,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 518,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}

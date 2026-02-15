@@ -1,0 +1,44 @@
+{
+  "test": "jr_always",
+  "mnemonic": "JR",
+  "exec_result": "HALT",
+  "cycle_count": 502,
+  "fetch_count": 43,
+  "trace": [
+    {
+      "addr": 518,
+      "data": 8448,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 520,
+      "data": 24589,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 522,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 524,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}

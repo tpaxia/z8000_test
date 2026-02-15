@@ -1,0 +1,37 @@
+{
+  "test": "or_r_imm",
+  "mnemonic": "OR",
+  "exec_result": "HALT",
+  "cycle_count": 497,
+  "fetch_count": 42,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 65280,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 516,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 518,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M"
+    }
+  ]
+}
