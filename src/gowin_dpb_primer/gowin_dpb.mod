@@ -1,0 +1,24 @@
+-series GW2A
+-device GW2A-18
+-device_version C
+-package PBGA256
+-part_number GW2A-LV18PG256C8/I7
+
+
+-mod_name Gowin_DPB
+-file_name gowin_dpb
+-path /Users/paxia/Projects/Z8000_FPGA/z8000_test/src/gowin_dpb_primer/
+-type RAM_DP
+-file_type vlg
+-bram_b true
+-dev_type GW2A-18C
+-depth_0 4096
+-depth_1 4096
+-width_0 8
+-width_1 8
+-read_mode_0 bypass
+-read_mode_1 bypass
+-write_mode_0 write-through
+-write_mode_1 write-through
+-speed false
+-reset_mode async

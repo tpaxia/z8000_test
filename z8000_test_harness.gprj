@@ -6,26 +6,27 @@
     <Device name="GW2AR-18C" pn="GW2AR-LV18QN88C8/I7">gw2ar18c-000</Device>
     <FileList>
         <File path="src/gowin_dpb/gowin_dpb.v" type="file.verilog" enable="1"/>
+        <File path="src/gowin_rpll_nano/gowin_rpll.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_sdpb/gowin_sdpb.v" type="file.verilog" enable="1"/>
         <File path="src/ram16_gowin.v" type="file.verilog" enable="1"/>
         <File path="src/trace_buffer.v" type="file.verilog" enable="1"/>
-        <File path="src/z8k_io_ports.v" type="file.verilog" enable="1"/>
         <File path="src/uart_rx.v" type="file.verilog" enable="1"/>
         <File path="src/uart_tx.v" type="file.verilog" enable="1"/>
-        <File path="z8000_micro/rtl/decode_rom.v" type="file.verilog" enable="1"/>
-        <File path="z8000_micro/rtl/microcode_rom.v" type="file.verilog" enable="1"/>
-        <File path="z8000_micro/rtl/ucode_defs.v" type="file.verilog" enable="1"/>
-        <File path="z8000_micro/rtl/z8000_biu.v" type="file.verilog" enable="1"/>
-        <File path="z8000_micro/rtl/z8000_muldiv.v" type="file.verilog" enable="1"/>
-        <File path="z8000_micro/rtl/z8000_cpu.v" type="file.verilog" enable="1"/>
         <File path="src/z8000_bus_fpga.v" type="file.verilog" enable="1"/>
         <File path="src/z8000_test_harness_top.v" type="file.verilog" enable="1"/>
         <File path="src/z80_harness.v" type="file.verilog" enable="1"/>
+        <File path="src/z8k_io_ports.v" type="file.verilog" enable="1"/>
         <File path="tv80_official/rtl/core/tv80_alu.v" type="file.verilog" enable="1"/>
         <File path="tv80_official/rtl/core/tv80_core.v" type="file.verilog" enable="1"/>
         <File path="tv80_official/rtl/core/tv80_mcode.v" type="file.verilog" enable="1"/>
         <File path="tv80_official/rtl/core/tv80_reg.v" type="file.verilog" enable="1"/>
         <File path="tv80_official/rtl/core/tv80s.v" type="file.verilog" enable="1"/>
+        <File path="z8000_micro/rtl/decode_rom.v" type="file.verilog" enable="1"/>
+        <File path="z8000_micro/rtl/microcode_rom.v" type="file.verilog" enable="1"/>
+        <File path="z8000_micro/rtl/ucode_defs.v" type="file.verilog" enable="1"/>
+        <File path="z8000_micro/rtl/z8000_biu.v" type="file.verilog" enable="1"/>
+        <File path="z8000_micro/rtl/z8000_cpu.v" type="file.verilog" enable="1"/>
+        <File path="z8000_micro/rtl/z8000_muldiv.v" type="file.verilog" enable="1"/>
         <File path="src/top.cst" type="file.cst" enable="1"/>
     </FileList>
 </Project>

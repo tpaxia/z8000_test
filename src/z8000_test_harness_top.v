@@ -5,7 +5,8 @@
 //   EU runs at 16MHz, BIU divides by 4 -> ~4MHz bus rate.
 // Simulation: raw clk, no PLL, BUS_DIVIDER=1 (/3.5 divider).
 //
-// Target: Tang Nano 20K (GW2AR-18C)
+// Target: Tang Nano 20K (GW2AR-18C) or Tang Primer 20K (GW2A-18C)
+// Each project includes its own Gowin_rPLL IP (gowin_rpll_nano or gowin_rpll_primer)
 
 `timescale 1ns / 1ps
 
@@ -20,9 +21,7 @@ module z8000_test_harness_top (
 // ===========================================
 // PLL and System Clock
 // ===========================================
-// Synthesis: rPLL 27MHz -> 16.03125MHz (IDIV=4, FBDIV=19, ODIV=8)
-//   FVCO = 27 * 19 * 8 / 4 = 1026 MHz (range: 500-1250)
-//   FOUT = 27 * 19 / (4 * 8) = 16.03125 MHz
+// Synthesis: Gowin_rPLL IP 27MHz -> ~16.2MHz (device-specific IP per project)
 // Simulation: use raw clk directly
 
 `ifdef SIMULATION
@@ -32,41 +31,10 @@ module z8000_test_harness_top (
     wire sys_clk;
     wire pll_lock;
 
-    rPLL #(
-        .FCLKIN         ("27"),
-        .IDIV_SEL       (3),       // IDIV = 4
-        .FBDIV_SEL      (18),      // FBDIV = 19
-        .ODIV_SEL       (8),       // ODIV = 8
-        .DYN_IDIV_SEL   ("false"),
-        .DYN_FBDIV_SEL  ("false"),
-        .DYN_ODIV_SEL   ("false"),
-        .PSDA_SEL       ("0000"),
-        .DYN_DA_EN      ("false"),
-        .DUTYDA_SEL     ("1000"),
-        .CLKOUT_FT_DIR  (1'b1),
-        .CLKOUTP_FT_DIR (1'b1),
-        .CLKOUT_DLY_STEP(0),
-        .CLKOUTP_DLY_STEP(0),
-        .CLKFB_SEL      ("internal"),
-        .CLKOUT_BYPASS   ("false"),
-        .CLKOUTP_BYPASS  ("false"),
-        .CLKOUTD_BYPASS  ("false"),
-        .CLKOUTD_SRC     ("CLKOUT"),
-        .CLKOUTD3_SRC    ("CLKOUT"),
-        .DEVICE           ("GW2AR-18C")
-    ) pll (
-        .CLKOUT  (sys_clk),
-        .LOCK    (pll_lock),
-        .CLKIN   (clk),
-        .CLKFB   (1'b0),
-        .RESET   (1'b0),
-        .RESET_P (1'b0),
-        .FBDSEL  (6'b0),
-        .IDSEL   (6'b0),
-        .ODSEL   (6'b0),
-        .PSDA    (4'b0),
-        .DUTYDA  (4'b0),
-        .FDLY    (4'b0)
+    Gowin_rPLL pll (
+        .clkout (sys_clk),
+        .lock   (pll_lock),
+        .clkin  (clk)
     );
 `endif
 
