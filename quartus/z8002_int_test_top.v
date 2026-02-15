@@ -204,10 +204,21 @@ module z8002_int_test_top (
     end
 
     //------------------------------------------------------------------------
+    // Status Latch (ST valid on AS falling edge only)
+    //------------------------------------------------------------------------
+    reg [3:0] st_latched;
+    always @(posedge sys_clk) begin
+        if (!sys_rst_n)
+            st_latched <= 4'b0;
+        else if (as_falling)
+            st_latched <= cpu_st;
+    end
+
+    //------------------------------------------------------------------------
     // Address Decode
     //------------------------------------------------------------------------
-    wire io_std_sel = (cpu_st == 4'b0010);   // Standard I/O (ST=0010)
-    wire io_spc_sel = (cpu_st == 4'b0011);   // Special I/O (ST=0011)
+    wire io_std_sel = (st_latched == 4'b0010);   // Standard I/O (ST=0010)
+    wire io_spc_sel = (st_latched == 4'b0011);   // Special I/O (ST=0011)
     wire io_sel  = io_std_sel || io_spc_sel;
     wire ram_sel = ~cpu_mreq_n && ~io_sel;
 
@@ -311,7 +322,7 @@ module z8002_int_test_top (
         .z8k_rw_n   (cpu_rw_n),
         .z8k_bw_n   (cpu_bw_n),
         .z8k_mreq_n (cpu_mreq_n),
-        .z8k_st     (cpu_st),
+        .z8k_st     (st_latched),
         .rd_addr    (trace_rd_addr),
         .rd_data    (trace_rd_data),
         .wr_count   (trace_wr_count)

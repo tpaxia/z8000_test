@@ -302,10 +302,21 @@ assign led[2] = z8k_rst_n;                          // Z8000 in reset (on when r
 assign led[3] = cpu_halt_n_out;                     // Z8000 halted
 
 // ===========================================
+// Status Latch (ST valid on AS falling edge only)
+// ===========================================
+reg [3:0] st_latched;
+always @(posedge sys_clk) begin
+    if (!sys_rst_n)
+        st_latched <= 4'b0;
+    else if (as_falling)
+        st_latched <= cpu_st;
+end
+
+// ===========================================
 // Address decode
 // ===========================================
-wire io_std_sel = (cpu_st == 4'b0010);   // Standard I/O (ST=0010)
-wire io_spc_sel = (cpu_st == 4'b0011);   // Special I/O (ST=0011)
+wire io_std_sel = (st_latched == 4'b0010);   // Standard I/O (ST=0010)
+wire io_spc_sel = (st_latched == 4'b0011);   // Special I/O (ST=0011)
 wire io_sel  = io_std_sel || io_spc_sel;
 wire ram_sel = ~cpu_mreq_n && ~io_sel;
 

@@ -401,4 +401,160 @@ TESTS = [
             3: SRC_BUF + 1,  # source ptr incremented by 1 (byte)
         },
     ),
+
+    # =========================================================================
+    # Issue 1 (continued): ADCB/SBCB H flag
+    # =========================================================================
+    TestCase(
+        name="adcb_half_carry",
+        mnemonic="ADCB",
+        description="ADCB RH0, RL0 with C=1: 0x08 + 0x08 + 1 = 0x11, H=1",
+        tags=["arithmetic", "byte", "R_mode", "flags", "bug1_h_flag"],
+        # ADCB RH0(0), RL0(8): 10110100_1000_0000 = 0xB480
+        code=[0xB480],
+        fcw=fcw_with_flags(C=1),
+        regs={0: 0x0808},  # RH0=0x08, RL0=0x08
+        expected_regs={0: 0x1108},  # 0x08+0x08+1=0x11
+        expected_fcw_set=["H"],
+        expected_fcw_clear=["C", "Z", "S"],
+    ),
+    TestCase(
+        name="sbcb_half_borrow",
+        mnemonic="SBCB",
+        description="SBCB RH0, RL0 with C=1: 0x10 - 0x02 - 1 = 0x0D, H=1",
+        tags=["arithmetic", "byte", "R_mode", "flags", "bug1_h_flag"],
+        # SBCB RH0(0), RL0(8): 10110110_1000_0000 = 0xB680
+        code=[0xB680],
+        fcw=fcw_with_flags(C=1),
+        regs={0: 0x1002},  # RH0=0x10, RL0=0x02
+        expected_regs={0: 0x0D02},  # 0x10-0x02-1=0x0D
+        expected_fcw_set=["H"],
+        expected_fcw_clear=["C", "Z", "S"],
+    ),
+
+    # =========================================================================
+    # Issue 7 (continued): RLDB link register + Z flag, RRDB Z flag
+    # =========================================================================
+    TestCase(
+        name="rldb_link_update",
+        mnemonic="RLDB",
+        description="RLDB RH0, RL0: [A5][B3] -> [AB][35], link reg must update",
+        tags=["shift", "byte", "R_mode", "bug7_rrdb"],
+        # RLDB Rbl, Rbs: 10111110_Rbss_Rbdd = 0xBE80
+        code=[0xBE80],
+        regs={0: 0xA5B3},  # RH0=0xA5, RL0=0xB3
+        expected_regs={0: 0xAB35},  # RH0=[A|B], RL0=[3|5]
+    ),
+    TestCase(
+        name="rldb_z_flag_set",
+        mnemonic="RLDB",
+        description="RLDB RH0, RL0: [0A][0B] -> [00][BA], Z=1 S=0 (link=0x00)",
+        tags=["shift", "byte", "R_mode", "flags", "bug7_rrdb"],
+        # Z/S flags are from link register (Rbl=RH0), not source
+        # After: RH0=[old_high|old_src_high]=[0|0]=0x00, RL0=[B|A]=0xBA
+        code=[0xBE80],
+        regs={0: 0x0A0B},  # RH0=0x0A, RL0=0x0B
+        expected_regs={0: 0x00BA},
+        expected_fcw_set=["Z"],
+        expected_fcw_clear=["S"],
+    ),
+    TestCase(
+        name="rrdb_z_flag_set",
+        mnemonic="RRDB",
+        description="RRDB RH0, RL0: [05][B0] -> [00][5B], Z=1 S=0 (link=0x00)",
+        tags=["shift", "byte", "R_mode", "flags", "bug7_rrdb"],
+        # After: RH0=[old_high|old_src_low]=[0|0]=0x00, RL0=[5|B]=0x5B
+        code=[0xBC80],
+        regs={0: 0x05B0},  # RH0=0x05, RL0=0xB0
+        expected_regs={0: 0x005B},
+        expected_fcw_set=["Z"],
+        expected_fcw_clear=["S"],
+    ),
+
+    # =========================================================================
+    # Issue 8 (continued): SLLL/SLAL 32-bit shift flags
+    # These are static (shift-by-1) long shift instructions.
+    # =========================================================================
+    TestCase(
+        name="slll_cross_word",
+        mnemonic="SLLL",
+        description="SLLL RR0: 0x00008000 << 1 = 0x00010000, bit crosses word boundary",
+        tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
+        # SLLL RRd: 10110011_dddd_0101 = 0xB305 for RR0
+        code=[0xB305],
+        regs={0: 0x0000, 1: 0x8000},
+        expected_regs={0: 0x0001, 1: 0x0000},
+        expected_fcw_clear=["C", "Z", "S"],
+    ),
+    TestCase(
+        name="slll_carry_zero",
+        mnemonic="SLLL",
+        description="SLLL RR0: 0x80000000 << 1 = 0x00000000, C=1 Z=1",
+        tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
+        code=[0xB305],
+        regs={0: 0x8000, 1: 0x0000},
+        expected_regs={0: 0x0000, 1: 0x0000},
+        expected_fcw_set=["C", "Z"],
+        expected_fcw_clear=["S"],
+    ),
+    TestCase(
+        name="slal_sign_overflow",
+        mnemonic="SLAL",
+        description="SLAL RR0: 0x40000000 << 1 = 0x80000000, S=1 V=1",
+        tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
+        # SLAL RRd: 10110011_dddd_1101 = 0xB30D for RR0
+        code=[0xB30D],
+        regs={0: 0x4000, 1: 0x0000},
+        expected_regs={0: 0x8000, 1: 0x0000},
+        expected_fcw_set=["S", "V"],
+        expected_fcw_clear=["C", "Z"],
+    ),
+
+    # =========================================================================
+    # Issue 9 (continued): CPSIR/CPSDR repeat variants
+    # CPSIR/CPSDR repeat until condition met or counter exhausted.
+    # V=0 on match, V=1 on counter exhaustion.
+    # =========================================================================
+    TestCase(
+        name="cpsir_match_found",
+        mnemonic="CPSIR",
+        description="CPSIR @R3, @R1, R0, eq: match on 1st element, V=0",
+        tags=["block", "word", "flags", "bug9_cpsi"],
+        # CPSIR: 10111011_ssss_0110 + 0000_rrrr_dddd_cccc
+        # Rs=R1, Rr=R0, Rd=R3, cc=6 (Z/equal)
+        code=[0xBB16, 0x0036],
+        regs={0: 3, 1: SRC_BUF, 3: DST_BUF},
+        memory={SRC_BUF: 0x1234, DST_BUF: 0x1234},
+        expected_regs={0: 2, 1: SRC_BUF + 2, 3: DST_BUF + 2},
+        expected_fcw_set=["Z"],     # match found
+        expected_fcw_clear=["V"],   # not exhausted
+    ),
+    TestCase(
+        name="cpsir_exhausted",
+        mnemonic="CPSIR",
+        description="CPSIR @R3, @R1, R0, eq: no match, counter 2->0, V=1",
+        tags=["block", "word", "flags", "bug9_cpsi"],
+        code=[0xBB16, 0x0036],
+        regs={0: 2, 1: SRC_BUF, 3: DST_BUF},
+        memory={
+            SRC_BUF: 0x1111, SRC_BUF + 2: 0x3333,
+            DST_BUF: 0x2222, DST_BUF + 2: 0x4444,
+        },
+        expected_regs={0: 0, 1: SRC_BUF + 4, 3: DST_BUF + 4},
+        expected_fcw_clear=["Z"],   # last comparison was not equal
+        expected_fcw_set=["V"],     # counter exhausted
+    ),
+    TestCase(
+        name="cpsdr_match_found",
+        mnemonic="CPSDR",
+        description="CPSDR @R3, @R1, R0, eq: match on 1st element, V=0, ptrs decremented",
+        tags=["block", "word", "flags", "bug9_cpsi"],
+        # CPSDR: 10111011_ssss_1110
+        code=[0xBB1E, 0x0036],
+        regs={0: 3, 1: SRC_BUF + 4, 3: DST_BUF + 4},
+        memory={SRC_BUF + 4: 0x5678, DST_BUF + 4: 0x5678},
+        expected_regs={0: 2, 1: SRC_BUF + 2, 3: DST_BUF + 2},
+        expected_fcw_set=["Z"],
+        expected_fcw_clear=["V"],
+    ),
 ]

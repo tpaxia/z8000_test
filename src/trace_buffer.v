@@ -33,8 +33,8 @@ module trace_buffer (
     output [9:0]  wr_count        // Number of entries captured
 );
 
-    // I/O detect (same as in top module)
-    wire io_cycle = (z8k_st == 4'b0010) || (z8k_st == 4'b0011);
+    // I/O detect (uses latched ST, see below)
+    wire io_cycle = (latched_st == 4'b0010) || (latched_st == 4'b0011);
 
     // Capture on DS_n rising edge (end of bus cycle - data is valid)
     reg ds_n_prev;

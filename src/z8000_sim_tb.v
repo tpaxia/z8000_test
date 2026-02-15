@@ -95,14 +95,26 @@ module z8000_sim_tb;
     end
 
     // ==========================================
+    // Status latch (ST valid on AS falling edge only)
+    // ==========================================
+    reg [3:0] st_latched;
+    always @(posedge clk) begin
+        if (!z8k_rst_n)
+            st_latched <= 4'b0;
+        else if (prev_as_n && ~cpu_as_n)
+            st_latched <= cpu_st;
+    end
+
+    // ==========================================
     // Address decode (same as top module)
     // ==========================================
-    wire io_std_sel = (cpu_st == 4'b0010);
-    wire io_spc_sel = (cpu_st == 4'b0100);
+    wire io_std_sel = (st_latched == 4'b0010);   // Standard I/O (ST=0010)
+    wire io_spc_sel = (st_latched == 4'b0011);   // Special I/O (ST=0011)
     wire io_sel  = io_std_sel || io_spc_sel;
     wire ram_sel = ~cpu_mreq_n && ~io_sel;
 
     wire io_port_match = io_sel && (z8k_addr[15:4] == 12'h010);
+    // Register index: addr[3:1] (0-5) + 6 if special I/O
     wire [3:0] z8k_io_reg_sel = z8k_addr[3:1] + (io_spc_sel ? 4'd6 : 4'd0);
 
     // ==========================================
