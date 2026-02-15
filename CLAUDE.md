@@ -348,6 +348,7 @@ Both boards share the same Verilog sources and Gowin DPB/SDPB IP.
 
 ## Rules for Code Changes
 
+- Do NOT hand-encode Z8000 instruction opcodes. Always verify encodings by assembling with `z8k-coff-as -z8002` and checking the output with `z8k-coff-objdump -d`. Never assume you know the encoding format — test it.
 - Do NOT make speculative fixes. Diagnose first with tracing/evidence, then propose a targeted fix.
 - Do NOT chain multiple untested changes. Make one change, test it, confirm the result before moving on.
 - Do NOT modify clock domains, PLL configurations, or bus timing without explicit approval.

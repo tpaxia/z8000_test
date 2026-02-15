@@ -311,23 +311,24 @@ TESTS = [
     TestCase(
         name="sdll_left_z_clear",
         mnemonic="SDLL",
-        instruction="SDLL RR0, #1",
-        description="SDLL RR0, #1: 0x00000001 << 1 = 0x00000002, Z must be clear",
+        instruction="SDLL RR0, R2",
+        description="SDLL RR0, R2: 0x00000001 << 1 = 0x00000002, Z must be clear",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
-        # SDLL RRd, #n: 10110011_dddd_0111 + count
-        code=[0xB307, 0x0001],  # SDLL RR0, #1
-        regs={0: 0x0000, 1: 0x0001},
+        # SDLL RR0, R2: B307 0200
+        code=[0xB307, 0x0200],
+        regs={0: 0x0000, 1: 0x0001, 2: 1},
         expected_regs={0: 0x0000, 1: 0x0002},
         expected_fcw_clear=["C", "Z", "S"],
     ),
     TestCase(
         name="sdll_left_carry",
         mnemonic="SDLL",
-        instruction="SDLL RR0, #1",
-        description="SDLL RR0, #1: 0x80000000 << 1 = 0x00000000, C=1 Z=1",
+        instruction="SDLL RR0, R2",
+        description="SDLL RR0, R2: 0x80000000 << 1 = 0x00000000, C=1 Z=1",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
-        code=[0xB307, 0x0001],
-        regs={0: 0x8000, 1: 0x0000},
+        # SDLL RR0, R2: B307 0200
+        code=[0xB307, 0x0200],
+        regs={0: 0x8000, 1: 0x0000, 2: 1},
         expected_regs={0: 0x0000, 1: 0x0000},
         expected_fcw_set=["C", "Z"],
         expected_fcw_clear=["S"],
@@ -335,12 +336,12 @@ TESTS = [
     TestCase(
         name="sdal_left_sign",
         mnemonic="SDAL",
-        instruction="SDAL RR0, #1",
-        description="SDAL RR0, #1: 0x40000000 << 1 = 0x80000000, S=1",
+        instruction="SDAL RR0, R2",
+        description="SDAL RR0, R2: 0x40000000 << 1 = 0x80000000, S=1",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
-        # SDAL RRd, #n: 10110011_dddd_1111 + count
-        code=[0xB30F, 0x0001],  # SDAL RR0, #1
-        regs={0: 0x4000, 1: 0x0000},
+        # SDAL RR0, R2: B30F 0200
+        code=[0xB30F, 0x0200],
+        regs={0: 0x4000, 1: 0x0000, 2: 1},
         expected_regs={0: 0x8000, 1: 0x0000},
         expected_fcw_set=["S"],
         expected_fcw_clear=["Z"],
@@ -348,11 +349,12 @@ TESTS = [
     TestCase(
         name="sdll_right_nonzero",
         mnemonic="SDLL",
-        instruction="SDLL RR0, #-1",
-        description="SDLL RR0, #-1: 0x00020000 >> 1 = 0x00010000, Z must be clear",
+        instruction="SDLL RR0, R2",
+        description="SDLL RR0, R2: 0x00020000 >> 1 = 0x00010000, Z must be clear",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
-        code=[0xB307, 0xFFFF],  # SDLL RR0, count=-1 (shift right by 1)
-        regs={0: 0x0002, 1: 0x0000},
+        # SDLL RR0, R2: B307 0200 (R2=-1 for right shift by 1)
+        code=[0xB307, 0x0200],
+        regs={0: 0x0002, 1: 0x0000, 2: 0xFFFF},  # R2=-1 (shift right by 1)
         expected_regs={0: 0x0001, 1: 0x0000},
         expected_fcw_clear=["C", "Z", "S"],
     ),
@@ -514,8 +516,8 @@ TESTS = [
         instruction="SLLL RR0, #1",
         description="SLLL RR0: 0x00008000 << 1 = 0x00010000, bit crosses word boundary",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
-        # SLLL RRd: 10110011_dddd_0101 = 0xB305 for RR0
-        code=[0xB305],
+        # SLLL RRd, #n: B305 followed by shift count word
+        code=[0xB305, 0x0001],
         regs={0: 0x0000, 1: 0x8000},
         expected_regs={0: 0x0001, 1: 0x0000},
         expected_fcw_clear=["C", "Z", "S"],
@@ -526,7 +528,7 @@ TESTS = [
         instruction="SLLL RR0, #1",
         description="SLLL RR0: 0x80000000 << 1 = 0x00000000, C=1 Z=1",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
-        code=[0xB305],
+        code=[0xB305, 0x0001],
         regs={0: 0x8000, 1: 0x0000},
         expected_regs={0: 0x0000, 1: 0x0000},
         expected_fcw_set=["C", "Z"],
@@ -538,8 +540,8 @@ TESTS = [
         instruction="SLAL RR0, #1",
         description="SLAL RR0: 0x40000000 << 1 = 0x80000000, S=1 V=1",
         tags=["shift", "word", "R_mode", "flags", "bug8_long_shift_flags"],
-        # SLAL RRd: 10110011_dddd_1101 = 0xB30D for RR0
-        code=[0xB30D],
+        # SLAL RRd, #n: B30D followed by shift count word
+        code=[0xB30D, 0x0001],
         regs={0: 0x4000, 1: 0x0000},
         expected_regs={0: 0x8000, 1: 0x0000},
         expected_fcw_set=["S", "V"],
