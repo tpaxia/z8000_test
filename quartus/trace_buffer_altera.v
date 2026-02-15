@@ -84,7 +84,7 @@ module trace_buffer_altera (
             trace_active <= 1'b0;
         else if (ds_rising && z8k_st == 4'b1101) begin
             // First opcode fetch completed - gate on address
-            trace_active <= 1'b1;  // DEBUG: capture all (was >= 16'h0200)
+            trace_active <= (latched_addr >= 16'h0200);
         end
     end
 
