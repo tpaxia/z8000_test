@@ -92,6 +92,7 @@ TESTS = [
         instruction="COMFLG C",
         description="COMFLG C: toggle carry flag (0->1)",
         tags=["control", "flags"],
+        issues=["Z8001 also toggles H flag (undocumented); Z8002 does not"],
         fcw=FCW_SYS,
         code=[0x8D85],  # COMFLG C (CZSV=1000)
         expected_fcw_set=["C"],
@@ -103,6 +104,7 @@ TESTS = [
         instruction="COMFLG C",
         description="COMFLG C: toggle carry flag (1->0)",
         tags=["control", "flags"],
+        issues=["Z8001 also toggles H flag (undocumented); Z8002 does not"],
         fcw=fcw_with_flags(C=1),
         code=[0x8D85],  # COMFLG C
         expected_fcw_clear=["C", "Z", "S", "V"],
@@ -113,6 +115,7 @@ TESTS = [
         instruction="COMFLG CZSV",
         description="COMFLG CZSV: toggle all flags (all 0 -> all 1)",
         tags=["control", "flags"],
+        issues=["Z8001 also toggles H flag (undocumented); Z8002 does not"],
         fcw=FCW_SYS,
         code=[0x8DF5],  # COMFLG CZSV
         expected_fcw_set=["C", "Z", "S", "V"],

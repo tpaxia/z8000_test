@@ -143,6 +143,7 @@ TESTS = [
         instruction="DJNZ R1",
         description="DJNZ R1: loop 3 times, incrementing R0",
         tags=["branch", "word", "RA_mode"],
+        issues=["Z8002 sets Z flag when counter reaches 0, Z8001 does not; DJNZ should not affect flags"],
         # At 0x0200: INC R0, #1     (0xA900)
         # At 0x0202: DJNZ R1, 2     (jump back 2 words to 0x0200)
         # DJNZ Rn, disp: 1111nnnn_1ddddddd, n=1, disp=2

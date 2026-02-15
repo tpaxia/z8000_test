@@ -11,7 +11,7 @@ derive_clock_uncertainty
 
 # Derived 4MHz CPU clock (register divider from 16MHz)
 create_generated_clock -name z8k_cpu_clk \
-    -source [get_pins {pll_inst|*clk[0]}] \
+    -source [get_pins {pll_inst|pll_inst|auto_generated|pll1|clk[0]}] \
     -divide_by 4 \
     [get_registers {z8k_cpu_clk}]
 

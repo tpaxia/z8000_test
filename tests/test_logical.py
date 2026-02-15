@@ -142,6 +142,7 @@ TESTS = [
         instruction="COM R0",
         description="COM R0: ~0x00FF = 0xFF00",
         tags=["logical", "word", "R_mode"],
+        issues=["Z8002 sets C flag, Z8001 does not; COM should not affect C"],
         code=[0x8D00],  # COM R0: 10001101_0000_0000
         regs={0: 0x00FF},
         expected_regs={0: 0xFF00},
@@ -154,6 +155,7 @@ TESTS = [
         instruction="COM R0",
         description="COM R0: ~0xFFFF = 0x0000",
         tags=["logical", "word", "R_mode", "flags"],
+        issues=["Z8002 sets C flag, Z8001 does not; COM should not affect C"],
         code=[0x8D00],
         regs={0: 0xFFFF},
         expected_regs={0: 0x0000},

@@ -64,6 +64,7 @@ TESTS = [
         instruction="LDIR @R3, @R1, R2",
         description="LDIR @R3, @R1, R2: copy 3 words",
         tags=["block", "word"],
+        issues=["Z8001 sets V=1 on completion, Z8002 does not"],
         code=_ldir(rs=1, rr=2, rd=3),
         regs={1: SRC_BUF, 2: 3, 3: DST_BUF},
         memory={

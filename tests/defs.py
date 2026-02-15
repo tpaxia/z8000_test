@@ -11,6 +11,7 @@ class TestCase:
     tags: list[str]                                  # ["arithmetic", "word", "R_mode"]
     instruction: str = ""                            # "ADD R0, R1"
     target: str = "common"                           # "common" | "z8001" | "z8002"
+    issues: list[str] = field(default_factory=list)  # Known discrepancies vs real silicon
 
     # Initial state
     code: list[int] = field(default_factory=list)    # [0x8110]

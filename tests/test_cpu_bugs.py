@@ -89,6 +89,7 @@ TESTS = [
         instruction="ADDB RH0, RL0; DAB RH0",
         description="ADDB 0x50+0x49=0x99, DAB -> 0x99, S=1 Z=0 C=0",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug2_dab_flags"],
+        issues=["Z8001 sets V=1, Z8002 does not; DAB V flag behavior is undefined per databook"],
         code=[0x8080, 0xB000],
         regs={0: 0x5049},  # RH0=0x50, RL0=0x49
         expected_regs={0: 0x9949},  # RH0=0x99 (BCD 50+49=99)
@@ -417,6 +418,7 @@ TESTS = [
         instruction="TRTIB @R3, @R4, R2",
         description="TRTIB: source byte 0x02, table[2]=0xAB -> RH1 must be 0xAB",
         tags=["block", "byte", "flags", "bug10_trt"],
+        issues=["Z8002 sets S flag, Z8001 does not"],
         # TRTIB @Rs, @Rd, Rr: 10111000_ssss_0010 + 0000_rrrr_dddd_0000
         # Rs=R3 (source ptr), Rd=R4 (table base), Rr=R2 (counter)
         code=[0xB832, 0x0240],
@@ -574,6 +576,7 @@ TESTS = [
         instruction="CPSIR @R3, @R1, R0, eq",
         description="CPSIR @R3, @R1, R0, eq: no match, counter 2->0, V=1",
         tags=["block", "word", "flags", "bug9_cpsi"],
+        issues=["Z8002 has 2 extra bus cycles per repeat iteration (opcode re-fetch); Z8001 loops internally"],
         code=[0xBB16, 0x0036],
         regs={0: 2, 1: SRC_BUF, 3: DST_BUF},
         memory={
