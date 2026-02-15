@@ -147,7 +147,7 @@ TESTS = [
         regs={0: 0x00FF},
         expected_regs={0: 0xFF00},
         expected_fcw_set=["S"],
-        expected_fcw_clear=["Z"],
+        expected_fcw_clear=["Z", "C"],
     ),
     TestCase(
         name="com_r_zero",
@@ -160,7 +160,7 @@ TESTS = [
         regs={0: 0xFFFF},
         expected_regs={0: 0x0000},
         expected_fcw_set=["Z"],
-        expected_fcw_clear=["S"],
+        expected_fcw_clear=["S", "C"],
     ),
 
     # =========================================================================

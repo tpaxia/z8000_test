@@ -87,13 +87,13 @@ TESTS = [
         name="dab_sign_flag",
         mnemonic="DAB",
         instruction="ADDB RH0, RL0; DAB RH0",
-        description="ADDB 0x50+0x49=0x99, DAB -> 0x99, S=1 Z=0 C=0",
+        description="ADDB 0x50+0x49=0x99, DAB -> 0x99, S=1 Z=0 C=0 V=1",
         tags=["arithmetic", "byte", "R_mode", "flags", "bug2_dab_flags"],
         issues=["Z8001 sets V=1, Z8002 does not; DAB V flag behavior is undefined per databook"],
         code=[0x8080, 0xB000],
         regs={0: 0x5049},  # RH0=0x50, RL0=0x49
         expected_regs={0: 0x9949},  # RH0=0x99 (BCD 50+49=99)
-        expected_fcw_set=["S"],  # bit 7 of 0x99 = 1
+        expected_fcw_set=["S", "V"],
         expected_fcw_clear=["C", "Z"],
     ),
 
@@ -423,6 +423,7 @@ TESTS = [
         # Rs=R3 (source ptr), Rd=R4 (table base), Rr=R2 (counter)
         code=[0xB832, 0x0240],
         regs={1: 0x0000, 2: 3, 3: SRC_BUF, 4: OPERAND_BASE},
+        expected_fcw_clear=["S"],
         memory={
             SRC_BUF: 0x0200,            # source byte = 0x02 (high byte at even addr)
             OPERAND_BASE + 2: 0xAB00,   # table[2] = 0xAB (high byte at even addr)

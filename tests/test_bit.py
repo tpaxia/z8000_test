@@ -40,7 +40,7 @@ TESTS = [
         code=[0xA70F],  # BIT R0, #15
         regs={0: 0x8000},
         expected_regs={0: 0x8000},
-        expected_fcw_clear=["Z"],
+        expected_fcw_clear=["Z", "S"],
     ),
 
     # =========================================================================
@@ -102,6 +102,7 @@ TESTS = [
         code=[0xA300],
         regs={0: 0x0000},
         expected_regs={0: 0x0000},
+        expected_fcw_clear=["C", "Z", "S", "V"],
     ),
     TestCase(
         name="res_r_high_bit",
@@ -113,5 +114,6 @@ TESTS = [
         code=[0xA30F],  # RES R0, #15
         regs={0: 0xFFFF},
         expected_regs={0: 0x7FFF},
+        expected_fcw_clear=["C", "Z", "S", "V"],
     ),
 ]

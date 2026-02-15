@@ -67,6 +67,7 @@ TESTS = [
         issues=["Z8001 sets V=1 on completion, Z8002 does not"],
         code=_ldir(rs=1, rr=2, rd=3),
         regs={1: SRC_BUF, 2: 3, 3: DST_BUF},
+        expected_fcw_set=["V"],
         memory={
             SRC_BUF: 0x1111,
             SRC_BUF + 2: 0x2222,

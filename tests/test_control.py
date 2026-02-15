@@ -95,7 +95,7 @@ TESTS = [
         issues=["Z8001 also toggles H flag (undocumented); Z8002 does not"],
         fcw=FCW_SYS,
         code=[0x8D85],  # COMFLG C (CZSV=1000)
-        expected_fcw_set=["C"],
+        expected_fcw_set=["C", "H"],
         expected_fcw_clear=["Z", "S", "V"],
     ),
     TestCase(
@@ -107,6 +107,7 @@ TESTS = [
         issues=["Z8001 also toggles H flag (undocumented); Z8002 does not"],
         fcw=fcw_with_flags(C=1),
         code=[0x8D85],  # COMFLG C
+        expected_fcw_set=["H"],
         expected_fcw_clear=["C", "Z", "S", "V"],
     ),
     TestCase(
@@ -118,7 +119,7 @@ TESTS = [
         issues=["Z8001 also toggles H flag (undocumented); Z8002 does not"],
         fcw=FCW_SYS,
         code=[0x8DF5],  # COMFLG CZSV
-        expected_fcw_set=["C", "Z", "S", "V"],
+        expected_fcw_set=["C", "Z", "S", "V", "H"],
     ),
 
     # =========================================================================
