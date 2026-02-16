@@ -92,6 +92,7 @@ $(Z80_FW_BIN): $(Z80_FW_SRC)
 $(Z80_FW_HEX): $(Z80_FW_BIN)
 	@echo "Generating hex file for RAM init..."
 	python3 scripts/gen_fw_hex.py $(Z80_FW_BIN) $(Z80_FW_HEX)
+	cp $(Z80_FW_HEX) z80_fw.hex
 
 # Generate Verilog RAM initialization (for manual inclusion)
 .PHONY: fw-verilog
@@ -116,7 +117,6 @@ for i in range(0, len(data), 8): \
 #
 .PHONY: sim
 sim: firmware $(SRC_DIR)/z8000_test_harness_tb.v $(SRC_DIR)/z80_harness.v $(TV80_SRCS)
-	cp $(Z80_FW_HEX) z80_fw.hex
 	iverilog -g2012 -DSIMULATION $(VERILOG_INCS) -o z8000_test_harness_tb.vvp \
 		$(SRC_DIR)/z8000_test_harness_tb.v \
 		$(SRC_DIR)/z80_harness.v \
@@ -190,7 +190,7 @@ $(SRC_DIR)/bootstrap.bin: $(SRC_DIR)/bootstrap.s
 #
 .PHONY: clean
 clean:
-	rm -f *.vvp *.vcd z80_fw.hex
+	rm -f *.vvp *.vcd
 	rm -rf .sim_tmp .emu_tmp
 	rm -f emu/z8000_test_driver
 	rm -f $(SRC_DIR)/z80_fw.bin $(SRC_DIR)/z80_fw.hex

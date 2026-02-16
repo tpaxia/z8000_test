@@ -2,8 +2,9 @@
   "test": "ldi_basic",
   "mnemonic": "LDI",
   "exec_result": "HALT",
-  "cycle_count": 505,
+  "cycle_count": 506,
   "fetch_count": 42,
+  "instr_cycle_count": 27,
   "trace": [
     {
       "addr": 514,

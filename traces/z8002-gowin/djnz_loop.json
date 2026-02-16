@@ -2,8 +2,9 @@
   "test": "djnz_loop",
   "mnemonic": "DJNZ",
   "exec_result": "HALT",
-  "cycle_count": 518,
+  "cycle_count": 520,
   "fetch_count": 47,
+  "instr_cycle_count": 41,
   "trace": [
     {
       "addr": 514,
