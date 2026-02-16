@@ -2,6 +2,13 @@
 
 Read `README.md` for project documentation (structure, build commands, memory map, serial protocol, etc.).
 
+## General Rules
+
+- Do ONLY what you are asked to do. Do not investigate, fix, or modify anything beyond the explicit request.
+- When asked to run something, run it and report the result. Do not attempt to fix failures unless asked.
+- When asked to explain something, explain it and stop. Do not start fixing it.
+- Never assume the next step. Wait for instructions.
+
 ## Rules for Code Changes
 
 - Do NOT hand-encode Z8000 instruction opcodes. Always verify encodings by assembling with `z8k-coff-as -z8002` and checking the output with `z8k-coff-objdump -d`. Never assume you know the encoding format — test it.

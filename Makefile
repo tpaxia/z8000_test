@@ -130,6 +130,7 @@ sim: firmware $(SRC_DIR)/z8000_test_harness_tb.v $(SRC_DIR)/z80_harness.v $(TV80
 sim-full: $(SRC_DIR)/z8000_full_tb.v $(Z8K_SRCS)
 	iverilog -g2012 -DSIMULATION $(VERILOG_INCS) -o z8000_full_tb.vvp \
 		$(SRC_DIR)/z8000_full_tb.v \
+		$(SRC_DIR)/z8000_bus_fpga.v \
 		$(SRC_DIR)/ram16.v \
 		$(Z8K_SRCS)
 	vvp z8000_full_tb.vvp

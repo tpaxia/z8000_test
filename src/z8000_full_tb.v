@@ -1,5 +1,6 @@
 // Z8000 Full System Testbench - Direct BRAM test (no UART)
 // Writes test data directly to BRAM, releases Z8000, checks bus trace.
+// Uses z8000_bus_fpga wrapper (same as FPGA and Python --sim).
 
 `timescale 1ns / 1ps
 
@@ -9,16 +10,16 @@ module z8000_full_tb;
 
     reg         clk;
     reg         rst_n;
+    reg         z8k_rst_n;
 
-    // Z8000 CPU signals
-    wire [15:0] ad_bus;
+    // Bus interface signals
+    wire [15:0] z8k_addr;
+    wire [15:0] z8k_wdata;
     wire        cpu_as_n, cpu_ds_n, cpu_rw_n, cpu_mreq_n, cpu_bw_n;
     wire [3:0]  cpu_st;
-    wire        cpu_busack_n, cpu_ns, cpu_halt_n;
+    wire        cpu_halt_n;
+    wire        z8k_cpu_clk;
     reg  [15:0] data_to_cpu;
-
-    // Address latch
-    reg  [15:0] z8k_addr;
 
     // BRAM
     wire [15:0] rd_data;
@@ -30,46 +31,40 @@ module z8000_full_tb;
     end
 
     // ==========================================
-    // Z8000 CPU
+    // Z8000 Bus Interface (same wrapper as FPGA and Python --sim)
     // ==========================================
-    assign ad_bus = (cpu_rw_n && ~cpu_ds_n) ? data_to_cpu : 16'bz;
-
-    z8000_cpu cpu (
+    z8000_bus_fpga bus_if (
         .clk        (clk),
         .rst_n      (rst_n),
-        .ad         (ad_bus),
+        .z8k_rst_n  (z8k_rst_n),
+        .rdata      (data_to_cpu),
+        .addr       (z8k_addr),
+        .wdata      (z8k_wdata),
         .as_n       (cpu_as_n),
         .ds_n       (cpu_ds_n),
         .rw_n       (cpu_rw_n),
         .mreq_n     (cpu_mreq_n),
-        .b_w_n      (cpu_bw_n),
+        .bw_n       (cpu_bw_n),
         .st         (cpu_st),
-        .wait_n     (1'b1),
-        .busreq_n   (1'b1),
-        .busack_n   (cpu_busack_n),
-        .nmi_n      (1'b1),
-        .vi_n       (1'b1),
-        .nvi_n      (1'b1),
-        .n_s        (cpu_ns),
-        .halt_n     (cpu_halt_n)
+        .halt_n     (cpu_halt_n),
+        .cpu_clk    (z8k_cpu_clk)
     );
-
-    // ==========================================
-    // Address Latch (same as top module)
-    // ==========================================
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            z8k_addr <= 16'd0;
-        else if (~cpu_as_n)
-            z8k_addr <= ad_bus;
-    end
 
     // ==========================================
     // Dual-Port BRAM
     // Port A: testbench load (directly from initial block)
-    // Port B: Z8000 CPU
+    // Port B: Z8000 CPU (via bus_fpga)
     // ==========================================
-    wire io_sel  = (cpu_st == 4'b0010) || (cpu_st == 4'b0100);
+    // Status latch (ST valid while AS is low)
+    reg [3:0] st_latched;
+    always @(posedge clk) begin
+        if (!rst_n)
+            st_latched <= 4'b0;
+        else if (~cpu_as_n)
+            st_latched <= cpu_st;
+    end
+
+    wire io_sel  = (st_latched == 4'b0010) || (st_latched == 4'b0011);
     wire ram_sel = ~cpu_mreq_n && ~io_sel;
 
     wire z8k_ram_write = ram_sel && ~cpu_rw_n && ~cpu_ds_n;
@@ -89,7 +84,7 @@ module z8000_full_tb;
         .web_hi  (z8k_we_hi),
         .web_lo  (z8k_we_lo),
         .addrb   (z8k_addr[12:0]),
-        .dinb    (ad_bus),
+        .dinb    (z8k_wdata),
         .doutb   (rd_data)
     );
 
@@ -103,7 +98,6 @@ module z8000_full_tb;
 
     // ==========================================
     // Bus monitor - capture on DS_n RISING (end of bus cycle)
-    // At this point BRAM data is valid (CPU reads at UCYC_COMPLETE)
     // ==========================================
     reg        prev_ds_n;
     wire       ds_rising = ~prev_ds_n && cpu_ds_n;
@@ -130,9 +124,9 @@ module z8000_full_tb;
     always @(posedge clk) begin
         if (~cpu_ds_n) begin
             capture_addr <= z8k_addr;
-            capture_data <= cpu_rw_n ? data_to_cpu : ad_bus;
+            capture_data <= cpu_rw_n ? data_to_cpu : z8k_wdata;
             capture_rw <= cpu_rw_n;
-            capture_st <= cpu_st;
+            capture_st <= st_latched;  // Use latched ST (valid from AS phase)
         end
     end
 
@@ -158,19 +152,17 @@ module z8000_full_tb;
         $dumpvars(0, z8000_full_tb);
 
         rst_n = 0;
+        z8k_rst_n = 0;
         trace_count = 0;
         pass_count = 0;
         fail_count = 0;
 
         $display("");
         $display("========================================");
-        $display("Z8000 Direct BRAM Test (27MHz, auto-start)");
+        $display("Z8000 Full System Test (via z8000_bus_fpga)");
         $display("========================================");
 
         // Write reset vectors and test code directly into BRAM.
-        // No pre-initialization files needed; on real hardware the Z80
-        // INIT command loads the bootstrap at runtime.
-
         // Reset vector: FCW = 0x4000 at byte addr 0x0002 (word addr 1)
         bram.mem_hi[1] = 8'h40;
         bram.mem_lo[1] = 8'h00;
@@ -183,14 +175,18 @@ module z8000_full_tb;
         bram.mem_hi[32] = 8'h7A;   // word addr 32 = byte addr 0x0040
         bram.mem_lo[32] = 8'h00;   // HALT = 0x7A00
 
-        // Release reset - CPU starts immediately (auto-start)
+        // Release system reset first
         #100;
-        $display("Releasing reset (CPU auto-starts)...");
+        $display("Releasing system reset...");
         @(posedge clk);
         rst_n = 1;
 
+        // Then release Z8000 reset (matches Python --sim flow)
+        repeat (4) @(posedge clk);
+        $display("Releasing Z8000 reset...");
+        z8k_rst_n = 1;
+
         // ---- Wait for HALT or timeout ----
-        // Bootstrap loads 16 registers then jumps to 0x0200 (HALT)
         fork
             begin : wait_halt
                 @(negedge cpu_halt_n);
