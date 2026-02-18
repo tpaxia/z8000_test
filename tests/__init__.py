@@ -91,6 +91,12 @@ def collect_all_tests():
     except ImportError:
         pass
 
+    try:
+        from . import test_z8001_golden
+        test_modules.append(test_z8001_golden)
+    except ImportError:
+        pass
+
     for mod in test_modules:
         if hasattr(mod, 'TESTS'):
             all_tests.extend(mod.TESTS)

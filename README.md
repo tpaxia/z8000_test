@@ -280,6 +280,10 @@ instructions/
 │   ├── test_exchange.py        # EX, EXTSB, EXTS
 │   ├── test_control.py         # NOP, SETFLG, RESFLG, COMFLG, TCC
 │   ├── test_io.py              # IN, OUT (trace-verified)
+│   ├── gen_systematic.py       # Systematic test generator (~800 tests)
+│   ├── golden.py               # Golden result save/load/compare
+│   ├── auto_generate.py        # Generate test file from golden diffs
+│   ├── compare.py              # CLI: python -m tests.compare
 │   ├── sim_runner.py           # SimRunner (iverilog/vvp backend)
 │   ├── emu_runner.py           # EmuRunner (z8000_emu C++ backend)
 │   └── verify.py               # Shared result verification logic
@@ -381,6 +385,30 @@ python -m tests -p /dev/ttyUSB1 --target z8001 --save-traces traces/z8001 \
 ```
 
 Traces are saved as JSON files (one per test). Comparison checks bus transactions entry-by-entry, reporting mismatches in address, data, or cycle type.
+
+### Golden Comparison Testing
+
+The `tests.compare` module provides systematic validation of the Z8002 FPGA against a real Z8001 CPU. It generates ~800 tests covering all Z8000 instruction categories, captures golden results from the Z8001, and diffs the Z8002 against them.
+
+```bash
+# 1. Capture golden results from Z8001
+python -m tests.compare --capture --port /dev/ttyUSB0 --golden-dir golden/z8001
+python -m tests.compare --capture --port /dev/ttyUSB0 --golden-dir golden/z8001 --mnemonic ADD
+
+# 2. Compare Z8002 against golden
+python -m tests.compare --port /dev/ttyUSB0 --golden-dir golden/z8001
+python -m tests.compare --sim --golden-dir golden/z8001
+python -m tests.compare --emu --golden-dir golden/z8001
+
+# 3. Auto-generate test file from diffs
+python -m tests.compare --port /dev/ttyUSB0 --golden-dir golden/z8001 --auto-generate
+
+# List systematic tests
+python -m tests.compare --list
+python -m tests.compare --list -v --mnemonic ADD
+```
+
+Golden results are saved as one JSON file per test in `golden/z8001/`. Comparison checks registers, individual flags (C, Z, S, V, DA, H), memory, and execution result. The `--auto-generate` option writes `tests/test_z8001_golden.py` containing only the failing cases with Z8001 values as expected results, which are then picked up by the regular test runner.
 
 ### Interactive Console
 
