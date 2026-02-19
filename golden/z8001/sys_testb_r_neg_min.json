@@ -1,0 +1,10 @@
+{
+  "test": "sys_testb_r_neg_min",
+  "mnemonic": "TESTB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32768
+  },
+  "fcw": 16416,
+  "memory": {}
+}

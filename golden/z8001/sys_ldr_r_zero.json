@@ -1,0 +1,10 @@
+{
+  "test": "sys_ldr_r_zero",
+  "mnemonic": "LDR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 2314
+  },
+  "fcw": 16384,
+  "memory": {}
+}

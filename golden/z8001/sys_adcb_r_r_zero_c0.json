@@ -1,0 +1,11 @@
+{
+  "test": "sys_adcb_r_r_zero_c0",
+  "mnemonic": "ADCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0
+  },
+  "fcw": 16448,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "sys_comb_r_one",
+  "mnemonic": "COMB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65024
+  },
+  "fcw": 16416,
+  "memory": {}
+}

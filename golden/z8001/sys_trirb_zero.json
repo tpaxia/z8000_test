@@ -1,0 +1,12 @@
+{
+  "test": "sys_trirb_zero",
+  "mnemonic": "TRIRB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 13568,
+    "2": 0,
+    "3": 1539
+  },
+  "fcw": 16400,
+  "memory": {}
+}

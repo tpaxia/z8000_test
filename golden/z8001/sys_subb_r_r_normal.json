@@ -1,0 +1,11 @@
+{
+  "test": "sys_subb_r_r_normal",
+  "mnemonic": "SUBB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 56832,
+    "1": 13312
+  },
+  "fcw": 16556,
+  "memory": {}
+}

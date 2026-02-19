@@ -1,0 +1,10 @@
+{
+  "test": "sys_tcc_ov_true",
+  "mnemonic": "TCC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 1
+  },
+  "fcw": 16400,
+  "memory": {}
+}

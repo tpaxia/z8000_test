@@ -1,0 +1,10 @@
+{
+  "test": "sys_resb_r_b7_allones",
+  "mnemonic": "RESB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32512
+  },
+  "fcw": 16384,
+  "memory": {}
+}

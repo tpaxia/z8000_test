@@ -1,0 +1,12 @@
+{
+  "test": "sys_div_rr_r_remainder",
+  "mnemonic": "DIV",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 2,
+    "1": 3,
+    "2": 3
+  },
+  "fcw": 16384,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "sys_rlc_r_one_n1_c1",
+  "mnemonic": "RLC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 3
+  },
+  "fcw": 16384,
+  "memory": {}
+}

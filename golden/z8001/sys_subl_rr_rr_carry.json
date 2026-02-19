@@ -1,0 +1,13 @@
+{
+  "test": "sys_subl_rr_rr_carry",
+  "mnemonic": "SUBL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 65534,
+    "2": 0,
+    "3": 1
+  },
+  "fcw": 16416,
+  "memory": {}
+}

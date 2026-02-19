@@ -1,0 +1,10 @@
+{
+  "test": "sys_sla_r_one_n4",
+  "mnemonic": "SLA",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 16
+  },
+  "fcw": 16384,
+  "memory": {}
+}

@@ -1,0 +1,11 @@
+{
+  "test": "sys_exts_rr_zero",
+  "mnemonic": "EXTS",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0
+  },
+  "fcw": 16384,
+  "memory": {}
+}

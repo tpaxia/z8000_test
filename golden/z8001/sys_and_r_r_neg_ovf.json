@@ -1,0 +1,11 @@
+{
+  "test": "sys_and_r_r_neg_ovf",
+  "mnemonic": "AND",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32768,
+    "1": 32768
+  },
+  "fcw": 16416,
+  "memory": {}
+}

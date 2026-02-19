@@ -1,0 +1,10 @@
+{
+  "test": "sys_jr_ne_taken",
+  "mnemonic": "JR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 24589
+  },
+  "fcw": 16384,
+  "memory": {}
+}

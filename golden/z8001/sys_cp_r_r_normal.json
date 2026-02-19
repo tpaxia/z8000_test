@@ -1,0 +1,11 @@
+{
+  "test": "sys_cp_r_r_normal",
+  "mnemonic": "CP",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4660,
+    "1": 22136
+  },
+  "fcw": 16544,
+  "memory": {}
+}

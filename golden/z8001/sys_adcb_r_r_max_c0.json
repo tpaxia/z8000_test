@@ -1,0 +1,11 @@
+{
+  "test": "sys_adcb_r_r_max_c0",
+  "mnemonic": "ADCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65024,
+    "1": 65280
+  },
+  "fcw": 16548,
+  "memory": {}
+}

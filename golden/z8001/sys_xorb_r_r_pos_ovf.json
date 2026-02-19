@@ -1,0 +1,11 @@
+{
+  "test": "sys_xorb_r_r_pos_ovf",
+  "mnemonic": "XORB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32256,
+    "1": 256
+  },
+  "fcw": 16400,
+  "memory": {}
+}

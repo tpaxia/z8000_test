@@ -1,0 +1,11 @@
+{
+  "test": "sys_dbjnz_loop",
+  "mnemonic": "DBJNZ",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 3,
+    "1": 66
+  },
+  "fcw": 16384,
+  "memory": {}
+}

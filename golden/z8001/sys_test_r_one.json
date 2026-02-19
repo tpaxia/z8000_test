@@ -1,0 +1,10 @@
+{
+  "test": "sys_test_r_one",
+  "mnemonic": "TEST",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 1
+  },
+  "fcw": 16384,
+  "memory": {}
+}

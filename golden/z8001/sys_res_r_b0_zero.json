@@ -1,0 +1,10 @@
+{
+  "test": "sys_res_r_b0_zero",
+  "mnemonic": "RES",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 16384,
+  "memory": {}
+}

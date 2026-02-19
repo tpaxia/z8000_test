@@ -1,0 +1,10 @@
+{
+  "test": "sys_rlcb_r_pattern_n2_c1",
+  "mnemonic": "RLCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 38656
+  },
+  "fcw": 16432,
+  "memory": {}
+}

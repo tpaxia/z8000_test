@@ -1,0 +1,13 @@
+{
+  "test": "sys_ldm_store_3",
+  "mnemonic": "LDM",
+  "exec_result": "HALT",
+  "regs": {
+    "2": 1024,
+    "3": 43690,
+    "4": 48059,
+    "5": 52428
+  },
+  "fcw": 16384,
+  "memory": {}
+}

@@ -1,0 +1,12 @@
+{
+  "test": "sys_sdal_rr_msb_r4",
+  "mnemonic": "SDAL",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 65532,
+    "2": 63488,
+    "3": 0
+  },
+  "fcw": 16416,
+  "memory": {}
+}

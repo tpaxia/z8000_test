@@ -1,0 +1,10 @@
+{
+  "test": "sys_orb_r_im_carry",
+  "mnemonic": "ORB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280
+  },
+  "fcw": 16432,
+  "memory": {}
+}

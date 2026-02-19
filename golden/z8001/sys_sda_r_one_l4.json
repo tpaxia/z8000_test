@@ -1,0 +1,11 @@
+{
+  "test": "sys_sda_r_one_l4",
+  "mnemonic": "SDA",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 16,
+    "1": 4
+  },
+  "fcw": 16384,
+  "memory": {}
+}

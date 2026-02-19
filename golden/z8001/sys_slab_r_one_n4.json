@@ -1,0 +1,10 @@
+{
+  "test": "sys_slab_r_one_n4",
+  "mnemonic": "SLAB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4096
+  },
+  "fcw": 16384,
+  "memory": {}
+}

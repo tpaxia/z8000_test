@@ -1,0 +1,10 @@
+{
+  "test": "sys_lda_r_da_src",
+  "mnemonic": "LDA",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 1536
+  },
+  "fcw": 16384,
+  "memory": {}
+}

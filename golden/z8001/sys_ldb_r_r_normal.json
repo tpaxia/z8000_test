@@ -1,0 +1,11 @@
+{
+  "test": "sys_ldb_r_r_normal",
+  "mnemonic": "LDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 16896,
+    "1": 16896
+  },
+  "fcw": 16384,
+  "memory": {}
+}

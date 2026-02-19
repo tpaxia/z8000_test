@@ -1,0 +1,10 @@
+{
+  "test": "sys_setb_r_b0_allones",
+  "mnemonic": "SETB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280
+  },
+  "fcw": 16384,
+  "memory": {}
+}

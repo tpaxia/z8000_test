@@ -280,7 +280,9 @@ instructions/
 │   ├── test_exchange.py        # EX, EXTSB, EXTS
 │   ├── test_control.py         # NOP, SETFLG, RESFLG, COMFLG, TCC
 │   ├── test_io.py              # IN, OUT (trace-verified)
-│   ├── gen_systematic.py       # Systematic test generator (~800 tests)
+│   ├── gen_systematic.py       # 797 systematic tests (unrolled, assembler-verified listings)
+│   ├── all_tests.s             # Assembly source for 761 single-instruction tests
+│   ├── all_tests.lst           # Assembler listing from z8k-coff-as
 │   ├── golden.py               # Golden result save/load/compare
 │   ├── auto_generate.py        # Generate test file from golden diffs
 │   ├── compare.py              # CLI: python -m tests.compare
@@ -299,6 +301,8 @@ instructions/
 │   ├── decode_rom.v            # Instruction decoder
 │   ├── microcode_rom.v         # Microcode ROM
 │   └── ucode_defs.v            # Microcode definitions
+├── golden/                      # Golden reference results
+│   └── z8001/                   # Z8001 captured results (797 JSON files)
 ├── scripts/
 │   ├── gen_fw_hex.py           # Z80 firmware hex generator
 │   └── gen_bootstrap_inc.py    # Bootstrap to Z80 include converter
@@ -391,24 +395,24 @@ Traces are saved as JSON files (one per test). Comparison checks bus transaction
 The `tests.compare` module provides systematic validation of the Z8002 FPGA against a real Z8001 CPU. It generates ~800 tests covering all Z8000 instruction categories, captures golden results from the Z8001, and diffs the Z8002 against them.
 
 ```bash
-# 1. Capture golden results from Z8001
-python -m tests.compare --capture --port /dev/ttyUSB0 --golden-dir golden/z8001
-python -m tests.compare --capture --port /dev/ttyUSB0 --golden-dir golden/z8001 --mnemonic ADD
+# 1. Capture golden results from Z8001 (requires --target z8001 for correct reset vectors)
+python -m tests.compare --capture --port /dev/ttyUSB0 --target z8001 --golden-dir golden/z8001
+python -m tests.compare --capture --port /dev/ttyUSB0 --target z8001 --golden-dir golden/z8001 --mnemonic ADD
 
-# 2. Compare Z8002 against golden
-python -m tests.compare --port /dev/ttyUSB0 --golden-dir golden/z8001
+# 2. Compare Z8002 against golden (--target z8002 is implicit for --sim/--emu)
+python -m tests.compare --port /dev/ttyUSB0 --target z8002 --golden-dir golden/z8001
 python -m tests.compare --sim --golden-dir golden/z8001
 python -m tests.compare --emu --golden-dir golden/z8001
 
 # 3. Auto-generate test file from diffs
-python -m tests.compare --port /dev/ttyUSB0 --golden-dir golden/z8001 --auto-generate
+python -m tests.compare --port /dev/ttyUSB0 --target z8002 --golden-dir golden/z8001 --auto-generate
 
 # List systematic tests
 python -m tests.compare --list
 python -m tests.compare --list -v --mnemonic ADD
 ```
 
-Golden results are saved as one JSON file per test in `golden/z8001/`. Comparison checks registers, individual flags (C, Z, S, V, DA, H), memory, and execution result. The `--auto-generate` option writes `tests/test_z8001_golden.py` containing only the failing cases with Z8001 values as expected results, which are then picked up by the regular test runner.
+Golden results are saved as one JSON file per test in `golden/z8001/` (797 files, checked into git). Each test in `gen_systematic.py` has an assembler-verified listing comment from `z8k-coff-as -z8002`. Comparison checks registers, individual flags (C, Z, S, V, DA, H), memory, and execution result. The `--auto-generate` option writes `tests/test_z8001_golden.py` containing only the failing cases with Z8001 values as expected results, which are then picked up by the regular test runner.
 
 ### Interactive Console
 

@@ -1,0 +1,12 @@
+{
+  "test": "sys_cpir_match_mid",
+  "mnemonic": "CPIR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 43690,
+    "1": 1540,
+    "2": 2
+  },
+  "fcw": 16448,
+  "memory": {}
+}

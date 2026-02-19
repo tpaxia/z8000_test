@@ -1,0 +1,12 @@
+{
+  "test": "sys_sdll_rr_one_r1",
+  "mnemonic": "SDLL",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 65535,
+    "2": 0,
+    "3": 0
+  },
+  "fcw": 16576,
+  "memory": {}
+}

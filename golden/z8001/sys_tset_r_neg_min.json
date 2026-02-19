@@ -1,0 +1,10 @@
+{
+  "test": "sys_tset_r_neg_min",
+  "mnemonic": "TSET",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535
+  },
+  "fcw": 16416,
+  "memory": {}
+}

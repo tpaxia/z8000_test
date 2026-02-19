@@ -1,0 +1,11 @@
+{
+  "test": "sys_ld_r_r_max",
+  "mnemonic": "LD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 65535
+  },
+  "fcw": 16384,
+  "memory": {}
+}

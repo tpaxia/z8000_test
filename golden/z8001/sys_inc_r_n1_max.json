@@ -1,0 +1,10 @@
+{
+  "test": "sys_inc_r_n1_max",
+  "mnemonic": "INC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 16448,
+  "memory": {}
+}

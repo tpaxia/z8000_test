@@ -1,0 +1,12 @@
+{
+  "test": "sys_cpi_no_match",
+  "mnemonic": "CPI",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4660,
+    "1": 1538,
+    "2": 2
+  },
+  "fcw": 16544,
+  "memory": {}
+}

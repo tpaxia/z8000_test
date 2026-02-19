@@ -1,0 +1,10 @@
+{
+  "test": "sys_inc_r_n2_half",
+  "mnemonic": "INC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32770
+  },
+  "fcw": 16416,
+  "memory": {}
+}

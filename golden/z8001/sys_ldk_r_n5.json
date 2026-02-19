@@ -1,0 +1,10 @@
+{
+  "test": "sys_ldk_r_n5",
+  "mnemonic": "LDK",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 5
+  },
+  "fcw": 16384,
+  "memory": {}
+}

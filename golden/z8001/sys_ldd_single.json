@@ -1,0 +1,12 @@
+{
+  "test": "sys_ldd_single",
+  "mnemonic": "LDD",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1538,
+    "2": 2,
+    "3": 1794
+  },
+  "fcw": 16384,
+  "memory": {}
+}

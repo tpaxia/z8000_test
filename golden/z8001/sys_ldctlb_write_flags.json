@@ -1,0 +1,10 @@
+{
+  "test": "sys_ldctlb_write_flags",
+  "mnemonic": "LDCTLB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 61440
+  },
+  "fcw": 16624,
+  "memory": {}
+}

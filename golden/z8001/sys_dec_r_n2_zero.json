@@ -1,0 +1,10 @@
+{
+  "test": "sys_dec_r_n2_zero",
+  "mnemonic": "DEC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65534
+  },
+  "fcw": 16416,
+  "memory": {}
+}

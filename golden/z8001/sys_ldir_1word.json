@@ -1,0 +1,12 @@
+{
+  "test": "sys_ldir_1word",
+  "mnemonic": "LDIR",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1538,
+    "2": 0,
+    "3": 1794
+  },
+  "fcw": 16464,
+  "memory": {}
+}

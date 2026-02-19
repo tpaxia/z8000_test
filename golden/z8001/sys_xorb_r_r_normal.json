@@ -1,0 +1,11 @@
+{
+  "test": "sys_xorb_r_r_normal",
+  "mnemonic": "XORB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 9728,
+    "1": 13312
+  },
+  "fcw": 16384,
+  "memory": {}
+}

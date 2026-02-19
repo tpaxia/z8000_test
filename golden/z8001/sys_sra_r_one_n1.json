@@ -1,0 +1,10 @@
+{
+  "test": "sys_sra_r_one_n1",
+  "mnemonic": "SRA",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 16576,
+  "memory": {}
+}

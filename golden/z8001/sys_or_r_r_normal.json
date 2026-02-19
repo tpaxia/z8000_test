@@ -1,0 +1,11 @@
+{
+  "test": "sys_or_r_r_normal",
+  "mnemonic": "OR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 22140,
+    "1": 22136
+  },
+  "fcw": 16384,
+  "memory": {}
+}

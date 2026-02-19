@@ -1,0 +1,10 @@
+{
+  "test": "sys_tccb_pl_true",
+  "mnemonic": "TCCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 256
+  },
+  "fcw": 16384,
+  "memory": {}
+}

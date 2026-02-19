@@ -1,0 +1,10 @@
+{
+  "test": "sys_dec_r_n16_half",
+  "mnemonic": "DEC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32752
+  },
+  "fcw": 16400,
+  "memory": {}
+}

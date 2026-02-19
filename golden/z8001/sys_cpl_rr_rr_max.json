@@ -1,0 +1,13 @@
+{
+  "test": "sys_cpl_rr_rr_max",
+  "mnemonic": "CPL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 65535,
+    "2": 65535,
+    "3": 65535
+  },
+  "fcw": 16448,
+  "memory": {}
+}

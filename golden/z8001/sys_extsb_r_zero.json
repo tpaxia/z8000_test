@@ -1,0 +1,10 @@
+{
+  "test": "sys_extsb_r_zero",
+  "mnemonic": "EXTSB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 16384,
+  "memory": {}
+}

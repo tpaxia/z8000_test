@@ -1,0 +1,10 @@
+{
+  "test": "sys_slab_r_pattern_n4",
+  "mnemonic": "SLAB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 20480
+  },
+  "fcw": 16400,
+  "memory": {}
+}

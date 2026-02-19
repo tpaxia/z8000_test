@@ -1,0 +1,11 @@
+{
+  "test": "sys_add_r_r_carry_ovf",
+  "mnemonic": "ADD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65534,
+    "1": 65535
+  },
+  "fcw": 16544,
+  "memory": {}
+}

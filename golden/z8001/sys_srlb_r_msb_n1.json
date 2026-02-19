@@ -1,0 +1,10 @@
+{
+  "test": "sys_srlb_r_msb_n1",
+  "mnemonic": "SRLB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 16384
+  },
+  "fcw": 16400,
+  "memory": {}
+}

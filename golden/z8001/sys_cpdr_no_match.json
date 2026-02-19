@@ -1,0 +1,12 @@
+{
+  "test": "sys_cpdr_no_match",
+  "mnemonic": "CPDR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 1534,
+    "2": 0
+  },
+  "fcw": 16432,
+  "memory": {}
+}

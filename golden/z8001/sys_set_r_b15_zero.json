@@ -1,0 +1,10 @@
+{
+  "test": "sys_set_r_b15_zero",
+  "mnemonic": "SET",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32768
+  },
+  "fcw": 16384,
+  "memory": {}
+}

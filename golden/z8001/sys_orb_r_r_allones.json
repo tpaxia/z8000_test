@@ -1,0 +1,11 @@
+{
+  "test": "sys_orb_r_r_allones",
+  "mnemonic": "ORB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280,
+    "1": 0
+  },
+  "fcw": 16432,
+  "memory": {}
+}

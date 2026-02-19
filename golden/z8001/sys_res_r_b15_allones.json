@@ -1,0 +1,10 @@
+{
+  "test": "sys_res_r_b15_allones",
+  "mnemonic": "RES",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32767
+  },
+  "fcw": 16384,
+  "memory": {}
+}

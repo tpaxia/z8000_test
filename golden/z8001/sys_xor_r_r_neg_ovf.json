@@ -1,0 +1,11 @@
+{
+  "test": "sys_xor_r_r_neg_ovf",
+  "mnemonic": "XOR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 32768
+  },
+  "fcw": 16448,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "sys_testb_r_pos_max",
+  "mnemonic": "TESTB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32512
+  },
+  "fcw": 16384,
+  "memory": {}
+}

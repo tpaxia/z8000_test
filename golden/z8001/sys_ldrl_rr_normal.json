@@ -1,0 +1,11 @@
+{
+  "test": "sys_ldrl_rr_normal",
+  "mnemonic": "LDRL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 2314,
+    "1": 2828
+  },
+  "fcw": 16384,
+  "memory": {}
+}

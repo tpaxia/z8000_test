@@ -1,0 +1,8 @@
+{
+  "test": "sys_setflg_m6",
+  "mnemonic": "SETFLG",
+  "exec_result": "HALT",
+  "regs": {},
+  "fcw": 16480,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "sys_bit_r_b0_allones",
+  "mnemonic": "BIT",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535
+  },
+  "fcw": 16384,
+  "memory": {}
+}

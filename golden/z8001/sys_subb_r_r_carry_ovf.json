@@ -1,0 +1,11 @@
+{
+  "test": "sys_subb_r_r_carry_ovf",
+  "mnemonic": "SUBB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 65280
+  },
+  "fcw": 16456,
+  "memory": {}
+}

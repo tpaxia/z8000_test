@@ -1,0 +1,10 @@
+{
+  "test": "sys_srab_r_pattern_n4",
+  "mnemonic": "SRAB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 64000
+  },
+  "fcw": 16416,
+  "memory": {}
+}

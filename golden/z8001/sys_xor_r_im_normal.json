@@ -1,0 +1,10 @@
+{
+  "test": "sys_xor_r_im_normal",
+  "mnemonic": "XOR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 17484
+  },
+  "fcw": 16384,
+  "memory": {}
+}

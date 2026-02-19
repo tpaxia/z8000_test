@@ -1,0 +1,10 @@
+{
+  "test": "sys_sll_r_pattern_n8",
+  "mnemonic": "SLL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 42240
+  },
+  "fcw": 16560,
+  "memory": {}
+}

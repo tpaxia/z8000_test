@@ -1,0 +1,11 @@
+{
+  "test": "sys_srll_rr_msb_n1",
+  "mnemonic": "SRLL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 16384,
+    "1": 0
+  },
+  "fcw": 16400,
+  "memory": {}
+}

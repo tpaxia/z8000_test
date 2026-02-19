@@ -1,0 +1,11 @@
+{
+  "test": "sys_push_r_normal",
+  "mnemonic": "PUSH",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4660,
+    "15": 3838
+  },
+  "fcw": 16384,
+  "memory": {}
+}

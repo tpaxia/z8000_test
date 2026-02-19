@@ -1,0 +1,10 @@
+{
+  "test": "sys_dab_add_low_adj",
+  "mnemonic": "DAB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 8192
+  },
+  "fcw": 16388,
+  "memory": {}
+}

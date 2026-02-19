@@ -1,0 +1,11 @@
+{
+  "test": "sys_add_r_ir_carry",
+  "mnemonic": "ADD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "2": 1024
+  },
+  "fcw": 16576,
+  "memory": {}
+}

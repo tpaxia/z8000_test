@@ -1,0 +1,10 @@
+{
+  "test": "sys_rrc_r_msb_n1_c0",
+  "mnemonic": "RRC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 16384
+  },
+  "fcw": 16400,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "sys_orb_r_im_normal",
+  "mnemonic": "ORB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 13824
+  },
+  "fcw": 16400,
+  "memory": {}
+}

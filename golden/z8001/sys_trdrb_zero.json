@@ -1,0 +1,12 @@
+{
+  "test": "sys_trdrb_zero",
+  "mnemonic": "TRDRB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 768,
+    "2": 0,
+    "3": 1535
+  },
+  "fcw": 16400,
+  "memory": {}
+}

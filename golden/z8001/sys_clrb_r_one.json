@@ -1,0 +1,10 @@
+{
+  "test": "sys_clrb_r_one",
+  "mnemonic": "CLRB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 16384,
+  "memory": {}
+}

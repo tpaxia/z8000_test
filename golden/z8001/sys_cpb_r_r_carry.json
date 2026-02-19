@@ -1,0 +1,11 @@
+{
+  "test": "sys_cpb_r_r_carry",
+  "mnemonic": "CPB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280,
+    "1": 256
+  },
+  "fcw": 16416,
+  "memory": {}
+}

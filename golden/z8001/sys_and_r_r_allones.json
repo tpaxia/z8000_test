@@ -1,0 +1,11 @@
+{
+  "test": "sys_and_r_r_allones",
+  "mnemonic": "AND",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0
+  },
+  "fcw": 16448,
+  "memory": {}
+}

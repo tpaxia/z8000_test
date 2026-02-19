@@ -1,0 +1,15 @@
+{
+  "test": "sys_divl_rq_rr_large",
+  "mnemonic": "DIVL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 16383,
+    "2": 0,
+    "3": 16384,
+    "4": 0,
+    "5": 65535
+  },
+  "fcw": 16384,
+  "memory": {}
+}

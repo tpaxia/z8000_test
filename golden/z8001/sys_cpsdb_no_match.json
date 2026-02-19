@@ -1,0 +1,12 @@
+{
+  "test": "sys_cpsdb_no_match",
+  "mnemonic": "CPSDB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1539,
+    "2": 2,
+    "3": 1795
+  },
+  "fcw": 16384,
+  "memory": {}
+}

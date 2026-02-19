@@ -1,0 +1,13 @@
+{
+  "test": "sys_extsl_rq_pos",
+  "mnemonic": "EXTSL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0,
+    "2": 32767,
+    "3": 65535
+  },
+  "fcw": 16384,
+  "memory": {}
+}

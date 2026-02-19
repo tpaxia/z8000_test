@@ -1,0 +1,10 @@
+{
+  "test": "sys_incb_r_n1_zero",
+  "mnemonic": "INCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 256
+  },
+  "fcw": 16384,
+  "memory": {}
+}

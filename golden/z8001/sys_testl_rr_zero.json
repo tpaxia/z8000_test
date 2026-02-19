@@ -1,0 +1,11 @@
+{
+  "test": "sys_testl_rr_zero",
+  "mnemonic": "TESTL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0
+  },
+  "fcw": 16448,
+  "memory": {}
+}

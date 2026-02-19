@@ -1,0 +1,10 @@
+{
+  "test": "sys_sub_r_im_normal",
+  "mnemonic": "SUB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 48060
+  },
+  "fcw": 16544,
+  "memory": {}
+}

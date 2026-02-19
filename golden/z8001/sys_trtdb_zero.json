@@ -1,0 +1,12 @@
+{
+  "test": "sys_trtdb_zero",
+  "mnemonic": "TRTDB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 255,
+    "2": 2,
+    "3": 1538
+  },
+  "fcw": 16448,
+  "memory": {}
+}

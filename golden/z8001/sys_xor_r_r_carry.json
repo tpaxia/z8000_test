@@ -1,0 +1,11 @@
+{
+  "test": "sys_xor_r_r_carry",
+  "mnemonic": "XOR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65534,
+    "1": 1
+  },
+  "fcw": 16416,
+  "memory": {}
+}

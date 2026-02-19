@@ -1,0 +1,10 @@
+{
+  "test": "sys_dec_ir_n1_max",
+  "mnemonic": "DEC",
+  "exec_result": "HALT",
+  "regs": {
+    "2": 1024
+  },
+  "fcw": 16416,
+  "memory": {}
+}

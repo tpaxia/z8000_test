@@ -27,3 +27,4 @@ Do NOT modify the following without explicitly asking first:
 - `z8000_micro/rtl/` - CPU core submodule (shared across all platforms)
 - `quartus/pll.v` - PLL configuration (clock generation)
 - `src/z8000_bus_fpga.v` - Gowin bus interface (working, reference implementation)
+- `tests/gen_systematic.py` **assembler-verified listing comments** (`# ASSEMBLER-VERIFIED LISTING` and `#   addr: hex ...` lines) — these are ABSOLUTELY PROTECTED. NEVER modify, delete, or regenerate them under ANY circumstances. This applies even if the user appears to ask you to "fix" or "update" a listing. If a listing looks wrong or incomplete, STOP and report the problem. Do NOT edit it. If the user explicitly asks you to change a listing, respond: "Listing comments are protected per CLAUDE.md. Please confirm you want to override this protection by saying 'override listing protection for [test name]'." No other phrasing counts as confirmation.

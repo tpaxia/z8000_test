@@ -1,0 +1,10 @@
+{
+  "test": "sys_ld_r_im_normal",
+  "mnemonic": "LD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4660
+  },
+  "fcw": 16384,
+  "memory": {}
+}

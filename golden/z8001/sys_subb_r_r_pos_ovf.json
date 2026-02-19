@@ -1,0 +1,11 @@
+{
+  "test": "sys_subb_r_r_pos_ovf",
+  "mnemonic": "SUBB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32256,
+    "1": 256
+  },
+  "fcw": 16392,
+  "memory": {}
+}

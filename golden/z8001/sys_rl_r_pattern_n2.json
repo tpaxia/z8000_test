@@ -1,0 +1,10 @@
+{
+  "test": "sys_rl_r_pattern_n2",
+  "mnemonic": "RL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 38550
+  },
+  "fcw": 16432,
+  "memory": {}
+}

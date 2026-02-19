@@ -1,0 +1,10 @@
+{
+  "test": "sys_sra_r_pattern_n8",
+  "mnemonic": "SRA",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65445
+  },
+  "fcw": 16544,
+  "memory": {}
+}

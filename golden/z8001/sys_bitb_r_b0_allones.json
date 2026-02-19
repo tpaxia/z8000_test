@@ -1,0 +1,10 @@
+{
+  "test": "sys_bitb_r_b0_allones",
+  "mnemonic": "BITB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280
+  },
+  "fcw": 16384,
+  "memory": {}
+}

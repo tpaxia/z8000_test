@@ -1,0 +1,11 @@
+{
+  "test": "sys_testl_rr_pos_max",
+  "mnemonic": "TESTL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32767,
+    "1": 65535
+  },
+  "fcw": 16384,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "sys_setb_r_b7_zero",
+  "mnemonic": "SETB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32768
+  },
+  "fcw": 16384,
+  "memory": {}
+}

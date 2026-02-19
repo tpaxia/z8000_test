@@ -1,0 +1,11 @@
+{
+  "test": "sys_ex_r_r_same",
+  "mnemonic": "EX",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 43690,
+    "1": 43690
+  },
+  "fcw": 16384,
+  "memory": {}
+}

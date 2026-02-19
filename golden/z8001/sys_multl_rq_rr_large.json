@@ -1,0 +1,13 @@
+{
+  "test": "sys_multl_rq_rr_large",
+  "mnemonic": "MULTL",
+  "exec_result": "HALT",
+  "regs": {
+    "2": 1,
+    "3": 0,
+    "4": 0,
+    "5": 65535
+  },
+  "fcw": 16512,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "sys_negb_r_pos_max",
+  "mnemonic": "NEGB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 33024
+  },
+  "fcw": 16544,
+  "memory": {}
+}

@@ -1,0 +1,11 @@
+{
+  "test": "sys_add_r_r_pos_ovf",
+  "mnemonic": "ADD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32768,
+    "1": 1
+  },
+  "fcw": 16432,
+  "memory": {}
+}

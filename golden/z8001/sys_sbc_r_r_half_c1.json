@@ -1,0 +1,11 @@
+{
+  "test": "sys_sbc_r_r_half_c1",
+  "mnemonic": "SBC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 13,
+    "1": 1
+  },
+  "fcw": 16384,
+  "memory": {}
+}

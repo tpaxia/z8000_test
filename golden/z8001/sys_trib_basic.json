@@ -1,0 +1,12 @@
+{
+  "test": "sys_trib_basic",
+  "mnemonic": "TRIB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 16896,
+    "2": 2,
+    "3": 1537
+  },
+  "fcw": 16384,
+  "memory": {}
+}

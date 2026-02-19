@@ -1,0 +1,13 @@
+{
+  "test": "sys_ldl_rr_rr_zero",
+  "mnemonic": "LDL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0,
+    "2": 0,
+    "3": 0
+  },
+  "fcw": 16384,
+  "memory": {}
+}

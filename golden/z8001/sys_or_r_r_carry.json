@@ -1,0 +1,11 @@
+{
+  "test": "sys_or_r_r_carry",
+  "mnemonic": "OR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 1
+  },
+  "fcw": 16416,
+  "memory": {}
+}

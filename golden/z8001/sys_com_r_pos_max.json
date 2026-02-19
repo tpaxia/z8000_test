@@ -1,0 +1,10 @@
+{
+  "test": "sys_com_r_pos_max",
+  "mnemonic": "COM",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32768
+  },
+  "fcw": 16416,
+  "memory": {}
+}

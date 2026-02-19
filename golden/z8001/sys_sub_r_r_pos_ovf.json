@@ -1,0 +1,11 @@
+{
+  "test": "sys_sub_r_r_pos_ovf",
+  "mnemonic": "SUB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32766,
+    "1": 1
+  },
+  "fcw": 16384,
+  "memory": {}
+}

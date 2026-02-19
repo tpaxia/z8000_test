@@ -1,0 +1,11 @@
+{
+  "test": "sys_sral_rr_one_n1",
+  "mnemonic": "SRAL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0
+  },
+  "fcw": 16576,
+  "memory": {}
+}

@@ -1,0 +1,11 @@
+{
+  "test": "sys_add_r_r_normal",
+  "mnemonic": "ADD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 26796,
+    "1": 22136
+  },
+  "fcw": 16384,
+  "memory": {}
+}

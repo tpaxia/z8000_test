@@ -1,0 +1,10 @@
+{
+  "test": "sys_ldar_r_fwd",
+  "mnemonic": "LDAR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 1032
+  },
+  "fcw": 16384,
+  "memory": {}
+}

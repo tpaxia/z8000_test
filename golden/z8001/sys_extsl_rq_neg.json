@@ -1,0 +1,13 @@
+{
+  "test": "sys_extsl_rq_neg",
+  "mnemonic": "EXTSL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 65535,
+    "2": 32768,
+    "3": 0
+  },
+  "fcw": 16384,
+  "memory": {}
+}

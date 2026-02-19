@@ -1,0 +1,10 @@
+{
+  "test": "sys_srl_r_msb_n8",
+  "mnemonic": "SRL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 128
+  },
+  "fcw": 16400,
+  "memory": {}
+}

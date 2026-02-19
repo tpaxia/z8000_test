@@ -1,0 +1,12 @@
+{
+  "test": "sys_sdll_rr_msb_r4",
+  "mnemonic": "SDLL",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 65532,
+    "2": 2048,
+    "3": 0
+  },
+  "fcw": 16400,
+  "memory": {}
+}

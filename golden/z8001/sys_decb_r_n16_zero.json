@@ -1,0 +1,10 @@
+{
+  "test": "sys_decb_r_n16_zero",
+  "mnemonic": "DECB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 61440
+  },
+  "fcw": 16416,
+  "memory": {}
+}

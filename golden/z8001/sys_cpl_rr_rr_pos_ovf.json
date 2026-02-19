@@ -1,0 +1,13 @@
+{
+  "test": "sys_cpl_rr_rr_pos_ovf",
+  "mnemonic": "CPL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32767,
+    "1": 65535,
+    "2": 0,
+    "3": 1
+  },
+  "fcw": 16384,
+  "memory": {}
+}

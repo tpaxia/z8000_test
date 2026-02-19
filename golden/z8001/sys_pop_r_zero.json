@@ -1,0 +1,11 @@
+{
+  "test": "sys_pop_r_zero",
+  "mnemonic": "POP",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "15": 3840
+  },
+  "fcw": 16384,
+  "memory": {}
+}

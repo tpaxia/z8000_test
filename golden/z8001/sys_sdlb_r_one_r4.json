@@ -1,0 +1,11 @@
+{
+  "test": "sys_sdlb_r_one_r4",
+  "mnemonic": "SDLB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 65532
+  },
+  "fcw": 16448,
+  "memory": {}
+}

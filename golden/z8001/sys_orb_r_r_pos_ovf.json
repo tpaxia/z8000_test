@@ -1,0 +1,11 @@
+{
+  "test": "sys_orb_r_r_pos_ovf",
+  "mnemonic": "ORB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32512,
+    "1": 256
+  },
+  "fcw": 16384,
+  "memory": {}
+}
