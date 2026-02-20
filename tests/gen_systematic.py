@@ -8601,7 +8601,8 @@ def generate_all_tests():
             tags=['block', 'string', 'word'],
             code=[0xBB16, 0x0236],
             regs={1: 0x0600, 2: 0x0003, 3: 0x0700},
-            memory={0x0600: 0x1234, 0x0700: 0x5678},
+            memory={0x0600: 0x1111, 0x0602: 0x2222, 0x0604: 0x3333,
+                    0x0700: 0xAAAA, 0x0702: 0xBBBB, 0x0704: 0xCCCC},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_cpsirb_match
@@ -8697,7 +8698,8 @@ def generate_all_tests():
             tags=['block', 'string', 'word'],
             code=[0xBB1E, 0x0236],
             regs={1: 0x0604, 2: 0x0003, 3: 0x0704},
-            memory={0x0604: 0x1234, 0x0704: 0x5678},
+            memory={0x0600: 0x1111, 0x0602: 0x2222, 0x0604: 0x3333,
+                    0x0700: 0xAAAA, 0x0702: 0xBBBB, 0x0704: 0xCCCC},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_cpsdrb_match
@@ -8721,7 +8723,8 @@ def generate_all_tests():
             tags=['block', 'string', 'byte'],
             code=[0xBA1E, 0x0236],
             regs={1: 0x0604, 2: 0x0003, 3: 0x0704},
-            memory={0x0604: 0x1200, 0x0704: 0x5600},
+            memory={0x0602: 0x1122, 0x0604: 0x3300,
+                    0x0702: 0xAABB, 0x0704: 0xCC00},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_trib_basic
@@ -9016,7 +9019,7 @@ def generate_all_tests():
             desc='TRIRB @R3, @R1, R2: translate byte',
             tags=['translate', 'byte'],
             code=[0xB834, 0x0210],
-            regs={1: 0x0400, 2: 0x0003, 3: 0x0600},
+            regs={1: 0x0400, 2: 0x0001, 3: 0x0600},
             memory={
                 0x0400: 0x0102,
                 0x0402: 0x0304,
@@ -9158,7 +9161,7 @@ def generate_all_tests():
             desc='TRIRB @R3, @R1, R2: translate zero byte',
             tags=['translate', 'byte'],
             code=[0xB834, 0x0210],
-            regs={1: 0x0400, 2: 0x0003, 3: 0x0600},
+            regs={1: 0x0400, 2: 0x0001, 3: 0x0600},
             memory={
                 0x0400: 0x0102,
                 0x0402: 0x0304,
@@ -9584,7 +9587,7 @@ def generate_all_tests():
             desc='TRDRB @R3, @R1, R2: translate byte',
             tags=['translate', 'byte'],
             code=[0xB83C, 0x0210],
-            regs={1: 0x0400, 2: 0x0003, 3: 0x0602},
+            regs={1: 0x0400, 2: 0x0001, 3: 0x0602},
             memory={
                 0x0400: 0x0102,
                 0x0402: 0x0304,
@@ -9726,7 +9729,7 @@ def generate_all_tests():
             desc='TRDRB @R3, @R1, R2: translate zero byte',
             tags=['translate', 'byte'],
             code=[0xB83C, 0x0210],
-            regs={1: 0x0400, 2: 0x0003, 3: 0x0602},
+            regs={1: 0x0400, 2: 0x0001, 3: 0x0602},
             memory={
                 0x0400: 0x0102,
                 0x0402: 0x0304,
