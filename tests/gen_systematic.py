@@ -10484,7 +10484,7 @@ def generate_all_tests():
             tags=['load', 'word', 'RA_mode'],
             code=[0x3100, 0x0204],
             regs={0: 0x0000},
-            memory={0x0404: 0x1234},
+            memory={0x0408: 0x1234},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldr_r_zero
@@ -10496,7 +10496,7 @@ def generate_all_tests():
             tags=['load', 'word', 'RA_mode'],
             code=[0x3100, 0x0204],
             regs={0: 0x0000},
-            memory={0x0404: 0x0000},
+            memory={0x0408: 0x0000},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldrb_r_normal
@@ -10508,7 +10508,7 @@ def generate_all_tests():
             tags=['load', 'byte', 'RA_mode'],
             code=[0x3000, 0x0204],
             regs={0: 0x0000},
-            memory={0x0404: 0x4200},
+            memory={0x0408: 0x4200},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldrb_r_zero
@@ -10520,7 +10520,7 @@ def generate_all_tests():
             tags=['load', 'byte', 'RA_mode'],
             code=[0x3000, 0x0204],
             regs={0: 0x0000},
-            memory={0x0404: 0x0000},
+            memory={0x0408: 0x0000},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldrl_rr_normal
@@ -10532,7 +10532,7 @@ def generate_all_tests():
             tags=['load', 'long', 'RA_mode'],
             code=[0x3500, 0x0204],
             regs={0: 0x0000, 1: 0x0000},
-            memory={0x0404: 0xDEAD, 0x0406: 0xBEEF},
+            memory={0x0408: 0xDEAD, 0x040A: 0xBEEF},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldrl_rr_zero
@@ -10544,7 +10544,7 @@ def generate_all_tests():
             tags=['load', 'long', 'RA_mode'],
             code=[0x3500, 0x0204],
             regs={0: 0x0000, 1: 0x0000},
-            memory={0x0404: 0x0000, 0x0406: 0x0000},
+            memory={0x0408: 0x0000, 0x040A: 0x0000},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldctl_read_fcw

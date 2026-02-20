@@ -3,8 +3,8 @@
   "mnemonic": "LDRL",
   "exec_result": "HALT",
   "regs": {
-    "0": 2314,
-    "1": 2828
+    "0": 0,
+    "1": 0
   },
   "fcw": 16384,
   "memory": {}

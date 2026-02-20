@@ -3,7 +3,7 @@
   "mnemonic": "LDR",
   "exec_result": "HALT",
   "regs": {
-    "0": 2314
+    "0": 4660
   },
   "fcw": 16384,
   "memory": {}

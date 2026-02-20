@@ -414,11 +414,10 @@ python -m tests.compare --list -v --mnemonic ADD
 
 Golden results are saved as one JSON file per test in `golden/z8001/` (797 files, checked into git). Each test in `gen_systematic.py` has an assembler-verified listing comment from `z8k-coff-as -z8002`. Comparison checks registers, individual flags (C, Z, S, V, DA, H), memory, and execution result. The `--auto-generate` option writes `tests/test_z8001_golden.py` containing only the failing cases with Z8001 values as expected results, which are then picked up by the regular test runner.
 
-**Current status:** 786 match, 11 differ (of 797 tests). Remaining differences:
+**Current status:** 792 match, 5 differ (of 797 tests). Remaining differences:
 
 | Category | Tests | Issue |
 |----------|-------|-------|
-| LDR/LDRB/LDRL | 6 | Need re-capture on Z8001 (test data) |
 | DIV/DIVL | 2 | CPU bug in divide logic |
 | MULT/MULTL | 3 | CPU bug in multiply logic |
 
