@@ -4,6 +4,7 @@ Read `README.md` for project documentation (structure, build commands, memory ma
 
 ## General Rules
 
+- **ANSWER QUESTIONS FIRST.** When the user asks a question, ANSWER IT and STOP. Do NOT start implementing, fixing, or writing code. Wait for explicit instructions to proceed. This is the highest priority rule.
 - Do ONLY what you are asked to do. Do not investigate, fix, or modify anything beyond the explicit request.
 - When asked to run something, run it and report the result. Do not attempt to fix failures unless asked.
 - When asked to explain something, explain it and stop. Do not start fixing it.

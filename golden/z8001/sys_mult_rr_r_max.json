@@ -3,6 +3,7 @@
   "mnemonic": "MULT",
   "exec_result": "HALT",
   "regs": {
+    "0": 0,
     "1": 1,
     "2": 65535
   },

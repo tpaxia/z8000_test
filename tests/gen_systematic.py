@@ -5895,7 +5895,7 @@ def generate_all_tests():
             desc='MULT RR0, R2: R1=0x0000 * R2=0x0000',
             tags=['mult_div', 'word'],
             code=[0x9920],
-            regs={1: 0x0000, 2: 0x0000},
+            regs={0: 0x0000, 1: 0x0000, 2: 0x0000},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_one
@@ -5906,7 +5906,7 @@ def generate_all_tests():
             desc='MULT RR0, R2: R1=0x0001 * R2=0x0001',
             tags=['mult_div', 'word'],
             code=[0x9920],
-            regs={1: 0x0001, 2: 0x0001},
+            regs={0: 0x0000, 1: 0x0001, 2: 0x0001},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_normal
@@ -5917,7 +5917,7 @@ def generate_all_tests():
             desc='MULT RR0, R2: R1=0x0064 * R2=0x0032',
             tags=['mult_div', 'word'],
             code=[0x9920],
-            regs={1: 0x0064, 2: 0x0032},
+            regs={0: 0x0000, 1: 0x0064, 2: 0x0032},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_large
@@ -5928,7 +5928,7 @@ def generate_all_tests():
             desc='MULT RR0, R2: R1=0xFFFF * R2=0x0002',
             tags=['mult_div', 'word'],
             code=[0x9920],
-            regs={1: 0xFFFF, 2: 0x0002},
+            regs={0: 0x0000, 1: 0xFFFF, 2: 0x0002},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_max
@@ -5939,7 +5939,7 @@ def generate_all_tests():
             desc='MULT RR0, R2: R1=0xFFFF * R2=0xFFFF',
             tags=['mult_div', 'word'],
             code=[0x9920],
-            regs={1: 0xFFFF, 2: 0xFFFF},
+            regs={0: 0x0000, 1: 0xFFFF, 2: 0xFFFF},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_signed
@@ -5950,7 +5950,7 @@ def generate_all_tests():
             desc='MULT RR0, R2: R1=0x8000 * R2=0x0002',
             tags=['mult_div', 'word'],
             code=[0x9920],
-            regs={1: 0x8000, 2: 0x0002},
+            regs={0: 0x0000, 1: 0x8000, 2: 0x0002},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_div_rr_r_normal
@@ -6005,7 +6005,7 @@ def generate_all_tests():
             desc='MULTL RQ0, RR4: 0x00000064 * 0x00000032',
             tags=['mult_div', 'long'],
             code=[0x9840],
-            regs={2: 0x0000, 3: 0x0064, 4: 0x0000, 5: 0x0032},
+            regs={0: 0x0000, 1: 0x0000, 2: 0x0000, 3: 0x0064, 4: 0x0000, 5: 0x0032},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_multl_rq_rr_large
@@ -6016,7 +6016,7 @@ def generate_all_tests():
             desc='MULTL RQ0, RR4: 0x0000FFFF * 0x0000FFFF',
             tags=['mult_div', 'long'],
             code=[0x9840],
-            regs={2: 0x0000, 3: 0xFFFF, 4: 0x0000, 5: 0xFFFF},
+            regs={0: 0x0000, 1: 0x0000, 2: 0x0000, 3: 0xFFFF, 4: 0x0000, 5: 0xFFFF},
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_divl_rq_rr_normal
