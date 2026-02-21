@@ -10592,4 +10592,406 @@ def generate_all_tests():
             code=[0x8C09],
             regs={0: 0xF000},
         ),
+
+        # ================================================================
+        # Edge-case tests for potential flag issues
+        # (ADC/SBC carry-induced overflow, MULT C boundary,
+        #  SDA/SDL zero-shift, block translate Z, block compare C/S)
+        # ================================================================
+
+        # --- ADC/SBC: carry/borrow causes signed overflow ---
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_adc_r_r_covf
+        #   31d00: b510                adc	r0,r1
+        _tc(
+            name='sys_adc_r_r_covf',
+            mnemonic='ADC',
+            desc='ADC R0, R1: 0x7FFF + 0x0000 + C=1 (carry causes overflow)',
+            tags=['carry_chain', 'word', 'R_mode', 'overflow_edge'],
+            code=[0xB510],
+            regs={0: 0x7FFF, 1: 0x0000},
+            fcw=fcw_with_flags(C=1),
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_adcb_r_r_covf
+        #   31e00: b410                adcb	rh0,rh1
+        _tc(
+            name='sys_adcb_r_r_covf',
+            mnemonic='ADCB',
+            desc='ADCB RH0, RH1: 0x7F + 0x00 + C=1 (carry causes byte overflow)',
+            tags=['carry_chain', 'byte', 'R_mode', 'overflow_edge'],
+            code=[0xB410],
+            regs={0: 0x7F00, 1: 0x0000},
+            fcw=fcw_with_flags(C=1),
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sbc_r_r_bovf
+        #   31f00: b710                sbc	r0,r1
+        _tc(
+            name='sys_sbc_r_r_bovf',
+            mnemonic='SBC',
+            desc='SBC R0, R1: 0x8000 - 0x0000 - C=1 (borrow causes overflow)',
+            tags=['carry_chain', 'word', 'R_mode', 'overflow_edge'],
+            code=[0xB710],
+            regs={0: 0x8000, 1: 0x0000},
+            fcw=fcw_with_flags(C=1),
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sbcb_r_r_bovf
+        #   32000: b610                sbcb	rh0,rh1
+        _tc(
+            name='sys_sbcb_r_r_bovf',
+            mnemonic='SBCB',
+            desc='SBCB RH0, RH1: 0x80 - 0x00 - C=1 (borrow causes byte overflow)',
+            tags=['carry_chain', 'byte', 'R_mode', 'overflow_edge'],
+            code=[0xB610],
+            regs={0: 0x8000, 1: 0x0000},
+            fcw=fcw_with_flags(C=1),
+        ),
+
+        # --- MULT: C flag boundary tests ---
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_bound_pos
+        #   32100: 9920                mult	rr0,r2
+        _tc(
+            name='sys_mult_rr_r_bound_pos',
+            mnemonic='MULT',
+            desc='MULT RR0, R2: 32767 * 1 = 32767 (fits in int16, C=0)',
+            tags=['mult', 'word', 'boundary'],
+            code=[0x9920],
+            regs={0: 0x0000, 1: 0x7FFF, 2: 0x0001},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_bound_neg
+        #   32200: 9920                mult	rr0,r2
+        _tc(
+            name='sys_mult_rr_r_bound_neg',
+            mnemonic='MULT',
+            desc='MULT RR0, R2: -32768 * 1 = -32768 (fits in int16, C=0)',
+            tags=['mult', 'word', 'boundary'],
+            code=[0x9920],
+            regs={0: 0x0000, 1: 0x8000, 2: 0x0001},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_bound_over
+        #   32300: 9920                mult	rr0,r2
+        _tc(
+            name='sys_mult_rr_r_bound_over',
+            mnemonic='MULT',
+            desc='MULT RR0, R2: 16384 * 2 = 32768 (does not fit int16, C=1)',
+            tags=['mult', 'word', 'boundary'],
+            code=[0x9920],
+            regs={0: 0x0000, 1: 0x4000, 2: 0x0002},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_mult_rr_r_neg_neg
+        #   32400: 9920                mult	rr0,r2
+        _tc(
+            name='sys_mult_rr_r_neg_neg',
+            mnemonic='MULT',
+            desc='MULT RR0, R2: (-2) * (-2) = 4',
+            tags=['mult', 'word', 'signed'],
+            code=[0x9920],
+            regs={0: 0x0000, 1: 0xFFFE, 2: 0xFFFE},
+        ),
+
+        # --- SDA/SDL: zero shift count ---
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sda_r_one_z0
+        #   32500: b30b 0100           sda	r0,r1
+        _tc(
+            name='sys_sda_r_one_z0',
+            mnemonic='SDA',
+            desc='SDA R0, R1: val=0x0001, count=0 (zero shift)',
+            tags=['shift', 'dynamic', 'word', 'zero_shift'],
+            code=[0xB30B, 0x0100],
+            regs={0: 0x0001, 1: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sda_r_msb_z0
+        #   32600: b30b 0100           sda	r0,r1
+        _tc(
+            name='sys_sda_r_msb_z0',
+            mnemonic='SDA',
+            desc='SDA R0, R1: val=0x8000, count=0 (zero shift, negative)',
+            tags=['shift', 'dynamic', 'word', 'zero_shift'],
+            code=[0xB30B, 0x0100],
+            regs={0: 0x8000, 1: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdl_r_one_z0
+        #   32700: b303 0100           sdl	r0,r1
+        _tc(
+            name='sys_sdl_r_one_z0',
+            mnemonic='SDL',
+            desc='SDL R0, R1: val=0x0001, count=0 (zero shift)',
+            tags=['shift', 'dynamic', 'word', 'zero_shift'],
+            code=[0xB303, 0x0100],
+            regs={0: 0x0001, 1: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdl_r_msb_z0
+        #   32800: b303 0100           sdl	r0,r1
+        _tc(
+            name='sys_sdl_r_msb_z0',
+            mnemonic='SDL',
+            desc='SDL R0, R1: val=0x8000, count=0 (zero shift, negative)',
+            tags=['shift', 'dynamic', 'word', 'zero_shift'],
+            code=[0xB303, 0x0100],
+            regs={0: 0x8000, 1: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdab_r_one_z0
+        #   32900: b20b 0100           sdab	rh0,r1
+        _tc(
+            name='sys_sdab_r_one_z0',
+            mnemonic='SDAB',
+            desc='SDAB RH0, R1: val=0x01, count=0 (zero shift)',
+            tags=['shift', 'dynamic', 'byte', 'zero_shift'],
+            code=[0xB20B, 0x0100],
+            regs={0: 0x0100, 1: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdab_r_msb_z0
+        #   32a00: b20b 0100           sdab	rh0,r1
+        _tc(
+            name='sys_sdab_r_msb_z0',
+            mnemonic='SDAB',
+            desc='SDAB RH0, R1: val=0x80, count=0 (zero shift, negative)',
+            tags=['shift', 'dynamic', 'byte', 'zero_shift'],
+            code=[0xB20B, 0x0100],
+            regs={0: 0x8000, 1: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdlb_r_one_z0
+        #   32b00: b203 0100           sdlb	rh0,r1
+        _tc(
+            name='sys_sdlb_r_one_z0',
+            mnemonic='SDLB',
+            desc='SDLB RH0, R1: val=0x01, count=0 (zero shift)',
+            tags=['shift', 'dynamic', 'byte', 'zero_shift'],
+            code=[0xB203, 0x0100],
+            regs={0: 0x0100, 1: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdlb_r_msb_z0
+        #   32c00: b203 0100           sdlb	rh0,r1
+        _tc(
+            name='sys_sdlb_r_msb_z0',
+            mnemonic='SDLB',
+            desc='SDLB RH0, R1: val=0x80, count=0 (zero shift, negative)',
+            tags=['shift', 'dynamic', 'byte', 'zero_shift'],
+            code=[0xB203, 0x0100],
+            regs={0: 0x8000, 1: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdal_rr_one_z0
+        #   32d00: b32f 0100           sdal	rr2,r1
+        _tc(
+            name='sys_sdal_rr_one_z0',
+            mnemonic='SDAL',
+            desc='SDAL RR2, R1: val=0x00000001, count=0 (zero shift)',
+            tags=['shift', 'dynamic', 'long', 'zero_shift'],
+            code=[0xB32F, 0x0100],
+            regs={1: 0x0000, 2: 0x0000, 3: 0x0001},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdal_rr_msb_z0
+        #   32e00: b32f 0100           sdal	rr2,r1
+        _tc(
+            name='sys_sdal_rr_msb_z0',
+            mnemonic='SDAL',
+            desc='SDAL RR2, R1: val=0x80000000, count=0 (zero shift, negative)',
+            tags=['shift', 'dynamic', 'long', 'zero_shift'],
+            code=[0xB32F, 0x0100],
+            regs={1: 0x0000, 2: 0x8000, 3: 0x0000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdll_rr_one_z0
+        #   32f00: b327 0100           sdll	rr2,r1
+        _tc(
+            name='sys_sdll_rr_one_z0',
+            mnemonic='SDLL',
+            desc='SDLL RR2, R1: val=0x00000001, count=0 (zero shift)',
+            tags=['shift', 'dynamic', 'long', 'zero_shift'],
+            code=[0xB327, 0x0100],
+            regs={1: 0x0000, 2: 0x0000, 3: 0x0001},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sdll_rr_msb_z0
+        #   33000: b327 0100           sdll	rr2,r1
+        _tc(
+            name='sys_sdll_rr_msb_z0',
+            mnemonic='SDLL',
+            desc='SDLL RR2, R1: val=0x80000000, count=0 (zero shift, negative)',
+            tags=['shift', 'dynamic', 'long', 'zero_shift'],
+            code=[0xB327, 0x0100],
+            regs={1: 0x0000, 2: 0x8000, 3: 0x0000},
+        ),
+
+        # --- Block translate: counter reaches zero (Z flag) ---
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_trib_cnt1
+        #   33100: b830 0210           trib	@r3,@r1,r2
+        _tc(
+            name='sys_trib_cnt1',
+            mnemonic='TRIB',
+            desc='TRIB @R3, @R1, R2: cnt=1 (counter reaches zero)',
+            tags=['translate', 'byte', 'counter_zero'],
+            code=[0xB830, 0x0210],
+            regs={1: 0x0400, 2: 0x0001, 3: 0x0600},
+            memory={
+                0x0400: 0x0102, 0x0402: 0x0304, 0x0404: 0x0506,
+                0x0406: 0x0708, 0x0408: 0x090A, 0x040A: 0x0B0C,
+                0x040C: 0x0D0E, 0x040E: 0x0F10, 0x0410: 0x1112,
+                0x0412: 0x1314, 0x0414: 0x1516, 0x0416: 0x1718,
+                0x0418: 0x191A, 0x041A: 0x1B1C, 0x041C: 0x1D1E,
+                0x041E: 0x1F20, 0x0420: 0x2122, 0x0422: 0x2324,
+                0x0424: 0x2526, 0x0426: 0x2728, 0x0428: 0x292A,
+                0x042A: 0x2B2C, 0x042C: 0x2D2E, 0x042E: 0x2F30,
+                0x0430: 0x3132, 0x0432: 0x3334, 0x0434: 0x3536,
+                0x0436: 0x3738, 0x0438: 0x393A, 0x043A: 0x3B3C,
+                0x043C: 0x3D3E, 0x043E: 0x3F40, 0x0440: 0x4142,
+                0x0442: 0x4344, 0x0444: 0x4546, 0x0446: 0x4748,
+                0x0448: 0x494A, 0x044A: 0x4B4C, 0x044C: 0x4D4E,
+                0x044E: 0x4F50, 0x0450: 0x5152, 0x0452: 0x5354,
+                0x0454: 0x5556, 0x0456: 0x5758, 0x0458: 0x595A,
+                0x045A: 0x5B5C, 0x045C: 0x5D5E, 0x045E: 0x5F60,
+                0x0460: 0x6162, 0x0462: 0x6364, 0x0464: 0x6566,
+                0x0466: 0x6768, 0x0468: 0x696A, 0x046A: 0x6B6C,
+                0x046C: 0x6D6E, 0x046E: 0x6F70, 0x0470: 0x7172,
+                0x0472: 0x7374, 0x0474: 0x7576, 0x0476: 0x7778,
+                0x0478: 0x797A, 0x047A: 0x7B7C, 0x047C: 0x7D7E,
+                0x047E: 0x7F80, 0x0480: 0x8182, 0x0482: 0x8384,
+                0x0484: 0x8586, 0x0486: 0x8788, 0x0488: 0x898A,
+                0x048A: 0x8B8C, 0x048C: 0x8D8E, 0x048E: 0x8F90,
+                0x0490: 0x9192, 0x0492: 0x9394, 0x0494: 0x9596,
+                0x0496: 0x9798, 0x0498: 0x999A, 0x049A: 0x9B9C,
+                0x049C: 0x9D9E, 0x049E: 0x9FA0, 0x04A0: 0xA1A2,
+                0x04A2: 0xA3A4, 0x04A4: 0xA5A6, 0x04A6: 0xA7A8,
+                0x04A8: 0xA9AA, 0x04AA: 0xABAC, 0x04AC: 0xADAE,
+                0x04AE: 0xAFB0, 0x04B0: 0xB1B2, 0x04B2: 0xB3B4,
+                0x04B4: 0xB5B6, 0x04B6: 0xB7B8, 0x04B8: 0xB9BA,
+                0x04BA: 0xBBBC, 0x04BC: 0xBDBE, 0x04BE: 0xBFC0,
+                0x04C0: 0xC1C2, 0x04C2: 0xC3C4, 0x04C4: 0xC5C6,
+                0x04C6: 0xC7C8, 0x04C8: 0xC9CA, 0x04CA: 0xCBCC,
+                0x04CC: 0xCDCE, 0x04CE: 0xCFD0, 0x04D0: 0xD1D2,
+                0x04D2: 0xD3D4, 0x04D4: 0xD5D6, 0x04D6: 0xD7D8,
+                0x04D8: 0xD9DA, 0x04DA: 0xDBDC, 0x04DC: 0xDDDE,
+                0x04DE: 0xDFE0, 0x04E0: 0xE1E2, 0x04E2: 0xE3E4,
+                0x04E4: 0xE5E6, 0x04E6: 0xE7E8, 0x04E8: 0xE9EA,
+                0x04EA: 0xEBEC, 0x04EC: 0xEDEE, 0x04EE: 0xEFF0,
+                0x04F0: 0xF1F2, 0x04F2: 0xF3F4, 0x04F4: 0xF5F6,
+                0x04F6: 0xF7F8, 0x04F8: 0xF9FA, 0x04FA: 0xFBFC,
+                0x04FC: 0xFDFE, 0x04FE: 0xFF00,
+                0x0600: 0x4100,
+            },
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_trdb_cnt1
+        #   33200: b838 0210           trdb	@r3,@r1,r2
+        _tc(
+            name='sys_trdb_cnt1',
+            mnemonic='TRDB',
+            desc='TRDB @R3, @R1, R2: cnt=1 (counter reaches zero)',
+            tags=['translate', 'byte', 'counter_zero'],
+            code=[0xB838, 0x0210],
+            regs={1: 0x0400, 2: 0x0001, 3: 0x0602},
+            memory={
+                0x0400: 0x0102, 0x0402: 0x0304, 0x0404: 0x0506,
+                0x0406: 0x0708, 0x0408: 0x090A, 0x040A: 0x0B0C,
+                0x040C: 0x0D0E, 0x040E: 0x0F10, 0x0410: 0x1112,
+                0x0412: 0x1314, 0x0414: 0x1516, 0x0416: 0x1718,
+                0x0418: 0x191A, 0x041A: 0x1B1C, 0x041C: 0x1D1E,
+                0x041E: 0x1F20, 0x0420: 0x2122, 0x0422: 0x2324,
+                0x0424: 0x2526, 0x0426: 0x2728, 0x0428: 0x292A,
+                0x042A: 0x2B2C, 0x042C: 0x2D2E, 0x042E: 0x2F30,
+                0x0430: 0x3132, 0x0432: 0x3334, 0x0434: 0x3536,
+                0x0436: 0x3738, 0x0438: 0x393A, 0x043A: 0x3B3C,
+                0x043C: 0x3D3E, 0x043E: 0x3F40, 0x0440: 0x4142,
+                0x0442: 0x4344, 0x0444: 0x4546, 0x0446: 0x4748,
+                0x0448: 0x494A, 0x044A: 0x4B4C, 0x044C: 0x4D4E,
+                0x044E: 0x4F50, 0x0450: 0x5152, 0x0452: 0x5354,
+                0x0454: 0x5556, 0x0456: 0x5758, 0x0458: 0x595A,
+                0x045A: 0x5B5C, 0x045C: 0x5D5E, 0x045E: 0x5F60,
+                0x0460: 0x6162, 0x0462: 0x6364, 0x0464: 0x6566,
+                0x0466: 0x6768, 0x0468: 0x696A, 0x046A: 0x6B6C,
+                0x046C: 0x6D6E, 0x046E: 0x6F70, 0x0470: 0x7172,
+                0x0472: 0x7374, 0x0474: 0x7576, 0x0476: 0x7778,
+                0x0478: 0x797A, 0x047A: 0x7B7C, 0x047C: 0x7D7E,
+                0x047E: 0x7F80, 0x0480: 0x8182, 0x0482: 0x8384,
+                0x0484: 0x8586, 0x0486: 0x8788, 0x0488: 0x898A,
+                0x048A: 0x8B8C, 0x048C: 0x8D8E, 0x048E: 0x8F90,
+                0x0490: 0x9192, 0x0492: 0x9394, 0x0494: 0x9596,
+                0x0496: 0x9798, 0x0498: 0x999A, 0x049A: 0x9B9C,
+                0x049C: 0x9D9E, 0x049E: 0x9FA0, 0x04A0: 0xA1A2,
+                0x04A2: 0xA3A4, 0x04A4: 0xA5A6, 0x04A6: 0xA7A8,
+                0x04A8: 0xA9AA, 0x04AA: 0xABAC, 0x04AC: 0xADAE,
+                0x04AE: 0xAFB0, 0x04B0: 0xB1B2, 0x04B2: 0xB3B4,
+                0x04B4: 0xB5B6, 0x04B6: 0xB7B8, 0x04B8: 0xB9BA,
+                0x04BA: 0xBBBC, 0x04BC: 0xBDBE, 0x04BE: 0xBFC0,
+                0x04C0: 0xC1C2, 0x04C2: 0xC3C4, 0x04C4: 0xC5C6,
+                0x04C6: 0xC7C8, 0x04C8: 0xC9CA, 0x04CA: 0xCBCC,
+                0x04CC: 0xCDCE, 0x04CE: 0xCFD0, 0x04D0: 0xD1D2,
+                0x04D2: 0xD3D4, 0x04D4: 0xD5D6, 0x04D6: 0xD7D8,
+                0x04D8: 0xD9DA, 0x04DA: 0xDBDC, 0x04DC: 0xDDDE,
+                0x04DE: 0xDFE0, 0x04E0: 0xE1E2, 0x04E2: 0xE3E4,
+                0x04E4: 0xE5E6, 0x04E6: 0xE7E8, 0x04E8: 0xE9EA,
+                0x04EA: 0xEBEC, 0x04EC: 0xEDEE, 0x04EE: 0xEFF0,
+                0x04F0: 0xF1F2, 0x04F2: 0xF3F4, 0x04F4: 0xF5F6,
+                0x04F6: 0xF7F8, 0x04F8: 0xF9FA, 0x04FA: 0xFBFC,
+                0x04FC: 0xFDFE, 0x04FE: 0xFF00,
+                0x0602: 0x4100,
+            },
+        ),
+
+        # --- Block compare: flag capture for "undefined" C and S ---
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_cpi_cs_borrow
+        #   33300: bb10 0206           cpi	r0,@r1,r2,eq
+        _tc(
+            name='sys_cpi_cs_borrow',
+            mnemonic='CPI',
+            desc='CPI R0, @R1, R2, EQ: R0=0x1000 < mem=0x5000 (C=1,S=1 from comparison)',
+            tags=['block', 'compare', 'word', 'flag_capture'],
+            code=[0xBB10, 0x0206],
+            regs={0: 0x1000, 1: 0x0600, 2: 0x0003},
+            memory={0x0600: 0x5000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_cpi_cs_no_borrow
+        #   33400: bb10 0206           cpi	r0,@r1,r2,eq
+        _tc(
+            name='sys_cpi_cs_no_borrow',
+            mnemonic='CPI',
+            desc='CPI R0, @R1, R2, EQ: R0=0x5000 > mem=0x1000 (C=0,S=0 from comparison)',
+            tags=['block', 'compare', 'word', 'flag_capture'],
+            code=[0xBB10, 0x0206],
+            regs={0: 0x5000, 1: 0x0600, 2: 0x0003},
+            memory={0x0600: 0x1000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_cpd_cs_borrow
+        #   33500: bb18 0206           cpd	r0,@r1,r2,eq
+        _tc(
+            name='sys_cpd_cs_borrow',
+            mnemonic='CPD',
+            desc='CPD R0, @R1, R2, EQ: R0=0x1000 < mem=0x5000 (C=1,S=1 from comparison)',
+            tags=['block', 'compare', 'word', 'flag_capture'],
+            code=[0xBB18, 0x0206],
+            regs={0: 0x1000, 1: 0x0604, 2: 0x0003},
+            memory={0x0604: 0x5000},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_cpi_cnt1
+        #   33600: bb10 0206           cpi	r0,@r1,r2,eq
+        _tc(
+            name='sys_cpi_cnt1',
+            mnemonic='CPI',
+            desc='CPI R0, @R1, R2, EQ: cnt=1, no match (counter reaches zero)',
+            tags=['block', 'compare', 'word', 'counter_zero'],
+            code=[0xBB10, 0x0206],
+            regs={0: 0x1234, 1: 0x0600, 2: 0x0001},
+            memory={0x0600: 0x5678},
+        ),
     ]
