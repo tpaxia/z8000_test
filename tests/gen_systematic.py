@@ -10994,4 +10994,40 @@ def generate_all_tests():
             regs={0: 0x1234, 1: 0x0600, 2: 0x0001},
             memory={0x0600: 0x5678},
         ),
+
+        # ===== COMFLG H flag: XOR vs SET discrimination tests =====
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_comflg_double_m0
+        #   33700: 8d05                comflg
+        #   33702: 8d05                comflg
+        _tc(
+            name='sys_comflg_double_m0',
+            mnemonic='COMFLG',
+            desc='COMFLG x2: two consecutive COMFLG mask=0 (H: 0->1->0 if XOR, 0->1->1 if SET)',
+            tags=['flag_manip', 'control', 'comflg_h'],
+            code=[0x8D05, 0x8D05],
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_comflg_h_preset
+        #   33800: 8d05                comflg
+        _tc(
+            name='sys_comflg_h_preset',
+            mnemonic='COMFLG',
+            desc='COMFLG mask=0 with H=1 preset in FCW (H: 1->0 if XOR, 1->1 if SET)',
+            tags=['flag_manip', 'control', 'comflg_h'],
+            code=[0x8D05],
+            fcw=0x4004,  # System mode + H=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_comflg_after_addb
+        #   33900: 8010                addb    rh0,rh1
+        #   33902: 8d05                comflg
+        _tc(
+            name='sys_comflg_after_addb',
+            mnemonic='COMFLG',
+            desc='ADDB RH0,RH1 (0x0F+0x01, H=1 from nibble carry) then COMFLG mask=0',
+            tags=['flag_manip', 'control', 'comflg_h'],
+            code=[0x8010, 0x8D05],
+            regs={0: 0x0F01},  # RH0=0x0F, RL0=0x01 -> ADDB: 0x0F+0x01=0x10, H=1
+        ),
     ]

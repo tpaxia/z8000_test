@@ -393,19 +393,22 @@ IND/INDB exception where Z is explicitly "unaffected" per the manual.
 |-------------|-----------|------------|
 | SETFLG | `FCW \|= mask` | **Unaffected** |
 | RESFLG | `FCW &= ~mask` | **Unaffected** |
-| COMFLG | `FCW ^= mask` | **Unconditionally set to 1** |
+| COMFLG | `FCW ^= mask` | **XOR (toggle) H** |
 
 The 4-bit mask in the opcode maps to bits 7-4 (C, Z, S, P/V). Bits 3-2 (DA, H) are
-outside the mask. SETFLG and RESFLG leave H unchanged. COMFLG sets H=1 as a hardware
-side effect — likely because the XOR circuit path touches the H bit differently than
-the OR (SETFLG) and AND (RESFLG) paths.
+outside the mask. SETFLG and RESFLG leave H unchanged. COMFLG **toggles** H as a
+hardware side effect — the XOR operation includes H (bit 2) because IR[2]=1 for the
+COMFLG opcode encoding (0x8D_f_5). The Verilog implementation confirms this: the
+flagmask is `{IR[7:4], 0, IR[2], 00}`, so COMFLG XORs both the CZSV bits AND bit 2 (H).
 
 **Manual says (detail page):** H is "Undefined" for COMFLG. However, the manual's
 general discussion (Section 2.5.2) states that H is "not affected" by SETFLG, RESFLG,
 or COMFLG. These two statements contradict each other. Golden tests confirm the
-hardware unconditionally sets H=1.
+hardware XORs H. Three additional discriminating tests were added (double COMFLG,
+H preset, ADDB+COMFLG) to verify XOR vs SET — pending golden capture.
 
-**Emulator bug (fixed):** COMFLG now sets H after the XOR.
+**Emulator bug (fixed):** COMFLG now XORs H (`m_fcw ^= F_H`) matching the Verilog
+implementation. Previously used `SET_H` which was incorrect when H=1 before COMFLG.
 
 ### Group Q: Bit Operations (BIT, TSET, SET, RES)
 
@@ -482,10 +485,12 @@ the V circuit detects the sign change.
 fix applied uniformly to SLA, SLL, SRL, SDA, SDL, RL, RR, RLC, RRC (and byte/long
 variants).
 
-### Principle 3: COMFLG's XOR path has a side effect on H
+### Principle 3: COMFLG's XOR path includes H via opcode encoding
 
-This is a hardware-specific artifact of the COMFLG instruction's implementation. The
-XOR operation on the FCW sets H=1 as a side effect.
+The COMFLG instruction (opcode 0x8D_f_5) has IR[2]=1. The hardware flagmask is
+`{IR[7:4], 0, IR[2], 00}`, so for COMFLG the XOR includes bit 2 (H). This means
+COMFLG toggles H along with the specified CZSV flags. SETFLG (IR[2]=0) and RESFLG
+(IR[2]=0) do not affect H. Confirmed by Verilog implementation.
 
 **Applies to:** COMFLG H (Step 1).
 
@@ -499,7 +504,7 @@ with it, and whether the golden hardware confirms the change.
 
 | Change | Manual Says | Consistent with Manual? | Golden Confirms? |
 |--------|------------|------------------------|------------------|
-| COMFLG: SET_H | H: "Undefined" (detail page); "not affected" (overview §2.5.2) | Ambiguous — manual contradicts itself | Yes (16 tests) |
+| COMFLG: XOR H (toggle) | H: "Undefined" (detail page); "not affected" (overview §2.5.2) | Ambiguous — manual contradicts itself | Yes (16 tests, H=0→1); 3 new tests pending golden capture for H=1→0 case |
 | Block Load: SET_Z/CLR_Z on counter | Z: "Undefined" | Permitted — undefined behavior | Yes (8 tests) |
 | RLDB/RRDB: set S from sign bit | S: "Undefined" (detail page); listed in Appendix C summary table | Ambiguous — detail vs summary disagree | Yes (2 tests) |
 | Rotate V: accumulate across steps | V: "set if sign changed **during** rotation" | **Yes** — "during" implies per-step | Yes (8 tests) |
@@ -533,8 +538,11 @@ with it, and whether the golden hardware confirms the change.
   manual. The hardware sets S from the sign bit of the result byte, consistent with the
   summary table and the ALU model.
 - **COMFLG H:** The detail page says H is "Undefined." The overview section (§2.5.2)
-  says H is "not affected" by COMFLG. This is an internal contradiction. The hardware
-  unconditionally sets H=1.
+  says H is "not affected" by COMFLG. This is an internal contradiction. The Verilog
+  implementation reveals the mechanism: COMFLG's flagmask includes IR[2] which maps to
+  the H bit position, so H is XOR'd (toggled) along with the CZSV flags. The emulator
+  now uses XOR to match. Three new golden tests (double COMFLG, H preset, ADDB+COMFLG)
+  will confirm the XOR behavior when captured on hardware.
 
 **Flag where hardware contradicts the manual:**
 - **DIVL Z:** The manual says Z is "set if the quotient is zero" — implying the full
