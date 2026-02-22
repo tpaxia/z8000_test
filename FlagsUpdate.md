@@ -134,18 +134,15 @@ C should not be set for it). No golden test failure observed, but worth auditing
 (`sys_div_rr_r_large`) falls into this case — register values don't match because
 they're undefined.
 
-**DIVL Z flag bug (1 test):** For DIVL, `CHK_XXXL_ZS` checks Z on the full 32-bit
-quotient. But the golden hardware checks Z on the **low 16-bit word** of the quotient
-(the word that fits in a single register). When quotient = 0x00010000, the low word is
-0x0000, so hardware sets Z=1, but emulator sees non-zero 32-bit value and sets Z=0.
+**DIVL Z flag:** The manual says Z is "set if the quotient or divisor is zero." For
+DIVL, the quotient is 32 bits. Z is set only when the full 32-bit quotient is zero.
+Golden tests confirm: when quotient = 0x00010000 (non-zero), Z=0.
 
-**Manual vs hardware:** The manual says Z is "set if the quotient is zero," implying
-the full 32-bit quotient for DIVL. The hardware checks only the low 16-bit word. This
-is consistent with the ALU model — the last word written through the ALU determines Z.
-See Section 6 for detailed manual verification.
+**Emulator:** Uses `CHK_XXXL_ZS` which checks the full 32-bit quotient. Correct.
 
-**Fix:** For DIVL normal and CASE 4 paths, check Z/S on `result & 0xffff` (low word)
-instead of the full 32-bit quotient.
+**Verilog sim fix:** The microcode originally did `FLAGS <- RD3 | #0` which only
+checked the low 16-bit word. Fixed to use z-chain: `FLAGS <- RD3 | #0` followed by
+`TEMP <- RD2 ZTEST #0` to check the full 32-bit quotient.
 
 ### Group F: Shifts — Arithmetic (SLA, SRA, SDA)
 
@@ -154,14 +151,18 @@ instead of the full 32-bit quotient.
 | Flag | Rule |
 |------|------|
 | C | Last bit shifted out (undefined if shift count = 0) |
-| Z | Set if result is zero |
-| S | Set if MSB of result is set |
+| Z | Set if result is zero (**including zero-shift: set from destination value**) |
+| S | Set if MSB of result is set (**including zero-shift: set from destination value**) |
 | V (SLA/SDA left) | Set if sign bit changed at **any** intermediate step |
 | V (SRA/SDA right) | **Cleared** (SRA preserves sign, can't overflow) |
 
 **Manual says:** V is "set if arithmetic overflow occurs, that is, if the sign of the
 destination changed **during** shifting; cleared otherwise." The word "during" supports
 per-step accumulation for multi-bit shifts.
+
+**Zero shift (count=0):** Manual explicitly states: "A shift of zero positions does not
+affect the destination; however, **the flags are set according to the destination value.**"
+This means Z and S must be computed from the unmodified destination, not from the count.
 
 **The V flag rule for left shifts:** The hardware shifts one bit at a time. At each
 step, it checks whether the sign bit changed from the previous step. V = OR of all
@@ -177,12 +178,20 @@ step, even if it toggled back by the final step.
 - **SDA**: Was using step-by-step loop but only checked `(result ^ dest)` at the end,
   same initial-to-final problem.
 
+**Verilog sim bug (fixed):** SDA/SDAB/SDAL/SDL/SDLB/SDLL microcode jumped past the
+`FLAGS <- Rs` step when shift count was zero, setting Z/S from the count value (0)
+instead of the destination. Fixed by moving the done-label so zero-shift executes
+`FLAGS <- Rs` (word/byte) or jumps to `LONG_SHIFT_FLAGS` (long) before FETCH.
+
 ### Group G: Shifts — Logical (SLL, SRL, SDL)
 
 **Flags affected:** C, Z, S; **V is "undefined" per manual.**
 
 **Manual says:** V is "Undefined" for SLL, SRL, and SDL. The manual does NOT define
 V behavior for logical shifts, unlike arithmetic shifts where V is explicitly specified.
+
+**Zero shift (count=0):** Same as SDA — manual says "flags are set according to the
+destination value." Fixed in both emulator and Verilog sim (see Group F for details).
 
 **Hardware behavior for V:** The Z8001 uses the **same sign-change-during-shift logic**
 as arithmetic shifts. The ALU's V circuit doesn't distinguish arithmetic vs logical
@@ -192,8 +201,8 @@ set V=1 when the MSB transitions from 1 to 0 during the first shift step.
 | Flag | Rule |
 |------|------|
 | C | Last bit shifted out (undefined if shift count = 0) |
-| Z | Set if result is zero |
-| S | Set if MSB of result is set |
+| Z | Set if result is zero (**including zero-shift: set from destination value**) |
+| S | Set if MSB of result is set (**including zero-shift: set from destination value**) |
 | V | **Same as SLA: set if sign changed at any intermediate step** (undefined per manual, but deterministic on hardware) |
 
 **Emulator bugs (fixed):**
@@ -437,21 +446,40 @@ LDR, MRES, MSET, NOP, OUT, POP, PUSH, RES, RET, SET, TCC.
 
 ## 4. Implemented Fixes and Results
 
-All fixes have been implemented and verified against the golden Z8001 test suite.
+All fixes have been implemented and verified against the golden Z8001 test suite
+(826 tests total).
 
-**Final result: 796 match, 1 excluded (DIV CASE 3), 26 missing golden reference.**
+**Final result: 822 match out of 826 golden tests.**
+
+### Emulator fixes (z8000_emu)
 
 | Step | Fix | Tests Fixed | Running Total |
 |------|-----|-------------|---------------|
-| 1 | COMFLG H: add `SET_H` | +16 | 750 |
+| 1 | COMFLG H: XOR (toggle) H flag | +16 | 750 |
 | 2 | Block Load Z: add CLR_Z/SET_Z from counter | +8 | 758 |
 | 3 | RLDB/RRDB S: add S from sign bit | +2 | 760 |
 | 4 | Shift/Rotate V: per-step accumulation for all shifts/rotates | +35 | 795 |
-| 5 | DIVL Z: check low word of quotient | +1 | 796 |
+| 5 | DIVL Z: revert to CHK_XXXL_ZS (full 32-bit quotient) | +1 | 822 |
 
-The 1 remaining diff (`sys_div_rr_r_large`) is DIV CASE 3 where the manual says
-registers are "undefined" — the emulator's mathematical shortcut produces different
-undefined values than the hardware's step-by-step microcode division.
+Note: Step 5 originally incorrectly checked only the low 16-bit word (matching a
+wrong golden capture). After recapture, the golden confirmed the manual: Z checks
+the full 32-bit quotient.
+
+### Verilog sim fixes (z8000_micro)
+
+| Fix | Tests Fixed |
+|-----|-------------|
+| SDA/SDL/SDAL/SDLL zero-shift: set flags from destination value | +12 |
+| DIVL Z: z-chain to check full 32-bit quotient | +1 |
+
+### Remaining 4 diffs
+
+| Test | Category | Explanation |
+|------|----------|-------------|
+| `sys_multl_rq_rr_large` | MULTL registers | Golden capture corrupted — sim/emu produce mathematically correct result |
+| `sys_div_rr_r_large` | DIV CASE 3 | Undefined behavior per manual — registers are in intermediate state |
+| `sys_mult_rr_r_bound_pos` | MULT C | C flag boundary condition — emulator sets C=1, golden says C=0 |
+| `sys_mult_rr_r_bound_neg` | MULT C | Same MULT C boundary issue |
 
 ---
 
@@ -466,7 +494,7 @@ Every time a value passes through the ALU (including counter decrements in block
 digit rotate results, etc.), Z and S are computed. The emulator should update Z and S
 whenever the hardware's ALU fires, not just for the "main" operation.
 
-**Applies to:** Block move Z (Step 2), RLDB/RRDB S (Step 3), DIVL Z (Step 5).
+**Applies to:** Block move Z (Step 2), RLDB/RRDB S (Step 3).
 
 **Caveat:** This principle does not apply uniformly to all block operations. Block
 translate operations do NOT set Z from the counter (proven by golden tests), while
@@ -514,7 +542,8 @@ with it, and whether the golden hardware confirms the change.
 | SLL V: track V | V: "Undefined" | Permitted — undefined behavior | Yes |
 | SRA V: accumulate (no-op for arith right) | V: "Cleared" | Functionally equivalent — sign can't change | Yes |
 | SRL V: track V in right shifts | V: "Undefined" | Permitted — undefined behavior | Yes (12 tests) |
-| DIVL Z: check low 16-bit word only | Z: "set if the quotient is zero" | **No** — manual implies full 32-bit quotient | Yes (1 test) |
+| DIVL Z: check full 32-bit quotient | Z: "set if the quotient or divisor is zero" | **Yes** — full 32-bit quotient | Yes (1 test) |
+| SDA/SDL zero-shift: set Z/S from destination | "flags are set according to the destination value" | **Yes** — explicitly specified | Yes (12 tests) |
 
 ### Detailed Manual Findings
 
