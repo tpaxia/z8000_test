@@ -1,0 +1,11 @@
+{
+  "test": "sys_sdab_r_one_z0",
+  "mnemonic": "SDAB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 256,
+    "1": 0
+  },
+  "fcw": 16384,
+  "memory": {}
+}

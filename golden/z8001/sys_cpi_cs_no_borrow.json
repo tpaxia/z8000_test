@@ -1,0 +1,12 @@
+{
+  "test": "sys_cpi_cs_no_borrow",
+  "mnemonic": "CPI",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 20480,
+    "1": 1538,
+    "2": 2
+  },
+  "fcw": 16384,
+  "memory": {}
+}

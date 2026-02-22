@@ -1,0 +1,12 @@
+{
+  "test": "sys_cpd_cs_borrow",
+  "mnemonic": "CPD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4096,
+    "1": 1538,
+    "2": 2
+  },
+  "fcw": 16544,
+  "memory": {}
+}

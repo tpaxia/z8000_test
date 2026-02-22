@@ -1,0 +1,11 @@
+{
+  "test": "sys_sbc_r_r_bovf",
+  "mnemonic": "SBC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32767,
+    "1": 0
+  },
+  "fcw": 16400,
+  "memory": {}
+}
