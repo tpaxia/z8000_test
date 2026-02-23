@@ -115,9 +115,10 @@ use `CLR_ZS; CHK_XXXW_ZS`.
 | S | Set if product is negative |
 | V | **Always cleared** |
 
-**Emulator status:** Mostly correct. There is a potential off-by-one in the C threshold:
-MULTW uses `result >= 0x7fff` where it should be `> 0x7fff` (32767 fits in int16_t, so
-C should not be set for it). No golden test failure observed, but worth auditing.
+**Emulator bug (fixed):** MULTW had an off-by-one in the C threshold: used
+`result < -0x7fff || result >= 0x7fff` instead of `result < -0x8000 || result >= 0x8000`.
+This incorrectly set C=1 for products that exactly equal -32768 or 32767, which DO fit
+in int16_t. Golden tests confirmed C=0 at the boundary (0x7FFF × 1 = 32767, C=0).
 
 ### Group E: Divide (DIV, DIVL)
 
@@ -163,6 +164,9 @@ per-step accumulation for multi-bit shifts.
 **Zero shift (count=0):** Manual explicitly states: "A shift of zero positions does not
 affect the destination; however, **the flags are set according to the destination value.**"
 This means Z and S must be computed from the unmodified destination, not from the count.
+**C flag for zero shift:** Manual says C is "undefined" for zero shift count. Golden
+Z8001 hardware deterministically sets C=1 (confirmed across all 12 zero-shift tests,
+starting from C=0 in FCW). The hardware actively sets C=1 rather than preserving it.
 
 **The V flag rule for left shifts:** The hardware shifts one bit at a time. At each
 step, it checks whether the sign bit changed from the previous step. V = OR of all
@@ -367,6 +371,11 @@ between block transfers and block translates on the actual silicon — the ALU m
 attempt to add CLR_Z/SET_Z (matching block transfer pattern) caused 4 regressions and
 was reverted.
 
+**Verilog sim fix:** TRIB/TRDB microcode used `FLAGS_ZO_V <- Rn` and `FLAGS_ZO_NV <- Rn`
+for the count-zero and count-nonzero paths. When Rn=0 (counter exhausted), this set Z=1.
+Golden hardware produces Z=0. Fixed by using `FLAGS_ZO_V <- SIZE` and `FLAGS_ZO_NV <- SIZE`
+(SIZE is always non-zero, forcing Z=0), matching the approach already used by TRIRB/TRDRB.
+
 ### Group N: Block Translate-and-Test (TRTIB, TRTDB, TRTIRB, TRTDRB)
 
 **Flags affected:** Z (from translation value), V (from counter).
@@ -449,7 +458,10 @@ LDR, MRES, MSET, NOP, OUT, POP, PUSH, RES, RET, SET, TCC.
 All fixes have been implemented and verified against the golden Z8001 test suite
 (826 tests total).
 
-**Final result: 822 match out of 826 golden tests.**
+**Final result: 824 match out of 826 golden tests (emu), 813 match (sim).**
+
+Golden reference captured from a bug-free SGS Z8001 CPU (previous captures from a
+different Z8001 had corrupted MULTL results).
 
 ### Emulator fixes (z8000_emu)
 
@@ -460,6 +472,7 @@ All fixes have been implemented and verified against the golden Z8001 test suite
 | 3 | RLDB/RRDB S: add S from sign bit | +2 | 760 |
 | 4 | Shift/Rotate V: per-step accumulation for all shifts/rotates | +35 | 795 |
 | 5 | DIVL Z: revert to CHK_XXXL_ZS (full 32-bit quotient) | +1 | 822 |
+| 6 | MULT C: fix boundary (-0x8000/0x8000 not -0x7fff/0x7fff) | +2 | 824 |
 
 Note: Step 5 originally incorrectly checked only the low 16-bit word (matching a
 wrong golden capture). After recapture, the golden confirmed the manual: Z checks
@@ -471,15 +484,18 @@ the full 32-bit quotient.
 |-----|-------------|
 | SDA/SDL/SDAL/SDLL zero-shift: set flags from destination value | +12 |
 | DIVL Z: z-chain to check full 32-bit quotient | +1 |
+| TRIB/TRDB Z: use SIZE (non-zero) to force Z=0, matching golden | +2 |
 
-### Remaining 4 diffs
+### Remaining diffs
 
-| Test | Category | Explanation |
-|------|----------|-------------|
-| `sys_multl_rq_rr_large` | MULTL registers | Golden capture corrupted — sim/emu produce mathematically correct result |
-| `sys_div_rr_r_large` | DIV CASE 3 | Undefined behavior per manual — registers are in intermediate state |
-| `sys_mult_rr_r_bound_pos` | MULT C | C flag boundary condition — emulator sets C=1, golden says C=0 |
-| `sys_mult_rr_r_bound_neg` | MULT C | Same MULT C boundary issue |
+| Test(s) | Category | Count | Explanation |
+|---------|----------|-------|-------------|
+| `sys_div_rr_r_large` | DIV CASE 3 | 1 | Undefined behavior per manual — all 3 (golden, sim, emu) produce different results |
+| `sys_sda_r_*_z0` etc. | SDA/SDL zero-shift C | 12 (sim only) | Golden hardware sets C=1 for zero-shift; sim produces C=0. Manual says C is "undefined" for zero shift count |
+| `sys_trib_cnt1`, `sys_trdb_cnt1` | TRIB/TRDB Z | 2 (sim only) | Z is "undefined" per manual. Fixed in microcode (needs sim recompile) |
+
+Note: The MULTL golden capture corruption has been resolved — recaptured from a
+bug-free SGS Z8001 CPU. MULTL now matches across all three implementations.
 
 ---
 
@@ -544,6 +560,8 @@ with it, and whether the golden hardware confirms the change.
 | SRL V: track V in right shifts | V: "Undefined" | Permitted — undefined behavior | Yes (12 tests) |
 | DIVL Z: check full 32-bit quotient | Z: "set if the quotient or divisor is zero" | **Yes** — full 32-bit quotient | Yes (1 test) |
 | SDA/SDL zero-shift: set Z/S from destination | "flags are set according to the destination value" | **Yes** — explicitly specified | Yes (12 tests) |
+| MULT C: fix boundary to -0x8000/0x8000 | C: "set if product < -2^15 or >= 2^15" | **Yes** — boundary values fit in int16 | Yes (2 tests) |
+| TRIB/TRDB Z: force Z=0 (sim only) | Z: "Undefined" | Permitted — undefined behavior | Yes (2 tests) |
 
 ### Detailed Manual Findings
 
@@ -573,12 +591,13 @@ with it, and whether the golden hardware confirms the change.
   now uses XOR to match. Three new golden tests (double COMFLG, H preset, ADDB+COMFLG)
   will confirm the XOR behavior when captured on hardware.
 
-**Flag where hardware contradicts the manual:**
-- **DIVL Z:** The manual says Z is "set if the quotient is zero" — implying the full
-  32-bit quotient for DIVL. The hardware checks only the low 16-bit word of the
-  quotient. This is consistent with the ALU hardware model (the last word written
-  through the ALU determines Z) but inconsistent with the manual's text. The golden
-  test confirms the hardware behavior.
+**Flag where hardware agrees with the manual:**
+- **DIVL Z:** The manual says Z is "set if the quotient or divisor is zero" — the full
+  32-bit quotient for DIVL. Golden tests confirm: when quotient = 0x00010000 (non-zero),
+  Z=0. An earlier golden capture was corrupted (showed Z=1), leading to a wrong fix that
+  checked only the low 16-bit word. After recapture, the golden confirmed the manual.
+  Both emulator (`CHK_XXXL_ZS`) and Verilog sim (z-chain) now check the full 32-bit
+  quotient.
 
 ---
 
@@ -590,23 +609,22 @@ golden test suite:
 1. **ADC/SBC overflow (V flag):** The overflow check doesn't account for the carry-in
    bit. May produce wrong V in edge cases. No test currently fails.
 
-2. **MULT C threshold:** `>= 0x7fff` may be off-by-one (should be `> 0x7fff`). The
-   value 32767 fits in int16_t, so C should not be set.
-
-3. **Block translate Z:** TRIB/TRDB/TRIRB/TRDRB don't update Z from counter. Golden
+2. **Block translate Z:** TRIB/TRDB/TRIRB/TRDRB don't update Z from counter. Golden
    tests confirm this is correct — unlike block transfers, translates do NOT set Z from
    the counter. (Originally listed as a potential issue; now confirmed correct.)
 
-4. **Block I/O Z:** INI/IND/OUTI/OUTD and repeat variants don't update Z from counter.
+3. **Block I/O Z:** INI/IND/OUTI/OUTD and repeat variants don't update Z from counter.
    The IND/INDB exception (Z "unaffected") may need special handling.
 
-5. **SDA/SDL zero-shift C:** Manual says C is "undefined" for zero shift count. The
-   emulator produces C=0. Hardware may differ.
+4. **SDA/SDL zero-shift C:** Manual says C is "undefined" for zero shift count. Golden
+   Z8001 hardware sets C=1 (confirmed across all 12 zero-shift tests). Both emulator and
+   Verilog sim produce C=0. Since C starts at 0 (FCW=0x4000), the hardware actively sets
+   C=1 rather than preserving it.
 
-6. **RR SET_SC style:** RRB/RRW use `SET_SC` (sets both S and C) instead of the
+5. **RR SET_SC style:** RRB/RRW use `SET_SC` (sets both S and C) instead of the
    standard `CHK_XXXW_ZS` + separate C check. Functionally correct for RR but different
    code path from other rotates.
 
-7. **Block compare "undefined" C and S (CPI/CPD):** Manual says C and S are undefined
+6. **Block compare "undefined" C and S (CPI/CPD):** Manual says C and S are undefined
    for register-vs-memory block compares. Hardware likely sets them from the comparison
    subtraction. No test exercises this.
