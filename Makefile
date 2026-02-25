@@ -186,6 +186,19 @@ $(SRC_DIR)/bootstrap.bin: $(SRC_DIR)/bootstrap.s
 	@echo "Listing file: $(SRC_DIR)/bootstrap.lst"
 
 #
+# Bootstrap - Segmented Mode (Z8001)
+#
+.PHONY: bootstrap-seg
+bootstrap-seg: $(SRC_DIR)/bootstrap_seg.bin
+
+$(SRC_DIR)/bootstrap_seg.bin: $(SRC_DIR)/bootstrap_seg.s
+	cd $(SRC_DIR) && z8k-coff-as -z8001 -als bootstrap_seg.s -o bootstrap_seg.o > bootstrap_seg.lst
+	cd $(SRC_DIR) && z8k-coff-ld -mz8001 -Ttext 0x0000 bootstrap_seg.o -o bootstrap_seg.elf
+	cd $(SRC_DIR) && z8k-coff-objcopy -O binary bootstrap_seg.elf bootstrap_seg.bin
+	@echo "Segmented bootstrap binary generated: $(SRC_DIR)/bootstrap_seg.bin"
+	@echo "Listing file: $(SRC_DIR)/bootstrap_seg.lst"
+
+#
 # Clean
 #
 .PHONY: clean
@@ -196,6 +209,8 @@ clean:
 	rm -f $(SRC_DIR)/z80_fw.bin $(SRC_DIR)/z80_fw.hex
 	rm -f $(SRC_DIR)/bootstrap.bin $(SRC_DIR)/bootstrap.o $(SRC_DIR)/bootstrap.elf
 	rm -f $(SRC_DIR)/bootstrap.lst $(SRC_DIR)/bootstrap_body.inc
+	rm -f $(SRC_DIR)/bootstrap_seg.bin $(SRC_DIR)/bootstrap_seg.o $(SRC_DIR)/bootstrap_seg.elf
+	rm -f $(SRC_DIR)/bootstrap_seg.lst
 	rm -f $(SRC_DIR)/*.vvp $(SRC_DIR)/*.vcd
 	rm -rf impl
 

@@ -303,10 +303,11 @@ class SimRunner:
 
     def _filter_tests(self, tests, tags=None, mnemonic=None, name_pattern=None):
         """Filter tests by target, tags, mnemonic, and name pattern."""
-        allowed = {"common"}
         if self.target == "z8001-seg":
-            allowed |= {"z8001", "z8001-seg"}
-        elif self.target != "common":
+            allowed = {"z8001-seg"}
+        else:
+            allowed = {"common"}
+        if self.target not in ("common", "z8001-seg"):
             allowed.add(self.target)
 
         filtered = []

@@ -1,0 +1,203 @@
+Zilog Z8000 GAS  bootstrap_seg.s 			page 1
+
+
+   1              	# Z8000 Test Harness Bootstrap and Dump Routines (Segmented Mode)
+   2              	# Assembler: z8k-coff-as -z8001
+   3              	#
+   4              	# In segmented mode, all DA (direct address) instructions encode as 3 words
+   5              	# (opcode + segment word + offset word), making the code larger than the
+   6              	# non-segmented version. The bootstrap code extends from 0x0040 to ~0x00AD,
+   7              	# so the register dump area is placed at 0x0140 (after the dump routine)
+   8              	# instead of 0x0090 as in the non-segmented version.
+   9              	#
+  10              	# Memory layout:
+  11              	#   0x0000-0x0007  Reset vectors (segmented: 4 words)
+  12              	#   0x0010-0x002F  Register initial values (loaded by bootstrap)
+  13              	#   0x0030-0x0031  FCW setup word
+  14              	#   0x0040-0x00AD  Bootstrap code (loads regs, jumps to test code)
+  15              	#   0x00C0-0x0133  Dump routine (saves regs after test)
+  16              	#   0x0140-0x015F  Register dump area (R0-R15 saved here)
+  17              	#   0x0160-0x0161  Done flag
+  18              	#   0x0162-0x0163  FCW dump
+  19              	#   0x0200+        Test code
+  20              	#
+  21              	# FCW = 0xC000 (System + Segmented mode)
+  22              	
+  23              	        segm
+  24              	        .text
+  25              	        .global _start
+  26              	
+  27              	# Reset vectors at 0x0000 (segmented format: 4 words)
+  28              	        .org    0x0000
+  29 0000 0000     	        .word   0x0000          ! Reserved
+  30 0002 C000     	        .word   0xC000          ! FCW = System mode + Segmented
+  31 0004 0000     	        .word   0x0000          ! PC segment number = 0
+  32 0006 0040     	        .word   0x0040          ! PC offset = bootstrap entry
+  33              	
+  34              	# Register initial values (loaded to R0-R15 by bootstrap)
+  35 0008 00000000 	        .org    0x0010
+  35      00000000 
+  36              	reg_setup:
+  37 0010 00000000 	        .space  32              ! R0-R15 initial values (0x0010-0x002F)
+  37      00000000 
+  37      00000000 
+  37      00000000 
+  37      00000000 
+  38              	
+  39              	# FCW setup at 0x0030
+  40              	        .org    0x0030
+  41              	fcw_setup:
+  42 0030 C000     	        .word   0xC000          ! Initial FCW (System + Segmented)
+  43              	
+  44              	# Bootstrap code at 0x0040
+  45 0032 00000000 	        .org    0x0040
+  45      00000000 
+  45      00000000 
+  45      0000
+  46              	bootstrap:
+  47              	_start:
+  48 0040 61000000 	        ld      r0, fcw_setup       ! Load desired FCW value
+  48      0030
+Zilog Z8000 GAS  bootstrap_seg.s 			page 2
+
+
+  49 0046 7D0A     	        ldctl   fcw, r0             ! Set FCW (LD doesn't affect flags)
+  50 0048 61000000 	        ld      r0, reg_setup+0
+  50      0010
+  51 004e 61010000 	        ld      r1, reg_setup+2
+  51      0012
+  52 0054 61020000 	        ld      r2, reg_setup+4
+  52      0014
+  53 005a 61030000 	        ld      r3, reg_setup+6
+  53      0016
+  54 0060 61040000 	        ld      r4, reg_setup+8
+  54      0018
+  55 0066 61050000 	        ld      r5, reg_setup+10
+  55      001A
+  56 006c 61060000 	        ld      r6, reg_setup+12
+  56      001C
+  57 0072 61070000 	        ld      r7, reg_setup+14
+  57      001E
+  58 0078 61080000 	        ld      r8, reg_setup+16
+  58      0020
+  59 007e 61090000 	        ld      r9, reg_setup+18
+  59      0022
+  60 0084 610A0000 	        ld      r10, reg_setup+20
+  60      0024
+  61 008a 610B0000 	        ld      r11, reg_setup+22
+  61      0026
+  62 0090 610C0000 	        ld      r12, reg_setup+24
+  62      0028
+  63 0096 610D0000 	        ld      r13, reg_setup+26
+  63      002A
+  64 009c 610E0000 	        ld      r14, reg_setup+28
+  64      002C
+  65 00a2 610F0000 	        ld      r15, reg_setup+30
+  65      002E
+  66 00a8 5E080000 	        jp      test_code           ! Jump to test code (0x0200)
+  66      0200
+  67              	# Bootstrap code ends at 0x00AE
+  68              	
+  69              	# Dump routine at 0x00C0
+  70              	# Saves R0-R15 to reg_dump (0x0140-0x015F), FCW to fcw_dump (0x0162)
+  71 00ae 00000000 	        .org    0x00C0
+  71      00000000 
+  71      00000000 
+  71      00000000 
+  71      0000
+  72              	dump_routine:
+  73 00c0 6F000000 	        ld      reg_dump+0, r0      ! Save R0 first (before clobbering)
+  73      0140
+  74 00c6 7D02     	        ldctl   r0, fcw             ! Read FCW into R0
+  75 00c8 6F000000 	        ld      fcw_dump, r0        ! Save FCW at 0x0162
+  75      0162
+  76 00ce 6F010000 	        ld      reg_dump+2, r1
+  76      0142
+  77 00d4 6F020000 	        ld      reg_dump+4, r2
+  77      0144
+  78 00da 6F030000 	        ld      reg_dump+6, r3
+  78      0146
+  79 00e0 6F040000 	        ld      reg_dump+8, r4
+Zilog Z8000 GAS  bootstrap_seg.s 			page 3
+
+
+  79      0148
+  80 00e6 6F050000 	        ld      reg_dump+10, r5
+  80      014A
+  81 00ec 6F060000 	        ld      reg_dump+12, r6
+  81      014C
+  82 00f2 6F070000 	        ld      reg_dump+14, r7
+  82      014E
+  83 00f8 6F080000 	        ld      reg_dump+16, r8
+  83      0150
+  84 00fe 6F090000 	        ld      reg_dump+18, r9
+  84      0152
+  85 0104 6F0A0000 	        ld      reg_dump+20, r10
+  85      0154
+  86 010a 6F0B0000 	        ld      reg_dump+22, r11
+  86      0156
+  87 0110 6F0C0000 	        ld      reg_dump+24, r12
+  87      0158
+  88 0116 6F0D0000 	        ld      reg_dump+26, r13
+  88      015A
+  89 011c 6F0E0000 	        ld      reg_dump+28, r14
+  89      015C
+  90 0122 6F0F0000 	        ld      reg_dump+30, r15
+  90      015E
+  91 0128 2100DEAD 	        ld      r0, #0xDEAD
+  92 012c 6F000000 	        ld      done_flag, r0
+  92      0160
+  93 0132 7A00     	        halt
+  94              	# Dump routine ends at 0x0134
+  95              	
+  96              	# Register dump area at 0x0140 (moved from 0x0090 due to larger code)
+  97 0134 00000000 	        .org    0x0140
+  97      00000000 
+  97      00000000 
+  98              	reg_dump:
+  99 0140 00000000 	        .space  32              ! R0-R15 final values (0x0140-0x015F)
+  99      00000000 
+  99      00000000 
+  99      00000000 
+  99      00000000 
+ 100              	
+ 101              	# Done flag at 0x0160
+ 102              	        .org    0x0160
+ 103              	done_flag:
+ 104 0160 0000     	        .word   0x0000
+ 105              	
+ 106              	# FCW dump area at 0x0162
+ 107              	        .org    0x0162
+ 108              	fcw_dump:
+ 109 0162 0000     	        .word   0x0000
+ 110              	
+ 111              	# Default test code at 0x0200
+ 112 0164 00000000 	        .org    0x0200
+ 112      00000000 
+ 112      00000000 
+ 112      00000000 
+ 112      00000000 
+ 113              	test_code:
+Zilog Z8000 GAS  bootstrap_seg.s 			page 4
+
+
+ 114 0200 5E080000 	        jp      dump_routine        ! Default: just jump to dump
+ 114      00C0
+ 115              	
+ 116              	        .end
+Zilog Z8000 GAS  bootstrap_seg.s 			page 5
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 fake
+     bootstrap_seg.s:47     .text:0000000000000040 _start
+     bootstrap_seg.s:36     .text:0000000000000010 reg_setup
+     bootstrap_seg.s:41     .text:0000000000000030 fcw_setup
+     bootstrap_seg.s:46     .text:0000000000000040 bootstrap
+     bootstrap_seg.s:113    .text:0000000000000200 test_code
+     bootstrap_seg.s:72     .text:00000000000000c0 dump_routine
+     bootstrap_seg.s:98     .text:0000000000000140 reg_dump
+     bootstrap_seg.s:108    .text:0000000000000162 fcw_dump
+     bootstrap_seg.s:103    .text:0000000000000160 done_flag
+
+NO UNDEFINED SYMBOLS

@@ -11,7 +11,7 @@ DST_BUF = 0x0700         # Block operation destination buffer
 DST_BUF_END = 0x07FF
 STACK_BASE = 0x0F00      # Stack base (grows downward)
 
-# Bootstrap addresses
+# Bootstrap addresses (non-segmented)
 REG_SETUP = 0x0010       # R0-R15 initial values (0x0010-0x002F)
 FCW_SETUP = 0x0030       # FCW setup word
 FCW_DUMP = 0x00B2        # FCW dump area (after execution)
@@ -19,7 +19,14 @@ REG_DUMP = 0x0090        # R0-R15 dump area (0x0090-0x00AF)
 DONE_FLAG = 0x00B0       # Done flag
 DUMP_ROUTINE = 0x00C0    # Dump routine entry
 
+# Segmented bootstrap addresses (dump areas moved due to larger code)
+REG_DUMP_SEG = 0x0140    # R0-R15 dump area (0x0140-0x015F)
+FCW_DUMP_SEG = 0x0162    # FCW dump area
+DONE_FLAG_SEG = 0x0160   # Done flag
+
 # Jump to dump routine instruction words
+# Short-form segmented DA 0x00C0 = segment 0, offset 0xC0 — same encoding
+# works in both segmented and non-segmented modes.
 JP_DUMP = [0x5E08, DUMP_ROUTINE]  # JP 0x00C0
 
 

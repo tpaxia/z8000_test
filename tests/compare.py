@@ -30,6 +30,7 @@ import fnmatch
 import json
 
 from .gen_systematic import generate_all_tests
+from .gen_segmented import generate_segmented_tests
 from .golden import save_golden, load_golden, compare_golden
 from .auto_generate import generate_golden_test_file
 from .runner import TestRunner
@@ -66,7 +67,7 @@ def main():
     parser.add_argument('--category', default=None,
                         help='Filter by category tag')
     parser.add_argument('--target', default=None,
-                        choices=['common', 'z8001', 'z8002'],
+                        choices=['common', 'z8001', 'z8002', 'z8001-seg'],
                         help='Target CPU type')
     parser.add_argument('--list', '-l', action='store_true',
                         help='List tests without running')
@@ -86,10 +87,16 @@ def main():
     if not args.sim and not args.emu and args.port is None:
         args.port = "/dev/ttyUSB0"
 
-    # Generate systematic tests
-    all_tests = generate_all_tests()
+    # Generate tests
+    all_tests = list(generate_all_tests())
+
+    # Add segmented tests when targeting z8001-seg
+    if args.target == "z8001-seg":
+        seg_tests = generate_segmented_tests()
+        all_tests.extend(seg_tests)
+
     if not all_tests:
-        print("No systematic tests generated.")
+        print("No tests generated.")
         sys.exit(1)
 
     # Apply filters
@@ -106,8 +113,17 @@ def main():
 
 
 def _filter_tests(tests, args):
-    """Filter tests by mnemonic, name, and category."""
+    """Filter tests by target, mnemonic, name, and category."""
     filtered = list(tests)
+
+    # Filter by target compatibility
+    if args.target == "z8001-seg":
+        # Segmented mode: only run tests explicitly targeting z8001-seg
+        filtered = [t for t in filtered if t.target == "z8001-seg"]
+    elif args.target:
+        # Non-segmented: run "common" tests + target-specific tests
+        filtered = [t for t in filtered
+                     if t.target in ("common", args.target)]
 
     if args.mnemonic:
         filtered = [t for t in filtered

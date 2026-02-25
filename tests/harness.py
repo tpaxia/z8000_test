@@ -144,18 +144,21 @@ class Z8000TestHarness:
     def upload_bootstrap(self, target="z8002", bin_path=None):
         """Upload Z8000 bootstrap binary to BRAM shadow area (0x1000).
 
-        Reads src/bootstrap.bin, replaces reset vectors for the target CPU,
-        and uploads to BRAM shadow area. The Z80 INIT command will copy from
-        shadow to active area (0x0000) on each test.
+        Reads src/bootstrap.bin (or bootstrap_seg.bin for z8001-seg),
+        replaces reset vectors for the target CPU, and uploads to BRAM
+        shadow area. The Z80 INIT command will copy from shadow to active
+        area (0x0000) on each test.
 
         Args:
             target: "z8002", "z8001", or "z8001-seg"
-            bin_path: path to bootstrap.bin (default: auto-detect relative to project)
+            bin_path: path to bootstrap binary (default: auto-detect)
         """
         if bin_path is None:
-            # Find bootstrap.bin relative to this file (tests/harness.py -> src/bootstrap.bin)
             project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            bin_path = os.path.join(project_root, "src", "bootstrap.bin")
+            if target == "z8001-seg":
+                bin_path = os.path.join(project_root, "src", "bootstrap_seg.bin")
+            else:
+                bin_path = os.path.join(project_root, "src", "bootstrap.bin")
 
         with open(bin_path, "rb") as f:
             data = f.read()
@@ -164,8 +167,11 @@ class Z8000TestHarness:
         # which are target-specific. Replace with appropriate vectors.
         body = data[16:]  # 0x0010 onwards — same for all targets
 
-        if target in ("z8001", "z8001-seg"):
-            # Z8001: 4-word segmented reset vector, padded to 8 words
+        if target == "z8001-seg":
+            # Z8001 segmented: FCW=0xC000 (system + segmented), PC=seg 0, offset 0x0040
+            vectors = struct.pack(">8H", 0x0000, 0xC000, 0x0000, 0x0040, 0, 0, 0, 0)
+        elif target == "z8001":
+            # Z8001 non-segmented: FCW=0x4000, PC=seg 0, offset 0x0040
             vectors = struct.pack(">8H", 0x0000, 0x4000, 0x0000, 0x0040, 0, 0, 0, 0)
         else:
             # Z8002: 3-word non-segmented reset vector, padded to 8 words

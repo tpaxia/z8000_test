@@ -162,6 +162,22 @@ module z8001_ext_test_top (
     );
 
     //------------------------------------------------------------------------
+    // Segment Number Latch
+    // Latch SN on AS rising edge (same timing as bus_if internal latch).
+    // SN[0] is used as BRAM address bit 12 to split 8KB BRAM into 2x4KB:
+    //   SN=0 → BRAM 0x0000-0x0FFF (Z8001 segment 0)
+    //   SN=1 → BRAM 0x1000-0x1FFF (Z8001 segment 1)
+    // Backward-compatible: non-segmented tests use SN=0, all addresses < 0x1000.
+    //------------------------------------------------------------------------
+    reg [3:0] sn_latched;
+    always @(posedge fas or negedge sys_rst_n) begin
+        if (!sys_rst_n)
+            sn_latched <= 4'b0000;
+        else
+            sn_latched <= fsn;
+    end
+
+    //------------------------------------------------------------------------
     // Address Decode
     //------------------------------------------------------------------------
     wire io_std_sel = (z8k_st == 4'b0010);   // Standard I/O (ST=0010)
@@ -426,7 +442,7 @@ module z8001_ext_test_top (
         .clkb    (sys_clk),
         .web_hi  (z8k_we_hi),
         .web_lo  (z8k_we_lo),
-        .addrb   (z8k_addr[12:0]),
+        .addrb   ({sn_latched[0], z8k_addr[11:0]}),
         .dinb    (z8k_wdata),
         .doutb   (z8k_rd_data)
     );

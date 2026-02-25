@@ -4,7 +4,7 @@ import fnmatch
 import time
 
 from .defs import TestCase, TestResult
-from .helpers import CODE_BASE, JP_DUMP
+from .helpers import CODE_BASE, JP_DUMP, REG_DUMP_SEG, FCW_DUMP_SEG
 from .verify import verify_result
 
 
@@ -44,10 +44,17 @@ class TestRunner:
         # 6. Read back registers
         actual_regs = {}
         for reg in set(list(tc.expected_regs.keys()) + list(tc.regs.keys())):
-            actual_regs[reg] = self.harness.read_reg(reg)
+            if self.target == "z8001-seg":
+                # Segmented bootstrap dumps registers at 0x0140 instead of 0x0090
+                actual_regs[reg] = self.harness.read_mem(REG_DUMP_SEG + reg * 2)
+            else:
+                actual_regs[reg] = self.harness.read_reg(reg)
 
         # 7. Read back FCW
-        actual_fcw = self.harness.read_fcw()
+        if self.target == "z8001-seg":
+            actual_fcw = self.harness.read_mem(FCW_DUMP_SEG)
+        else:
+            actual_fcw = self.harness.read_fcw()
 
         # 8. Read back memory
         actual_memory = {}
@@ -118,14 +125,15 @@ class TestRunner:
     def _filter_tests(self, tests, tags=None, mnemonic=None, name_pattern=None):
         """Filter tests by target, tags, mnemonic, and name pattern."""
         # Build set of test targets that match the runner target.
-        # z8001-seg runs: common + z8001 + z8001-seg
+        # z8001-seg runs: z8001-seg only (different bootstrap layout)
         # z8001 runs:     common + z8001
         # z8002 runs:     common + z8002
         # common runs:    common only
-        allowed = {"common"}
         if self.target == "z8001-seg":
-            allowed |= {"z8001", "z8001-seg"}
-        elif self.target != "common":
+            allowed = {"z8001-seg"}
+        else:
+            allowed = {"common"}
+        if self.target not in ("common", "z8001-seg"):
             allowed.add(self.target)
 
         filtered = []
