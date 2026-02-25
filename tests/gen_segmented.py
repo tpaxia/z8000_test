@@ -6,6 +6,14 @@ DA encodings (the assembler handles short-form vs long-form automatically).
 
 Requires z8k-coff-as, z8k-coff-ld, z8k-coff-objcopy toolchain.
 
+**** IMPORTANT: NEVER hand-code Z8001 segmented values. ****
+**** This includes opcodes, DA words, AND register pair values for ****
+**** segmented pointers (e.g. @RRn). The encoding is NOT obvious: ****
+****   segment 1, offset 0x200 in a register pair = R_even=0x8100, ****
+****   R_odd=0x0200 (bit 15=1 for long-form, segment in bits 14:8). ****
+**** ALWAYS use the assembler (LDA instruction) to generate segmented ****
+**** pointer values. See CLAUDE.md. ****
+
 Usage:
     from tests.gen_segmented import generate_segmented_tests
     tests = generate_segmented_tests()
@@ -45,6 +53,7 @@ SECTIONS {{
     .text 0x00200 : {{ *(.text) }} > SEG0
     .s0short 0x{SEG0_SHORT_ADDR:05X} : {{ *(.s0short) }} > SEG0
     .s0long 0x{SEG0_LONG_ADDR:05X} : {{ *(.s0long) }} > SEG0
+    .s0stk 0x{STACK_BASE:05X} : {{ *(.s0stk) }} > SEG0
     .s1data 0x1{SEG1_DATA_OFFSET:04X} : {{ *(.s1data) }} > SEG1
 }}
 """
@@ -245,34 +254,49 @@ _start:
 
 
 def _asm_seg0_ir_ld():
-    """LD R0, @RR2 (indirect via register pair, segment 0)."""
+    """LD R0, @RR2 (indirect via register pair, segment 0).
+    Uses LDA to set up RR2 — never hand-code segmented pointer registers."""
     return """\
         segm
+        .section .s0long
+seg0_val:
+        .word   0x0000
         .text
         .global _start
 _start:
+        lda     rr2, seg0_val
         ld      r0, @rr2
 """
 
 
 def _asm_seg1_ir_ld():
-    """LD R0, @RR2 (indirect via register pair, segment 1)."""
+    """LD R0, @RR2 (indirect via register pair, segment 1).
+    Uses LDA to set up RR2 — never hand-code segmented pointer registers."""
     return """\
         segm
+        .section .s1data
+seg1_val:
+        .word   0x0000
         .text
         .global _start
 _start:
+        lda     rr2, seg1_val
         ld      r0, @rr2
 """
 
 
 def _asm_seg1_ir_st():
-    """ST R0, @RR2 (indirect store cross-segment)."""
+    """ST R0, @RR2 (indirect store cross-segment).
+    Uses LDA to set up RR2 — never hand-code segmented pointer registers."""
     return """\
         segm
+        .section .s1data
+seg1_val:
+        .word   0x0000
         .text
         .global _start
 _start:
+        lda     rr2, seg1_val
         ld      @rr2, r0
 """
 
@@ -343,12 +367,17 @@ target:
 
 
 def _asm_seg0_call_ret():
-    """Segmented CALL pushes seg:offset, RET restores."""
+    """Segmented CALL pushes seg:offset, RET restores.
+    Uses LDA to set up RR14 stack pointer — never hand-code segmented pointers."""
     return """\
         segm
+        .section .s0stk
+stack_base:
+        .space  2
         .text
         .global _start
 _start:
+        lda     rr14, stack_base
         ld      r0, #0x0000
         call    subroutine
         ld      r0, #0xAAAA
@@ -361,12 +390,17 @@ done:
 
 
 def _asm_seg0_push_pop():
-    """Segmented PUSH/POP @RR14 stack operations."""
+    """Segmented PUSH/POP @RR14 stack operations.
+    Uses LDA to set up RR14 stack pointer — never hand-code segmented pointers."""
     return """\
         segm
+        .section .s0stk
+stack_base:
+        .space  2
         .text
         .global _start
 _start:
+        lda     rr14, stack_base
         ld      r0, #0xBEEF
         push    @rr14, r0
         ld      r0, #0x0000
@@ -539,6 +573,7 @@ def generate_segmented_tests():
     tests[-1].expected_memory = {SEG1_Z80_ADDR: 0xCD00}
 
     # ---- Test 9: LD R0, @RR2 (indirect, segment 0) ----
+    # RR2 is set up by LDA in the assembly — NOT hand-coded in regs
     code = _assemble(_asm_seg0_ir_ld())
     tests.append(_tc(
         name='seg_ld_r_ir_seg0',
@@ -546,11 +581,12 @@ def generate_segmented_tests():
         desc='LD R0, @RR2 (indirect, seg 0 offset 0x400)',
         tags=['segmented', 'seg0', 'indirect'],
         code=code,
-        regs={0: 0x0000, 2: 0x0000, 3: SEG0_LONG_ADDR},
+        regs={0: 0x0000},
         memory={SEG0_LONG_ADDR: 0x9876},
     ))
 
     # ---- Test 10: LD R0, @RR2 (indirect, segment 1) ----
+    # RR2 is set up by LDA in the assembly — NOT hand-coded in regs
     code = _assemble(_asm_seg1_ir_ld())
     tests.append(_tc(
         name='seg_ld_r_ir_seg1',
@@ -558,11 +594,12 @@ def generate_segmented_tests():
         desc='LD R0, @RR2 (indirect, seg 1 offset 0x200)',
         tags=['segmented', 'seg1', 'indirect', 'cross_segment'],
         code=code,
-        regs={0: 0x0000, 2: 0x0001, 3: SEG1_DATA_OFFSET},
+        regs={0: 0x0000},
         memory={SEG1_Z80_ADDR: 0x5432},
     ))
 
     # ---- Test 11: ST R0, @RR2 (indirect store, segment 1) ----
+    # RR2 is set up by LDA in the assembly — NOT hand-coded in regs
     code = _assemble(_asm_seg1_ir_st())
     tests.append(_tc(
         name='seg_st_r_ir_seg1',
@@ -570,7 +607,7 @@ def generate_segmented_tests():
         desc='ST R0, @RR2 (indirect store, seg 1 offset 0x200)',
         tags=['segmented', 'seg1', 'indirect', 'cross_segment'],
         code=code,
-        regs={0: 0xFEDC, 2: 0x0001, 3: SEG1_DATA_OFFSET},
+        regs={0: 0xFEDC},
         memory={},
     ))
     tests[-1].expected_memory = {SEG1_Z80_ADDR: 0xFEDC}
@@ -627,6 +664,7 @@ def generate_segmented_tests():
     ))
 
     # ---- Test 16: CALL/RET (segment 0) ----
+    # RR14 stack pointer set up by LDA in the assembly — NOT hand-coded in regs
     code = _assemble(_asm_seg0_call_ret())
     tests.append(_tc(
         name='seg_call_ret_seg0',
@@ -634,10 +672,11 @@ def generate_segmented_tests():
         desc='CALL subroutine / RET (segmented stack)',
         tags=['segmented', 'seg0', 'call', 'ret'],
         code=code,
-        regs={0: 0x0000, 14: 0x0000, 15: STACK_BASE},
+        regs={0: 0x0000},
     ))
 
     # ---- Test 17: PUSH/POP @RR14 (segmented stack) ----
+    # RR14 stack pointer set up by LDA in the assembly — NOT hand-coded in regs
     code = _assemble(_asm_seg0_push_pop())
     tests.append(_tc(
         name='seg_push_pop_seg0',
@@ -645,7 +684,7 @@ def generate_segmented_tests():
         desc='PUSH @RR14, R0 / POP R0, @RR14 (segmented stack)',
         tags=['segmented', 'seg0', 'push', 'pop', 'stack'],
         code=code,
-        regs={0: 0x0000, 14: 0x0000, 15: STACK_BASE},
+        regs={0: 0x0000},
     ))
 
     # ---- Test 18: LDL RR0 from segment 1 (32-bit load) ----
