@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_adcb_r_r_normal_c0",
+  "mnemonic": "ADCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 17920,
+    "1": 13312
+  },
+  "fcw": 49152,
+  "memory": {}
+}

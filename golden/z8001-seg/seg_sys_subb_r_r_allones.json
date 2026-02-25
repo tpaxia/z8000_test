@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_subb_r_r_allones",
+  "mnemonic": "SUBB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280,
+    "1": 0
+  },
+  "fcw": 49192,
+  "memory": {}
+}

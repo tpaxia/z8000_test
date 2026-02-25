@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_andb_r_im_normal",
+  "mnemonic": "ANDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4096
+  },
+  "fcw": 49152,
+  "memory": {}
+}

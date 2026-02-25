@@ -1,0 +1,13 @@
+{
+  "test": "seg_sys_addl_rr_rr_carry",
+  "mnemonic": "ADDL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0,
+    "2": 0,
+    "3": 1
+  },
+  "fcw": 49344,
+  "memory": {}
+}

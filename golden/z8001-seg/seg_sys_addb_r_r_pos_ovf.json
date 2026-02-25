@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_addb_r_r_pos_ovf",
+  "mnemonic": "ADDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32768,
+    "1": 256
+  },
+  "fcw": 49204,
+  "memory": {}
+}

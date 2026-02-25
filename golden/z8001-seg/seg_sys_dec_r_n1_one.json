@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_dec_r_n1_one",
+  "mnemonic": "DEC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 49216,
+  "memory": {}
+}

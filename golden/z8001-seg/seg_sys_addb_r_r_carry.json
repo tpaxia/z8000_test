@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_addb_r_r_carry",
+  "mnemonic": "ADDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 256
+  },
+  "fcw": 49348,
+  "memory": {}
+}

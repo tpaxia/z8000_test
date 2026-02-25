@@ -1,0 +1,13 @@
+{
+  "test": "seg_sys_addl_rr_rr_max",
+  "mnemonic": "ADDL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 65534,
+    "2": 65535,
+    "3": 65535
+  },
+  "fcw": 49312,
+  "memory": {}
+}

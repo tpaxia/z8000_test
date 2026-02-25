@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_calr_ret_basic",
+  "mnemonic": "CALR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 3,
+    "15": 3840
+  },
+  "fcw": 49152,
+  "memory": {}
+}

@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_lddrb_3bytes",
+  "mnemonic": "LDDRB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1535,
+    "2": 0,
+    "3": 1791
+  },
+  "fcw": 49232,
+  "memory": {}
+}

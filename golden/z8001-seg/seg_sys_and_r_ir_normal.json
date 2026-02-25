@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_and_r_ir_normal",
+  "mnemonic": "AND",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "2": 1024
+  },
+  "fcw": 49216,
+  "memory": {}
+}

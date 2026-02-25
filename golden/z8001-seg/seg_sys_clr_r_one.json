@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_clr_r_one",
+  "mnemonic": "CLR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 49152,
+  "memory": {}
+}

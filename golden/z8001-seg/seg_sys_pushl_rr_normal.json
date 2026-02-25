@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_pushl_rr_normal",
+  "mnemonic": "PUSHL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4660,
+    "1": 22136,
+    "15": 3836
+  },
+  "fcw": 49152,
+  "memory": {}
+}

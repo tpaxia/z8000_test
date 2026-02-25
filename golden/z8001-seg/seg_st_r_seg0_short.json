@@ -1,0 +1,12 @@
+{
+  "test": "seg_st_r_seg0_short",
+  "mnemonic": "ST",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 51966
+  },
+  "fcw": 49152,
+  "memory": {
+    "180": 51966
+  }
+}

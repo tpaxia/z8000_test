@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_ret_cc_taken",
+  "mnemonic": "RET",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 3,
+    "15": 3840
+  },
+  "fcw": 49216,
+  "memory": {}
+}

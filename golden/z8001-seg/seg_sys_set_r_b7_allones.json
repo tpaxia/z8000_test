@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_set_r_b7_allones",
+  "mnemonic": "SET",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535
+  },
+  "fcw": 49152,
+  "memory": {}
+}

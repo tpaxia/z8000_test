@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_add_r_da_carry_short",
+  "mnemonic": "ADD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 49344,
+  "memory": {}
+}

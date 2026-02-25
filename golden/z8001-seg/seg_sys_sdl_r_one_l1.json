@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_sdl_r_one_l1",
+  "mnemonic": "SDL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 2,
+    "1": 1
+  },
+  "fcw": 49152,
+  "memory": {}
+}

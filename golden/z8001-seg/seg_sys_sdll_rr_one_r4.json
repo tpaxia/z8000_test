@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_sdll_rr_one_r4",
+  "mnemonic": "SDLL",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 65532,
+    "2": 0,
+    "3": 0
+  },
+  "fcw": 49216,
+  "memory": {}
+}

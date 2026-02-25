@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_trdb_cnt1",
+  "mnemonic": "TRDB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 16896,
+    "2": 0,
+    "3": 1537
+  },
+  "fcw": 49168,
+  "memory": {}
+}

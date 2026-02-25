@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_ldb_r_im_max",
+  "mnemonic": "LDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280
+  },
+  "fcw": 49152,
+  "memory": {}
+}

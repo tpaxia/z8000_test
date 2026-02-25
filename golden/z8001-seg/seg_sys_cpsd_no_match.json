@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_cpsd_no_match",
+  "mnemonic": "CPSD",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1538,
+    "2": 2,
+    "3": 1794
+  },
+  "fcw": 49152,
+  "memory": {}
+}

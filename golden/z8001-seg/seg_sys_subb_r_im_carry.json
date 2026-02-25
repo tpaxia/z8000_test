@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_subb_r_im_carry",
+  "mnemonic": "SUBB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65024
+  },
+  "fcw": 49192,
+  "memory": {}
+}

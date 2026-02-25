@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_adcb_r_r_half_c0",
+  "mnemonic": "ADCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4096,
+    "1": 256
+  },
+  "fcw": 49156,
+  "memory": {}
+}

@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_lddr_1word",
+  "mnemonic": "LDDR",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1534,
+    "2": 0,
+    "3": 1790
+  },
+  "fcw": 49232,
+  "memory": {}
+}

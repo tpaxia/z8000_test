@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_orb_r_r_zero",
+  "mnemonic": "ORB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0
+  },
+  "fcw": 49232,
+  "memory": {}
+}

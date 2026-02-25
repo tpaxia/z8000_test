@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_dab_add_both_adj",
+  "mnemonic": "DAB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 256
+  },
+  "fcw": 49284,
+  "memory": {}
+}

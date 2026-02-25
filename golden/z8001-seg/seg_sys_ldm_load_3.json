@@ -1,0 +1,13 @@
+{
+  "test": "seg_sys_ldm_load_3",
+  "mnemonic": "LDM",
+  "exec_result": "HALT",
+  "regs": {
+    "2": 1024,
+    "3": 0,
+    "4": 49152,
+    "5": 0
+  },
+  "fcw": 49152,
+  "memory": {}
+}

@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_testl_rr_one",
+  "mnemonic": "TESTL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 1
+  },
+  "fcw": 49152,
+  "memory": {}
+}

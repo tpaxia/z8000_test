@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_sllb_r_pattern_n1",
+  "mnemonic": "SLLB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 18944
+  },
+  "fcw": 49296,
+  "memory": {}
+}

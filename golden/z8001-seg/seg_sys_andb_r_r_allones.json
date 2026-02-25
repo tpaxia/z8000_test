@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_andb_r_r_allones",
+  "mnemonic": "ANDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0
+  },
+  "fcw": 49232,
+  "memory": {}
+}

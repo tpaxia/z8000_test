@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_sdab_r_msb_l1",
+  "mnemonic": "SDAB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 1
+  },
+  "fcw": 49360,
+  "memory": {}
+}

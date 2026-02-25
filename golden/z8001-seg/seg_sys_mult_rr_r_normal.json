@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_mult_rr_r_normal",
+  "mnemonic": "MULT",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 5000,
+    "2": 50
+  },
+  "fcw": 49152,
+  "memory": {}
+}

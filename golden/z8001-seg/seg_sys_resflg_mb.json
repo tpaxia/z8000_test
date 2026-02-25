@@ -1,0 +1,8 @@
+{
+  "test": "seg_sys_resflg_mb",
+  "mnemonic": "RESFLG",
+  "exec_result": "HALT",
+  "regs": {},
+  "fcw": 49216,
+  "memory": {}
+}

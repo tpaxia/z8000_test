@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_lddb_single",
+  "mnemonic": "LDDB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1537,
+    "2": 2,
+    "3": 1793
+  },
+  "fcw": 49152,
+  "memory": {}
+}

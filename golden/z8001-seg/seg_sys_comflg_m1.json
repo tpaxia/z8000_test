@@ -1,0 +1,8 @@
+{
+  "test": "seg_sys_comflg_m1",
+  "mnemonic": "COMFLG",
+  "exec_result": "HALT",
+  "regs": {},
+  "fcw": 49172,
+  "memory": {}
+}

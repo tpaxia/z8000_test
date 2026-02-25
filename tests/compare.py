@@ -31,6 +31,7 @@ import json
 
 from .gen_systematic import generate_all_tests
 from .gen_segmented import generate_segmented_tests
+from .gen_seg_systematic import generate_seg_systematic_tests
 from .golden import save_golden, load_golden, compare_golden
 from .auto_generate import generate_golden_test_file
 from .runner import TestRunner
@@ -93,7 +94,9 @@ def main():
     # Add segmented tests when targeting z8001-seg
     if args.target == "z8001-seg":
         seg_tests = generate_segmented_tests()
+        seg_sys_tests = generate_seg_systematic_tests()
         all_tests.extend(seg_tests)
+        all_tests.extend(seg_sys_tests)
 
     if not all_tests:
         print("No tests generated.")

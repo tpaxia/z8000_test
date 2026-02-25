@@ -1,0 +1,15 @@
+{
+  "test": "seg_sys_divl_rq_rr_normal",
+  "mnemonic": "DIVL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 0,
+    "2": 0,
+    "3": 50,
+    "4": 0,
+    "5": 100
+  },
+  "fcw": 49152,
+  "memory": {}
+}

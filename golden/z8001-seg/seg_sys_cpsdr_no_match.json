@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_cpsdr_no_match",
+  "mnemonic": "CPSDR",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1534,
+    "2": 0,
+    "3": 1790
+  },
+  "fcw": 49200,
+  "memory": {}
+}

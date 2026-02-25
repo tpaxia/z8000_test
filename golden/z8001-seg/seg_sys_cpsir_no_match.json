@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_cpsir_no_match",
+  "mnemonic": "CPSIR",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1542,
+    "2": 0,
+    "3": 1798
+  },
+  "fcw": 49200,
+  "memory": {}
+}

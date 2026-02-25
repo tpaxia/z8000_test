@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_neg_r_pos_max",
+  "mnemonic": "NEG",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32769
+  },
+  "fcw": 49312,
+  "memory": {}
+}

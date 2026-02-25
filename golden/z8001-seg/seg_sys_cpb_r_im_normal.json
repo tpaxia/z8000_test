@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_cpb_r_im_normal",
+  "mnemonic": "CPB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4608
+  },
+  "fcw": 49312,
+  "memory": {}
+}

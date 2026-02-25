@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_ld_r_x_basic_long",
+  "mnemonic": "LD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 48879,
+    "2": 4
+  },
+  "fcw": 49152,
+  "memory": {}
+}

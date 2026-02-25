@@ -1,0 +1,13 @@
+{
+  "test": "seg_sys_addl_rr_rr_pos_ovf",
+  "mnemonic": "ADDL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 32768,
+    "1": 0,
+    "2": 0,
+    "3": 1
+  },
+  "fcw": 49200,
+  "memory": {}
+}

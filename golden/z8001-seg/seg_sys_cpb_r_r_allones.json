@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_cpb_r_r_allones",
+  "mnemonic": "CPB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280,
+    "1": 0
+  },
+  "fcw": 49184,
+  "memory": {}
+}

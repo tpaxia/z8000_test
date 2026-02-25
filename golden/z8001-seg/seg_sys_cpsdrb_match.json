@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_cpsdrb_match",
+  "mnemonic": "CPSDRB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1539,
+    "2": 2,
+    "3": 1795
+  },
+  "fcw": 49216,
+  "memory": {}
+}

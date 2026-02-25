@@ -1,0 +1,10 @@
+{
+  "test": "seg_push_pop_seg0",
+  "mnemonic": "PUSH",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 48879
+  },
+  "fcw": 49152,
+  "memory": {}
+}

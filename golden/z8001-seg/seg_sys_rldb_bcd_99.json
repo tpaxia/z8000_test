@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_rldb_bcd_99",
+  "mnemonic": "RLDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 152,
+    "1": 30976
+  },
+  "fcw": 49184,
+  "memory": {}
+}

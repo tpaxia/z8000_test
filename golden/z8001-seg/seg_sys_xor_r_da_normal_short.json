@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_xor_r_da_normal_short",
+  "mnemonic": "XOR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 17484
+  },
+  "fcw": 49152,
+  "memory": {}
+}

@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_sda_r_msb_r4",
+  "mnemonic": "SDA",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 63488,
+    "1": 65532
+  },
+  "fcw": 49184,
+  "memory": {}
+}

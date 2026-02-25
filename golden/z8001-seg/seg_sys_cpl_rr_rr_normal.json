@@ -1,0 +1,13 @@
+{
+  "test": "seg_sys_cpl_rr_rr_normal",
+  "mnemonic": "CPL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4660,
+    "1": 22136,
+    "2": 39612,
+    "3": 57072
+  },
+  "fcw": 49280,
+  "memory": {}
+}

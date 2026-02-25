@@ -1,0 +1,10 @@
+{
+  "test": "seg_call_ret_seg0",
+  "mnemonic": "CALL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 43690
+  },
+  "fcw": 49152,
+  "memory": {}
+}

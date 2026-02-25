@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_sbc_r_r_carry_c1",
+  "mnemonic": "SBC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65533,
+    "1": 1
+  },
+  "fcw": 49184,
+  "memory": {}
+}

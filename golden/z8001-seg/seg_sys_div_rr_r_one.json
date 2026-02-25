@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_div_rr_r_one",
+  "mnemonic": "DIV",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0,
+    "1": 1,
+    "2": 1
+  },
+  "fcw": 49152,
+  "memory": {}
+}

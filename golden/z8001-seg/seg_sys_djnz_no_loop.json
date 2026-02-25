@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_djnz_no_loop",
+  "mnemonic": "DJNZ",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 1,
+    "1": 0
+  },
+  "fcw": 49152,
+  "memory": {}
+}

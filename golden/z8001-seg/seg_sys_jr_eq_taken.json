@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_jr_eq_taken",
+  "mnemonic": "JR",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 24589
+  },
+  "fcw": 49216,
+  "memory": {}
+}

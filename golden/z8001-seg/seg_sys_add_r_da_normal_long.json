@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_add_r_da_normal_long",
+  "mnemonic": "ADD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 26796
+  },
+  "fcw": 49152,
+  "memory": {}
+}

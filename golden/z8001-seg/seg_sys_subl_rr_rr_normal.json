@@ -1,0 +1,13 @@
+{
+  "test": "seg_sys_subl_rr_rr_normal",
+  "mnemonic": "SUBL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 30583,
+    "1": 30600,
+    "2": 39612,
+    "3": 57072
+  },
+  "fcw": 49280,
+  "memory": {}
+}

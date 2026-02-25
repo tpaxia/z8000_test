@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_rrc_r_pattern_n2_c0",
+  "mnemonic": "RRC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 43369
+  },
+  "fcw": 49200,
+  "memory": {}
+}

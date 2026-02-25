@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_ldctl_read_fcw",
+  "mnemonic": "LDCTL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 49344
+  },
+  "fcw": 49344,
+  "memory": {}
+}

@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_ex_r_r_normal",
+  "mnemonic": "EX",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 22136,
+    "1": 4660
+  },
+  "fcw": 49152,
+  "memory": {}
+}

@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_adc_r_r_max_c1",
+  "mnemonic": "ADC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 65535
+  },
+  "fcw": 49312,
+  "memory": {}
+}

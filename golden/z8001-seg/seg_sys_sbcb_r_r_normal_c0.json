@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_sbcb_r_r_normal_c0",
+  "mnemonic": "SBCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 56832,
+    "1": 13312
+  },
+  "fcw": 49324,
+  "memory": {}
+}

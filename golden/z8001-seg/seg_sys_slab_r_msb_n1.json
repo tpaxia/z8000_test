@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_slab_r_msb_n1",
+  "mnemonic": "SLAB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 49360,
+  "memory": {}
+}

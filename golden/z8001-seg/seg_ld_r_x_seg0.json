@@ -1,0 +1,11 @@
+{
+  "test": "seg_ld_r_x_seg0",
+  "mnemonic": "LD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 17185,
+    "5": 4
+  },
+  "fcw": 49152,
+  "memory": {}
+}

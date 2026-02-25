@@ -65,6 +65,10 @@ class EmuRunner:
 
         lines = []
 
+        # Mode (Z8001 segmented or Z8002 non-segmented)
+        if self.target == "z8001-seg":
+            lines.append("MODE:z8001")
+
         # Code words
         if tc.code:
             words = " ".join(f"{w:04X}" for w in tc.code)

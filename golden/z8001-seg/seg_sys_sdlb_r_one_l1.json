@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_sdlb_r_one_l1",
+  "mnemonic": "SDLB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 512,
+    "1": 1
+  },
+  "fcw": 49152,
+  "memory": {}
+}

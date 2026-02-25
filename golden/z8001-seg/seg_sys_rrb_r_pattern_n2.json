@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_rrb_r_pattern_n2",
+  "mnemonic": "RRB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 26880
+  },
+  "fcw": 49168,
+  "memory": {}
+}

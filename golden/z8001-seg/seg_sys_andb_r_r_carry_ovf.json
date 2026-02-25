@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_andb_r_r_carry_ovf",
+  "mnemonic": "ANDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280,
+    "1": 65280
+  },
+  "fcw": 49200,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_rrcb_r_one_n2_c1",
+  "mnemonic": "RRCB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 49152
+  },
+  "fcw": 49200,
+  "memory": {}
+}

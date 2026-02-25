@@ -1,0 +1,10 @@
+{
+  "test": "seg_ldb_rh0_seg1",
+  "mnemonic": "LDB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 43776
+  },
+  "fcw": 49152,
+  "memory": {}
+}

@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_negb_r_one",
+  "mnemonic": "NEGB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280
+  },
+  "fcw": 49312,
+  "memory": {}
+}

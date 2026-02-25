@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_add_r_r_allones",
+  "mnemonic": "ADD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65535,
+    "1": 0
+  },
+  "fcw": 49184,
+  "memory": {}
+}

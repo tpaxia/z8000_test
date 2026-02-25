@@ -1,0 +1,11 @@
+{
+  "test": "seg_jp_seg0",
+  "mnemonic": "JP",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4660,
+    "1": 22136
+  },
+  "fcw": 49152,
+  "memory": {}
+}

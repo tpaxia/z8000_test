@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_tsetb_r_zero",
+  "mnemonic": "TSETB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 65280
+  },
+  "fcw": 49152,
+  "memory": {}
+}

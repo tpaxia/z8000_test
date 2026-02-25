@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_sll_r_one_n8",
+  "mnemonic": "SLL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 256
+  },
+  "fcw": 49152,
+  "memory": {}
+}

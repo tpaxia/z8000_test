@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_ld_r_im_zero",
+  "mnemonic": "LD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 0
+  },
+  "fcw": 49152,
+  "memory": {}
+}

@@ -1,0 +1,12 @@
+{
+  "test": "seg_sys_trtib_basic",
+  "mnemonic": "TRTIB",
+  "exec_result": "HALT",
+  "regs": {
+    "1": 1,
+    "2": 2,
+    "3": 1536
+  },
+  "fcw": 49216,
+  "memory": {}
+}

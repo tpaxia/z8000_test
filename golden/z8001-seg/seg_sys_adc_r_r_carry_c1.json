@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_adc_r_r_carry_c1",
+  "mnemonic": "ADC",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 1,
+    "1": 1
+  },
+  "fcw": 49280,
+  "memory": {}
+}

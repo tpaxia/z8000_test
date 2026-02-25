@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_pop_r_normal",
+  "mnemonic": "POP",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 43981,
+    "15": 3840
+  },
+  "fcw": 49152,
+  "memory": {}
+}

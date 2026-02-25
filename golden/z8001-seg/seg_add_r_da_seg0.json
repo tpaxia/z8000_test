@@ -1,0 +1,10 @@
+{
+  "test": "seg_add_r_da_seg0",
+  "mnemonic": "ADD",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 4660
+  },
+  "fcw": 49152,
+  "memory": {}
+}

@@ -1,0 +1,8 @@
+{
+  "test": "seg_sys_setflg_m8",
+  "mnemonic": "SETFLG",
+  "exec_result": "HALT",
+  "regs": {},
+  "fcw": 49280,
+  "memory": {}
+}

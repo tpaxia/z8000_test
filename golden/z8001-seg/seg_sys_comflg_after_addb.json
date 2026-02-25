@@ -1,0 +1,10 @@
+{
+  "test": "seg_sys_comflg_after_addb",
+  "mnemonic": "COMFLG",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 3841
+  },
+  "fcw": 49156,
+  "memory": {}
+}

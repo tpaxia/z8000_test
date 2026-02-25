@@ -1,0 +1,12 @@
+{
+  "test": "seg_stb_rh0_seg1",
+  "mnemonic": "STB",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 52480
+  },
+  "fcw": 49152,
+  "memory": {
+    "4608": 52480
+  }
+}

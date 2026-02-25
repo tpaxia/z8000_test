@@ -1,0 +1,11 @@
+{
+  "test": "seg_sys_ldl_rr_im_normal",
+  "mnemonic": "LDL",
+  "exec_result": "HALT",
+  "regs": {
+    "0": 57005,
+    "1": 48879
+  },
+  "fcw": 49152,
+  "memory": {}
+}
