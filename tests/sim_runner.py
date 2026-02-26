@@ -8,7 +8,7 @@ import tempfile
 
 from .defs import TestCase, TestResult
 from .helpers import (
-    CODE_BASE, JP_DUMP, REG_SETUP, FCW_SETUP, FCW_DUMP,
+    CODE_BASE, JP_DUMP, JP_DUMP_SEG, REG_SETUP, FCW_SETUP, FCW_DUMP,
     REG_DUMP, DUMP_ROUTINE,
 )
 from .verify import verify_result
@@ -21,7 +21,10 @@ class SimRunner:
         if project_root is None:
             project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.project_root = project_root
-        self.vvp_path = os.path.join(project_root, "z8000_sim_tb.vvp")
+        if target == "z8001-seg":
+            self.vvp_path = os.path.join(project_root, "z8001_sim_tb.vvp")
+        else:
+            self.vvp_path = os.path.join(project_root, "z8000_sim_tb.vvp")
         self._tmpdir = os.path.join(project_root, ".sim_tmp")
         os.makedirs(self._tmpdir, exist_ok=True)
 
@@ -37,7 +40,7 @@ class SimRunner:
 
         srcs = [
             os.path.join(src, "src", "z8000_sim_tb.v"),
-            os.path.join(src, "src", "z8000_bus_fpga.v"),
+            os.path.join(src, "src", "z8001_bus_fpga.v"),
             os.path.join(src, "src", "ram16.v"),
             os.path.join(src, "src", "z8k_io_ports.v"),
             os.path.join(src, "src", "trace_buffer.v"),
@@ -48,11 +51,15 @@ class SimRunner:
             os.path.join(z8k_rtl, "decode_rom.v"),
         ]
 
+        defines = ["-DSIMULATION"]
+        if self.target == "z8001-seg":
+            defines.append("-DZ8001_MODE")
+
         cmd = [
-            "iverilog", "-g2012", "-DSIMULATION",
+            "iverilog", "-g2012",
             f"-I{z8k_rtl}",
             "-o", self.vvp_path,
-        ] + srcs
+        ] + defines + srcs
 
         if self.verbose:
             print(f"  Compiling: iverilog -> {self.vvp_path}")
@@ -64,15 +71,22 @@ class SimRunner:
             )
 
     def _load_bootstrap(self):
-        """Load and return the bootstrap binary (with Z8002 reset vectors)."""
-        bin_path = os.path.join(self.project_root, "src", "bootstrap.bin")
+        """Load and return the bootstrap binary with target-appropriate reset vectors."""
+        if self.target == "z8001-seg":
+            bin_path = os.path.join(self.project_root, "src", "bootstrap_seg.bin")
+        else:
+            bin_path = os.path.join(self.project_root, "src", "bootstrap.bin")
         with open(bin_path, "rb") as f:
             data = f.read()
 
         body = data[16:]  # 0x0010 onwards
 
-        # Z8002 non-segmented reset vectors (sim always uses Z8002 CPU)
-        vectors = struct.pack(">8H", 0x0000, 0x4000, 0x0040, 0, 0, 0, 0, 0)
+        if self.target == "z8001-seg":
+            # Z8001 segmented: FCW=0xC000, PC=seg 0, offset 0x0040
+            vectors = struct.pack(">8H", 0x0000, 0xC000, 0x0000, 0x0040, 0, 0, 0, 0)
+        else:
+            # Z8002 non-segmented: FCW=0x4000, PC=0x0040
+            vectors = struct.pack(">8H", 0x0000, 0x4000, 0x0040, 0, 0, 0, 0, 0)
         return vectors + body
 
     def _build_memory_image(self, tc):
@@ -114,7 +128,8 @@ class SimRunner:
             write_word(addr, val)
 
         # Load test code at CODE_BASE + append JP dump_routine
-        code_with_jp = list(tc.code) + JP_DUMP
+        jp = JP_DUMP_SEG if self.target == "z8001-seg" else JP_DUMP
+        code_with_jp = list(tc.code) + jp
         for i, word in enumerate(code_with_jp):
             write_word(CODE_BASE + i * 2, word)
 

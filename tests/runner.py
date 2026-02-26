@@ -4,7 +4,7 @@ import fnmatch
 import time
 
 from .defs import TestCase, TestResult
-from .helpers import CODE_BASE, JP_DUMP, REG_DUMP_SEG, FCW_DUMP_SEG
+from .helpers import CODE_BASE, JP_DUMP, JP_DUMP_SEG, REG_DUMP_SEG, FCW_DUMP_SEG
 from .verify import verify_result
 
 
@@ -34,16 +34,17 @@ class TestRunner:
             self.harness.write_io_port(idx, val)
 
         # 4. Load test code at CODE_BASE + append JP dump_routine
-        code_with_jp = list(tc.code) + JP_DUMP
+        jp = JP_DUMP_SEG if self.target == "z8001-seg" else JP_DUMP
+        code_with_jp = list(tc.code) + jp
         for i, word in enumerate(code_with_jp):
             self.harness.write_mem(CODE_BASE + i * 2, word)
 
         # 5. Execute
         exec_result = self.harness.execute()
 
-        # 6. Read back registers
+        # 6. Read back all 16 registers
         actual_regs = {}
-        for reg in set(list(tc.expected_regs.keys()) + list(tc.regs.keys())):
+        for reg in range(16):
             if self.target == "z8001-seg":
                 # Segmented bootstrap dumps registers at 0x0140 instead of 0x0090
                 actual_regs[reg] = self.harness.read_mem(REG_DUMP_SEG + reg * 2)

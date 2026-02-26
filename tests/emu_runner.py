@@ -28,12 +28,23 @@ class EmuRunner:
             return
 
         emu_dir = os.path.join(self.project_root, "z8000_emu")
+        build_dir = os.path.join(emu_dir, "build")
 
-        # Build libz8000.a
+        # Build libz8000.a via CMake
         if self.verbose:
             print("  Building libz8000.a...")
+        os.makedirs(build_dir, exist_ok=True)
         result = subprocess.run(
-            ["make", "-C", emu_dir, "libz8000"],
+            ["cmake", "-S", emu_dir, "-B", build_dir,
+             "-DCMAKE_BUILD_TYPE=Release"],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"CMake configure failed:\n{result.stderr}"
+            )
+        result = subprocess.run(
+            ["cmake", "--build", build_dir, "--target", "z8000"],
             capture_output=True, text=True,
         )
         if result.returncode != 0:
@@ -50,7 +61,7 @@ class EmuRunner:
             f"-I{os.path.join(emu_dir, 'include')}",
             "-o", self.driver_path,
             os.path.join(self.project_root, "emu", "z8000_test_driver.cpp"),
-            f"-L{os.path.join(emu_dir, 'build')}",
+            f"-L{build_dir}",
             "-lz8000",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)

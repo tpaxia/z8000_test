@@ -29,6 +29,7 @@ module z8000_sim_tb;
     wire        cpu_halt_n;
     wire [15:0] z8k_addr;
     wire [15:0] z8k_wdata;
+    wire [6:0]  z8k_sn;
     wire        z8k_cpu_clk;
     reg  [15:0] data_to_cpu;
 
@@ -51,7 +52,7 @@ module z8000_sim_tb;
     // ==========================================
     // Z8000 Bus Interface (CPU + clock divider)
     // ==========================================
-    z8000_bus_fpga bus_if (
+    z8001_bus_fpga bus_if (
         .clk        (clk),
         .rst_n      (rst_n),
         .z8k_rst_n  (z8k_rst_n),
@@ -64,6 +65,7 @@ module z8000_sim_tb;
         .mreq_n     (cpu_mreq_n),
         .bw_n       (cpu_bw_n),
         .st         (cpu_st),
+        .sn         (z8k_sn),
         .halt_n     (cpu_halt_n),
         .cpu_clk    (z8k_cpu_clk)
     );
@@ -149,11 +151,15 @@ module z8000_sim_tb;
         .addra   (13'd0),
         .dina    (16'd0),
         .douta   (),
-        // Port B - Z8000 CPU
+        // Port B - Z8000 CPU (segment-addressed: sn[0] banks upper 4KB)
         .clkb    (clk),
         .web_hi  (z8k_we_hi),
         .web_lo  (z8k_we_lo),
+`ifdef Z8001_MODE
+        .addrb   ({z8k_sn[0], z8k_addr[11:0]}),
+`else
         .addrb   (z8k_addr[12:0]),
+`endif
         .dinb    (z8k_wdata),
         .doutb   (z8k_rd_data)
     );
@@ -283,15 +289,34 @@ module z8000_sim_tb;
         else
             $display("RESULT:TOUT");
 
-        // Registers from dump area (0x0090-0x00AF = word addrs 72-87)
+        // Registers from dump area
+`ifdef Z8001_MODE
+        // Segmented: 0x0140-0x015F = word addrs 160-175
+        for (i = 0; i < 16; i = i + 1) begin
+            $display("REG:%0d:%04x", i,
+                {bram.mem_hi[160 + i], bram.mem_lo[160 + i]});
+        end
+        // FCW from dump area (0x0162 = word addr 177)
+        $display("FCW:%04x", {bram.mem_hi[177], bram.mem_lo[177]});
+`else
+        // Non-segmented: 0x0090-0x00AF = word addrs 72-87
         for (i = 0; i < 16; i = i + 1) begin
             $display("REG:%0d:%04x", i,
                 {bram.mem_hi[72 + i], bram.mem_lo[72 + i]});
         end
-
         // FCW from dump area (0x00B2 = word addr 89)
         $display("FCW:%04x", {bram.mem_hi[89], bram.mem_lo[89]});
+`endif
 
+`ifdef Z8001_MODE
+        // Seg 0 short-DA area: 0x0090-0x013F (word addrs 90-159)
+        // Covers gap between non-seg dump area and seg dump area,
+        // where short-form DA tests (offset < 256) store data.
+        for (i = 90; i < 160; i = i + 1) begin
+            $display("MEM:%04h:%04h", i[12:0] * 2,
+                {bram.mem_hi[i], bram.mem_lo[i]});
+        end
+`endif
         // Memory readback: test code + operand + block + stack areas
         // 0x0200-0x07FF (word addrs 256-1023)
         for (i = 256; i < 1024; i = i + 1) begin
@@ -303,11 +328,28 @@ module z8000_sim_tb;
             $display("MEM:%04h:%04h", i[12:0] * 2,
                 {bram.mem_hi[i], bram.mem_lo[i]});
         end
-        // 0x0090-0x00B3 (word addrs 72-89) — dump area
+`ifdef Z8001_MODE
+        // Segment 1 area: word addrs 2048+256..2048+1023 = 2304..3071
+        // Maps to byte addrs 0x1200-0x17FE (seg 1 offsets 0x200-0x7FE)
+        for (i = 2304; i < 3072; i = i + 1) begin
+            $display("MEM:%04h:%04h", i[12:0] * 2,
+                {bram.mem_hi[i], bram.mem_lo[i]});
+        end
+`endif
+        // Dump area
+`ifdef Z8001_MODE
+        // 0x0140-0x0163 (word addrs 160-177) — segmented dump area
+        for (i = 160; i < 178; i = i + 1) begin
+            $display("MEM:%04h:%04h", i[12:0] * 2,
+                {bram.mem_hi[i], bram.mem_lo[i]});
+        end
+`else
+        // 0x0090-0x00B3 (word addrs 72-89) — non-segmented dump area
         for (i = 72; i < 90; i = i + 1) begin
             $display("MEM:%04h:%04h", i[12:0] * 2,
                 {bram.mem_hi[i], bram.mem_lo[i]});
         end
+`endif
 
         // I/O port registers
         for (i = 0; i < 12; i = i + 1) begin

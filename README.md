@@ -1,8 +1,29 @@
 # Z8000 Instruction Test Harness
 
-A Z80-based test harness for verifying Z8000 CPU implementations on FPGA. Uses a TV80 Z80 core as a supervisor to control the Z8000 under test via UART commands.
+A test infrastructure for verifying Z8000 CPU implementations. The system supports three verification methods: golden capture from a real Z8001 CPU, Verilog core validation on FPGA, and fast regression via C++ emulator. All three share the same test definitions, golden reference data, and comparison tooling.
+
+## Verification Flow
+
+```
+    Real Z8001 CPU             Verilog Z8000 Core         C++ Emulator
+    (Quartus harness)          (Gowin FPGA)               (z8000_emu)
+          |                          |                          |
+          v                          v                          v
+    golden capture             run tests on FPGA          run tests locally
+    (--capture)                (--port /dev/ttyXXX)       (--emu)
+          |                          |                          |
+          v                          v                          v
+    golden/*.json ---------> compare against golden <---- compare against golden
+                              (tests.compare)              (tests.compare)
+```
+
+1. **Golden capture**: Run tests on a real Z8001 CPU via the Quartus external harness. Results are saved as JSON files and checked into git as the reference truth.
+2. **FPGA verification**: Run the same tests on the Verilog Z8000 core on the Tang Primer 20K (or Tang Nano 20K). Compare results against golden to find implementation bugs.
+3. **Emulator verification**: Run tests via the z8000_emu C++ emulator for fast iteration without hardware. Compare against the same golden reference.
 
 ## Architecture
+
+Both the Gowin and Quartus harnesses share the same architecture: a TV80 Z80 supervisor controls the Z8000 under test via a shared dual-port BRAM, with UART for host communication.
 
 ```
                     +-------------------+
@@ -36,10 +57,38 @@ The Z80 supervisor runs firmware that accepts commands over UART to:
 
 ## Target Hardware
 
-- **FPGA**: Tang Nano 20K (Gowin GW2AR-18C)
+### Gowin FPGA (Primary Verilog Validation)
+
+The primary platform for validating the Verilog Z8000 core. The soft CPU runs inside the FPGA alongside the Z80 supervisor.
+
+- **FPGA**: Tang Primer 20K (Gowin GW2A-18C) or Tang Nano 20K (Gowin GW2AR-18C)
+- **CPU**: Verilog Z8000 core (`z8000_micro/rtl/`) instantiated inside the FPGA
 - **Clock**: 27MHz system clock; Z8000 runs at ~3.86MHz (divided from 27MHz)
 - **UART**: 115200 baud, 8N1
 - **Reset**: Button-debounced (~20ms) for Z80; Z80-controlled (port 0x14) for Z8000
+
+Four Gowin project files support both CPU modes and both boards:
+
+| Project | Board | CPU Mode |
+|---------|-------|----------|
+| `z8001_seg_test_harness.gprj` | Tang Nano 20K | Z8001 (segmented) |
+| `z8001_seg_test_harness_primer20k.gprj` | Tang Primer 20K | Z8001 (segmented) |
+| `z8002_test_harness.gprj` | Tang Nano 20K | Z8002 (non-segmented) |
+| `z8002_test_harness_primer20k.gprj` | Tang Primer 20K | Z8002 (non-segmented) |
+
+The Z8001 and Z8002 projects share the same Verilog harness files (`z8001_bus_fpga.v`, `z8001_test_harness_top.v`). Z8001 mode is enabled by including `z8001_defines.v` (which defines `` `Z8001_MODE ``) in the project FileList before the CPU core. The Z8002 projects omit this file, so the harness compiles in non-segmented mode with `sn` tied to zero.
+
+The BRAM is addressed as `{sn[0], addr[11:0]}`, banking two 4KB segments. In Z8002 mode (`sn=0`), all accesses go to the lower 4KB.
+
+### Quartus FPGA (Golden Capture from Real Z8001)
+
+An external harness for running tests on a **real Zilog Z8001 CPU**. Used to capture golden reference results that the Verilog core and emulator are validated against. See `quartus/README.md` for full details.
+
+- **FPGA**: Altera Cyclone IV EP4CE15F23C8 (QMTECH board)
+- **CPU**: External Zilog Z8001 (40-pin DIP, segmented addressing mode)
+- **Level Shifters**: 74LVC245 for 3.3V-5V translation
+- **Clock**: 50MHz PLL to 16MHz system + 4MHz CPU clock
+- **UART**: 115200 baud, 8N1
 
 ## LED Indicators
 
@@ -243,31 +292,52 @@ make wave
 
 ### FPGA Synthesis
 
-Open the Gowin IDE project file:
+Open the appropriate Gowin IDE project file:
 
 ```
-z8000_test_harness.gprj
+z8002_test_harness_primer20k.gprj    # Tang Primer 20K, Z8002 mode
+z8001_seg_test_harness_primer20k.gprj # Tang Primer 20K, Z8001 segmented mode
+z8002_test_harness.gprj              # Tang Nano 20K, Z8002 mode
+z8001_seg_test_harness.gprj          # Tang Nano 20K, Z8001 segmented mode
 ```
 
 ## File Structure
 
 ```
-instructions/
+z8000_test/
 ├── Makefile                    # Build automation
 ├── README.md                   # This file
 ├── CLAUDE.md                   # AI assistant project context
 ├── .gitignore                  # Excludes generated files
+│
+├── # Gowin FPGA Projects
+├── z8002_test_harness.gprj             # Tang Nano 20K, Z8002 mode
+├── z8002_test_harness_primer20k.gprj   # Tang Primer 20K, Z8002 mode
+├── z8001_seg_test_harness.gprj         # Tang Nano 20K, Z8001 segmented mode
+├── z8001_seg_test_harness_primer20k.gprj # Tang Primer 20K, Z8001 segmented mode
+│
 ├── test_harness.py             # Interactive serial console
 ├── tests/                      # Python test framework
 │   ├── __init__.py             # collect_all_tests()
 │   ├── __main__.py             # CLI: python -m tests
+│   ├── compare.py              # CLI: python -m tests.compare (golden comparison)
 │   ├── harness.py              # Z8000TestHarness (serial communication)
 │   ├── defs.py                 # TestCase, TestResult dataclasses
 │   ├── runner.py               # TestRunner (setup, execute, verify)
+│   ├── sim_runner.py           # SimRunner (iverilog/vvp backend)
+│   ├── emu_runner.py           # EmuRunner (z8000_emu C++ backend)
+│   ├── verify.py               # Shared result verification logic
+│   ├── golden.py               # Golden result save/load/compare
+│   ├── auto_generate.py        # Generate test file from golden diffs
 │   ├── traces.py               # Trace save/load/compare
 │   ├── flags.py                # FCW flag definitions and computation
 │   ├── helpers.py              # Memory layout constants
 │   ├── encoding.py             # Instruction encoding helpers
+│   ├── gen_systematic.py       # 826 non-segmented systematic tests (assembler-verified)
+│   ├── gen_segmented.py        # Z8001-seg addressing mode tests
+│   ├── gen_seg_systematic.py   # 826 segmented systematic tests (Z8001-seg target)
+│   ├── all_tests.s             # Assembly source for single-instruction tests
+│   ├── all_tests.lst           # Assembler listing from z8k-coff-as
 │   ├── test_arithmetic.py      # ADD, SUB, ADC, SBC, INC, DEC, NEG
 │   ├── test_logical.py         # AND, OR, XOR, COM, CLR
 │   ├── test_compare.py         # CP, TEST
@@ -279,30 +349,29 @@ instructions/
 │   ├── test_block.py           # LDI, LDIR, LDD, CPI
 │   ├── test_exchange.py        # EX, EXTSB, EXTS
 │   ├── test_control.py         # NOP, SETFLG, RESFLG, COMFLG, TCC
-│   ├── test_io.py              # IN, OUT (trace-verified)
-│   ├── gen_systematic.py       # 797 systematic tests (unrolled, assembler-verified listings)
-│   ├── all_tests.s             # Assembly source for 761 single-instruction tests
-│   ├── all_tests.lst           # Assembler listing from z8k-coff-as
-│   ├── golden.py               # Golden result save/load/compare
-│   ├── auto_generate.py        # Generate test file from golden diffs
-│   ├── compare.py              # CLI: python -m tests.compare
-│   ├── sim_runner.py           # SimRunner (iverilog/vvp backend)
-│   ├── emu_runner.py           # EmuRunner (z8000_emu C++ backend)
-│   └── verify.py               # Shared result verification logic
+│   └── test_io.py              # IN, OUT (trace-verified)
 ├── emu/                        # Emulator test driver
-│   ├── z8000_test_driver.cpp   # C++ driver (reads spec, runs z8002_device)
+│   ├── z8000_test_driver.cpp   # C++ driver (Z8001 segmented + Z8002 non-segmented)
 │   └── test_io_ports.h         # Custom I/O ports (replicates z8k_io_ports.v)
 ├── z8000_emu/                  # Z8000 C++ emulator (git submodule)
 │   ├── include/                # z8000.h, z8000_intf.h, memory.h
 │   └── build/libz8000.a       # Static library
-├── z8000_test_harness.gprj     # Gowin IDE project
-├── rtl/                        # Z8000 CPU (copied from ../z8000_micro)
-│   ├── z8000_cpu.v             # Main CPU module
-│   ├── decode_rom.v            # Instruction decoder
-│   ├── microcode_rom.v         # Microcode ROM
-│   └── ucode_defs.v            # Microcode definitions
-├── golden/                      # Golden reference results
-│   └── z8001/                   # Z8001 captured results (797 JSON files)
+├── z8000_micro/                # Z8000 CPU Verilog core (git submodule)
+│   └── rtl/
+│       ├── z8000_cpu.v         # Main CPU module
+│       ├── z8000_biu.v         # Bus interface unit
+│       ├── z8000_muldiv.v      # Multiply/divide unit
+│       ├── decode_rom.v        # Instruction decoder
+│       ├── microcode_rom.v     # Microcode ROM
+│       └── ucode_defs.v        # Microcode definitions
+├── golden/                     # Golden reference results (checked into git)
+│   ├── z8001/                  # Z8001 non-segmented (826 JSON files)
+│   └── z8001-seg/              # Z8001 segmented mode (860 JSON files)
+├── quartus/                    # Quartus project for external Z8001 (see quartus/README.md)
+│   ├── z8001_ext_test.qpf      # Quartus project file
+│   ├── z8001_ext_test_top.v    # Top module (external Z8001 bus wiring)
+│   ├── z8001_bus_external.v    # External Z8001 bus interface
+│   └── ...
 ├── scripts/
 │   ├── gen_fw_hex.py           # Z80 firmware hex generator
 │   └── gen_bootstrap_inc.py    # Bootstrap to Z80 include converter
@@ -310,8 +379,10 @@ instructions/
 │   ├── bootstrap.s             # Z8000 bootstrap source (reset vectors, reg init)
 │   ├── z80_fw.asm              # Z80 supervisor firmware (includes bootstrap.inc)
 │   ├── z80_harness.v           # Z80 harness (TV80 + I/O)
-│   ├── z8000_test_harness_top.v # Top module for FPGA
-│   ├── z8000_bus_fpga.v        # Z8000 bus interface (CPU, ~4MHz clk, addr latch)
+│   ├── z8001_test_harness_top.v # Unified top module (Z8001/Z8002 via ifdef)
+│   ├── z8001_bus_fpga.v        # Unified bus interface (Z8001/Z8002 via ifdef)
+│   ├── z8001_defines.v         # `define Z8001_MODE (included in Z8001 projects only)
+│   ├── z8k_io_ports.v          # I/O port register file
 │   ├── z8000_test_harness_tb.v # Z80-only simulation testbench
 │   ├── z8000_full_tb.v         # Full system testbench (Z8000 + BRAM, no UART)
 │   ├── uart_rx.v               # UART receiver
@@ -319,13 +390,14 @@ instructions/
 │   ├── ram16.v                 # Behavioral dual-port RAM (simulation)
 │   ├── ram16_gowin.v           # Gowin DPB RAM (synthesis)
 │   ├── trace_buffer.v          # Bus trace buffer (1024 entries, address-gated)
-│   ├── gowin_dpb/              # Gowin true dual-port BRAM IP (4Kx8)
-│   │   ├── gowin_dpb.v
-│   │   └── gowin_dpb.ipc
+│   ├── gowin_dpb/              # Gowin true dual-port BRAM IP
+│   ├── gowin_dpb_primer/       # Gowin DPB IP (Primer 20K variant)
 │   ├── gowin_sdpb/             # Gowin semi dual-port BRAM IP (trace buffer)
-│   │   ├── gowin_sdpb.v
-│   │   └── gowin_sdpb.ipc
-│   └── top.cst                 # Pin constraints
+│   ├── gowin_sdpb_primer/      # Gowin SDPB IP (Primer 20K variant)
+│   ├── gowin_rpll_nano/        # Gowin PLL IP (Tang Nano 20K)
+│   ├── gowin_rpll_primer/      # Gowin PLL IP (Tang Primer 20K)
+│   ├── top.cst                 # Pin constraints (Tang Nano 20K)
+│   └── top_primer20k.cst       # Pin constraints (Tang Primer 20K)
 └── tv80_official/              # TV80 Z80 core (git submodule)
     └── rtl/core/
         ├── tv80_alu.v
@@ -338,10 +410,11 @@ instructions/
 **Generated files** (created by build targets, excluded from git):
 - `src/bootstrap.bin`, `src/bootstrap.o`, `src/bootstrap.elf`, `src/bootstrap.lst`, `src/bootstrap.inc`
 - `src/z80_fw.bin`, `src/z80_fw.hex`
+- `emu/z8000_test_driver` (built by `make emu-build` or on first `--emu` run)
 
 ## Test Framework
 
-The `tests/` package provides a declarative test framework with 138 tests across 48 Z8000 mnemonics. Three execution backends are available: FPGA hardware (via UART), iverilog simulation, and C++ emulator.
+The `tests/` package provides a declarative test framework for Z8000 instruction verification. Tests are organized by instruction category (arithmetic, logical, shift, etc.) and generated systematically to cover flag edge cases, addressing modes, and operand sizes. Three execution backends are available: FPGA hardware (via UART), iverilog simulation, and C++ emulator.
 
 ### Running Tests
 
@@ -373,7 +446,7 @@ python -m tests --emu --recompile                    # Force rebuild driver
 | `common`     | `common`                             | Tests valid on any Z8000          |
 | `z8002`      | `common`, `z8002`                    | Verilog Z8002 implementation      |
 | `z8001`      | `common`, `z8001`                    | Physical Z8001, non-segmented     |
-| `z8001-seg`  | `common`, `z8001`, `z8001-seg`       | Physical Z8001, segmented mode    |
+| `z8001-seg`  | `z8001-seg`                          | Z8001 segmented mode              |
 
 ### Bus Trace Capture and Comparison
 
@@ -392,29 +465,63 @@ Traces are saved as JSON files (one per test). Comparison checks bus transaction
 
 ### Golden Comparison Testing
 
-The `tests.compare` module provides systematic validation of the Z8002 FPGA against a real Z8001 CPU. It generates ~800 tests covering all Z8000 instruction categories, captures golden results from the Z8001, and diffs the Z8002 against them.
+The `tests.compare` module provides systematic validation against a real Z8001 CPU. Golden results are captured from the Quartus external harness and used as the reference truth for both the Verilog core and the C++ emulator.
+
+Two golden datasets are maintained:
+
+| Dataset | Directory | Tests | Source |
+|---------|-----------|-------|--------|
+| Non-segmented | `golden/z8001/` | 826 | Real Z8001 via Quartus, `--target z8001` |
+| Segmented | `golden/z8001-seg/` | 860 | Real Z8001 via Quartus, `--target z8001-seg` |
+
+#### Step 1: Capture golden from real Z8001
 
 ```bash
-# 1. Capture golden results from Z8001 (requires --target z8001 for correct reset vectors)
+# Non-segmented golden (826 tests)
 python -m tests.compare --capture --port /dev/ttyUSB0 --target z8001 --golden-dir golden/z8001
 python -m tests.compare --capture --port /dev/ttyUSB0 --target z8001 --golden-dir golden/z8001 --mnemonic ADD
 
-# 2. Compare Z8002 against golden (--target z8002 is implicit for --sim/--emu)
+# Segmented golden (860 tests)
+python -m tests.compare --capture --port /dev/ttyUSB0 --target z8001-seg --golden-dir golden/z8001-seg
+```
+
+#### Step 2: Verify Verilog core on FPGA
+
+```bash
+# Z8002 mode on Tang Primer 20K against non-segmented golden
 python -m tests.compare --port /dev/ttyUSB0 --target z8002 --golden-dir golden/z8001
-python -m tests.compare --sim --golden-dir golden/z8001
+
+# Z8001 segmented mode on Tang Primer 20K against segmented golden
+python -m tests.compare --port /dev/ttyUSB0 --target z8001-seg --golden-dir golden/z8001-seg
+```
+
+#### Step 3: Verify on emulator (no hardware needed)
+
+```bash
+# Z8002 emulator against non-segmented golden
 python -m tests.compare --emu --golden-dir golden/z8001
 
-# 3. Auto-generate test file from diffs
+# Z8001-seg emulator against segmented golden
+python -m tests.compare --emu --target z8001-seg --golden-dir golden/z8001-seg
+```
+
+#### Other options
+
+```bash
+# Auto-generate test file from diffs
 python -m tests.compare --port /dev/ttyUSB0 --target z8002 --golden-dir golden/z8001 --auto-generate
+
+# Simulation backend
+python -m tests.compare --sim --golden-dir golden/z8001
 
 # List systematic tests
 python -m tests.compare --list
-python -m tests.compare --list -v --mnemonic ADD
+python -m tests.compare --list --target z8001-seg -v --mnemonic ADD
 ```
 
-Golden results are saved as one JSON file per test in `golden/z8001/` (797 files, checked into git). Each test in `gen_systematic.py` has an assembler-verified listing comment from `z8k-coff-as -z8002`. Comparison checks registers, individual flags (C, Z, S, V, DA, H), memory, and execution result. The `--auto-generate` option writes `tests/test_z8001_golden.py` containing only the failing cases with Z8001 values as expected results, which are then picked up by the regular test runner.
+Each test in `gen_systematic.py` and `gen_seg_systematic.py` has an assembler-verified listing comment from `z8k-coff-as`. Comparison checks registers, individual flags (C, Z, S, V, DA, H), memory, and execution result. The `--auto-generate` option writes `tests/test_z8001_golden.py` containing only the failing cases with Z8001 values as expected results.
 
-**Current status:** 796 match, 1 differ (of 797 tests). Remaining differences:
+**Current status (Z8002 Verilog vs non-segmented golden):** 825 match, 1 differ (of 826 tests).
 
 | Category | Tests | Issue |
 |----------|-------|-------|
@@ -527,7 +634,7 @@ Note: `d` = destination register (0-F), `s` = source register (0-F)
 
 3. **Register Access**: Z8000 registers are memory-mapped at 0x0090-0x00AF. The Z80 reads/writes these via BRAM Port A while Z8000 accesses via Port B.
 
-4. **Clock Architecture**: The Z80 and all shared logic run at 27MHz. The Z8000 CPU runs at ~3.86MHz via a clock divider (alternating /3 and /4 half-periods from 27MHz — closest to 4MHz without a PLL). The bus interface module (`z8000_bus_fpga.v`) encapsulates the clock divider, CPU, AD bus tristate, and address latch.
+4. **Clock Architecture**: The Z80 and all shared logic run at 27MHz. The Z8000 CPU runs at ~3.86MHz via a clock divider (alternating /3 and /4 half-periods from 27MHz — closest to 4MHz without a PLL). The bus interface module (`z8001_bus_fpga.v`) encapsulates the clock divider, CPU, AD bus tristate, and address latch.
 
 5. **Reset Architecture**: Button reset is debounced (~20ms at 27MHz) and resets only the Z80 and harness logic. The Z8000 reset (`z8k_rst_n`) is controlled by Z80 firmware via I/O port 0x14, latched until explicitly changed.
 
@@ -538,6 +645,10 @@ Note: `d` = destination register (0-F), `s` = source register (0-F)
 8. **Vendor-Neutral RAM**: The RAM uses separate files for simulation (`ram16.v`) and synthesis (`ram16_gowin.v`). Both implement the same `ram16` module interface. To port to other FPGAs, create a new `ram16_<vendor>.v` and update the project file.
 
 9. **Embedded Bootstrap**: The Z8000 bootstrap code (reset vectors, register initialization, dump routines) is embedded in the Z80 firmware. The INIT command copies this data to Z8000 memory at runtime. BRAM starts uninitialized; all memory content is loaded by the Z80 supervisor.
+
+10. **Unified Harness**: The Gowin Verilog harness (`z8001_bus_fpga.v`, `z8001_test_harness_top.v`) supports both Z8001 and Z8002 CPU modes using `` `ifdef Z8001_MODE `` conditionals. Z8001 projects include `z8001_defines.v` to define the macro; Z8002 projects omit it. BRAM Port B is addressed as `{sn[0], addr[11:0]}` — in Z8002 mode, `sn` is tied to zero so all accesses go to the lower 4KB segment.
+
+11. **Emulator Driver**: The C++ test driver (`emu/z8000_test_driver.cpp`) supports both Z8001 and Z8002 modes. In Z8001 mode, it creates a `z8001_device`, allocates 128KB memory (covering segments 0 and 1), and translates flat BRAM addresses to segmented emulator addresses using the same `{sn[0], addr[11:0]}` mapping as the FPGA BRAM.
 
 ## Troubleshooting
 

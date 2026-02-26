@@ -25,9 +25,8 @@ FCW_DUMP_SEG = 0x0162    # FCW dump area
 DONE_FLAG_SEG = 0x0160   # Done flag
 
 # Jump to dump routine instruction words
-# Short-form segmented DA 0x00C0 = segment 0, offset 0xC0 — same encoding
-# works in both segmented and non-segmented modes.
-JP_DUMP = [0x5E08, DUMP_ROUTINE]  # JP 0x00C0
+JP_DUMP = [0x5E08, DUMP_ROUTINE]           # JP 0x00C0 (non-segmented, 2 words)
+JP_DUMP_SEG = [0x5E08, 0x8000, DUMP_ROUTINE]  # JP <<seg0>>0x00C0 (long-form, 3 words)
 
 
 def stack_regs(sp=STACK_BASE):

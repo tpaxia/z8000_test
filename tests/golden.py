@@ -156,12 +156,14 @@ def compare_golden(results, golden):
             ref_val = ref_mem.get(addr, 0)
             dut_val = r.actual_memory.get(addr, 0)
             if ref_val != dut_val:
+                ref_str = f"0x{ref_val:04X}" if ref_val is not None else "None"
+                dut_str = f"0x{dut_val:04X}" if dut_val is not None else "None"
                 diffs.append(ComparisonDiff(
                     field=f"mem_0x{addr:04X}",
                     ref_value=ref_val,
                     dut_value=dut_val,
-                    description=(f"[0x{addr:04X}]: ref=0x{ref_val:04X}, "
-                                 f"dut=0x{dut_val:04X}"),
+                    description=(f"[0x{addr:04X}]: ref={ref_str}, "
+                                 f"dut={dut_str}"),
                 ))
 
         comparisons.append(ComparisonResult(
