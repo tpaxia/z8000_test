@@ -3,7 +3,7 @@
 // Supports both Z8002 (non-segmented) and Z8001 (segmented) modes.
 // Used by tests/emu_runner.py as a subprocess (same pattern as vvp).
 
-#include "z8000.h"
+#include <z8000/z8000.h>
 #include "memory.h"
 #include "test_io_ports.h"
 

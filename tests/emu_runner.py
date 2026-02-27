@@ -58,10 +58,11 @@ class EmuRunner:
         cxx = os.environ.get("CXX", "c++")
         cmd = [
             cxx, "-std=c++17", "-O2",
-            f"-I{os.path.join(emu_dir, 'include')}",
+            f"-I{os.path.join(emu_dir, 'lib', 'include')}",
+            f"-I{os.path.join(emu_dir, 'src')}",
             "-o", self.driver_path,
             os.path.join(self.project_root, "emu", "z8000_test_driver.cpp"),
-            f"-L{build_dir}",
+            f"-L{os.path.join(build_dir, 'lib')}",
             "-lz8000",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)

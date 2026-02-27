@@ -7,7 +7,7 @@
 #ifndef TEST_IO_PORTS_H
 #define TEST_IO_PORTS_H
 
-#include "z8000_intf.h"
+#include <z8000/z8000_intf.h>
 #include <cstdio>
 #include <cstring>
 
