@@ -268,7 +268,7 @@ Build the C++ emulator test driver (for `python -m tests --emu`):
 make emu-build
 ```
 
-This builds `z8000_emu/build/libz8000.a` and compiles `emu/z8000_test_driver`. The driver is also built automatically on first `--emu` run.
+This builds `z8000_emu/build/lib/libz8000.a` and compiles `emu/z8000_test_driver`. The driver is also built automatically on first `--emu` run.
 
 ### Simulation
 
