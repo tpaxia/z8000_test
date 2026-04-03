@@ -8,6 +8,7 @@ Transforms all 826 tests from gen_systematic.py to run under Z8001 segmented mod
 
 from .gen_systematic import generate_all_tests
 from .defs import TestCase
+from .helpers import CODE_BASE, STACK_BASE
 
 SEG0_SHORT_ADDR = 0x00B4  # Short-form DA in seg 0 gap (between bootstrap and dump)
 OPERAND_BASE = 0x0400
@@ -55,6 +56,15 @@ def _transform(t):
         return [_make_ir_seg(t, seg_fcw)]
 
     # Non-DA/IR: identical code, just segmented FCW
+    # Add stack verification for CALR tests (opcode 0xDxxx)
+    calr_idx = next((i for i, w in enumerate(t.code) if (w & 0xF000) == 0xD000), None)
+    if calr_idx is not None and 'call' in tags:
+        ret_addr = CODE_BASE + (calr_idx + 1) * 2
+        expected_memory = dict(t.expected_memory)
+        expected_memory[STACK_BASE - 4] = 0x8000   # PCSEG
+        expected_memory[STACK_BASE - 2] = ret_addr  # PC offset
+        return [_clone(t, f"seg_{t.name}", seg_fcw,
+                        expected_memory=expected_memory)]
     return [_clone(t, f"seg_{t.name}", seg_fcw)]
 
 
@@ -160,7 +170,14 @@ def _make_call_long(t, fcw):
     idx = code.index(0x5F00)
     code[idx + 1] += 2  # adjust target
     code.insert(idx + 1, 0x8000)
-    return _clone(t, f"seg_{t.name}", fcw, code=code)
+    # Verify stack residue: CALL is 3 words in seg long-form,
+    # return address = CODE_BASE + (idx + 3) * 2
+    ret_addr = CODE_BASE + (idx + 3) * 2
+    expected_memory = dict(t.expected_memory)
+    expected_memory[STACK_BASE - 4] = 0x8000   # PCSEG (segment 0, long form)
+    expected_memory[STACK_BASE - 2] = ret_addr  # PC offset
+    return _clone(t, f"seg_{t.name}", fcw, code=code,
+                  expected_memory=expected_memory)
 
 
 # --- Memory remapping ---

@@ -56,7 +56,8 @@ SEG1_Z80_ADDR = 0x1200  # Z80 flat address for segment 1, offset 0x0200
 #   }
 
 
-def _tc(name, mnemonic, desc, tags, code, regs=None, memory=None):
+def _tc(name, mnemonic, desc, tags, code, regs=None, memory=None,
+        expected_regs=None, expected_memory=None):
     """Create a segmented test case."""
     return TestCase(
         name=name,
@@ -68,6 +69,8 @@ def _tc(name, mnemonic, desc, tags, code, regs=None, memory=None):
         regs=regs or {},
         fcw=FCW_SEG,
         memory=memory or {},
+        expected_regs=expected_regs or {},
+        expected_memory=expected_memory or {},
     )
 
 
@@ -311,6 +314,8 @@ def generate_segmented_tests():
     #   21a: 2100 1234         ld   r0,#0x1234        (subroutine)
     #   21e: 9e08              ret
     #   220:                                          (done label)
+    # CALL at 0x20A is 6 bytes (seg long-form), return address = 0x210
+    # Stack residue after RET: PCSEG at SP-4, offset at SP-2
     tests.append(_tc(
         name='seg_call_ret_seg0',
         mnemonic='CALL',
@@ -320,6 +325,10 @@ def generate_segmented_tests():
               0x5F00, 0x8000, 0x021A, 0x2100, 0xAAAA,
               0x5E08, 0x8000, 0x0220, 0x2100, 0x1234, 0x9E08],
         regs={0: 0x0000},
+        expected_memory={
+            0x0EFC: 0x8000,  # PCSEG (segment 0, long form)
+            0x0EFE: 0x0210,  # PC offset (return address after CALL)
+        },
     ))
 
     # ---- Test 17: PUSH/POP @RR14 (segmented stack) ----
@@ -376,6 +385,49 @@ def generate_segmented_tests():
         code=[0x4100, 0x8000, 0x0400],
         regs={0: 0x1000},
         memory={SEG0_LONG_ADDR: 0x0234},
+    ))
+
+    # ---- Test 21: SC #0 (System Call trap, segmented) ----
+    # Sets up PSAP and system stack, executes SC, handler loads R0 marker.
+    # Stack frame (4 words pushed): identifier, old FCW, PCSEG, PC offset
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0x0f00
+    #   212: 2100 0000           ld   r0,#0x0
+    #   216: 7f00                sc   #0
+    #   218: 2100 dead           ld   r0,#0xdead          (should NOT execute)
+    #   21c: 5e08 00c0           jp   t,0x00c0            (should NOT reach)
+    # Handler at 0x300 (via memory preload):
+    #   300: 2100 55aa           ld   r0,#0x55aa
+    #   304: 5e08 00c0           jp   t,0x00c0
+    # PSA at PSAP+0x18=0x818: reserved(+0), FCW(+2), PCSEG(+4), PC_off(+6)
+    tests.append(_tc(
+        name='seg_sc_basic',
+        mnemonic='SC',
+        desc='SC #0: system call trap, verify stack frame',
+        tags=['segmented', 'seg0', 'sc', 'trap'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000, 0x7F00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000},
+        memory={
+            # Handler code at 0x300
+            0x0300: 0x2100, 0x0302: 0x55AA,
+            0x0304: 0x5E08, 0x0306: 0x00C0,
+            # PSA: reserved(+0), FCW(+2), PCSEG(+4), PC_off(+6)
+            0x0818: 0x0000, 0x081A: 0xC000,
+            0x081C: 0x8000, 0x081E: 0x0300,
+        },
+        expected_regs={0: 0x55AA, 14: 0x8000, 15: 0x0EF8},
+        expected_memory={
+            0x0EF8: 0x7F00,  # Identifier (SC instruction word)
+            0x0EFA: 0xC000,  # Old FCW
+            0x0EFC: 0x8000,  # PCSEG (segment 0, long form)
+            0x0EFE: 0x0218,  # PC offset (return address after SC)
+        },
     ))
 
     return tests
