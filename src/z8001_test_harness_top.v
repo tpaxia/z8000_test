@@ -321,8 +321,8 @@ wire [3:0] z8k_io_reg_sel = z8k_addr[3:1] + (io_spc_sel ? 4'd6 : 4'd0);
 
 // Z8000 write logic
 wire z8k_ram_write = ram_sel && ~cpu_rw_n && ~cpu_ds_n;
-wire z8k_we_hi = z8k_ram_write && (cpu_bw_n || ~z8k_addr[0]);
-wire z8k_we_lo = z8k_ram_write && (cpu_bw_n ||  z8k_addr[0]);
+wire z8k_we_hi = z8k_ram_write && (~cpu_bw_n || ~z8k_addr[0]);
+wire z8k_we_lo = z8k_ram_write && (~cpu_bw_n ||  z8k_addr[0]);
 
 wire [15:0] z80_rd_data;   // Port A read (Z80)
 wire [15:0] z8k_rd_data;   // Port B read (Z8000)

@@ -138,8 +138,8 @@ module z8000_sim_tb;
     // True Dual-Port BRAM (behavioral)
     // ==========================================
     wire z8k_ram_write = ram_sel && ~cpu_rw_n && ~cpu_ds_n;
-    wire z8k_we_hi = z8k_ram_write && (cpu_bw_n || ~z8k_addr[0]);
-    wire z8k_we_lo = z8k_ram_write && (cpu_bw_n ||  z8k_addr[0]);
+    wire z8k_we_hi = z8k_ram_write && (~cpu_bw_n || ~z8k_addr[0]);
+    wire z8k_we_lo = z8k_ram_write && (~cpu_bw_n ||  z8k_addr[0]);
 
     wire [15:0] z8k_rd_data;
 
@@ -374,7 +374,7 @@ module z8000_sim_tb;
             $display("TRACE:%03x:%04x:%04x:%s:%s:%s",
                 i, t_addr, t_data,
                 t_rw ? "R" : "W",
-                t_bw ? "W" : "B",
+                t_bw ? "B" : "W",
                 t_io ? "I" : "M");
         end
 

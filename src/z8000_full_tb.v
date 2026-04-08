@@ -68,8 +68,8 @@ module z8000_full_tb;
     wire ram_sel = ~cpu_mreq_n && ~io_sel;
 
     wire z8k_ram_write = ram_sel && ~cpu_rw_n && ~cpu_ds_n;
-    wire z8k_we_hi = z8k_ram_write && (cpu_bw_n || ~z8k_addr[0]);
-    wire z8k_we_lo = z8k_ram_write && (cpu_bw_n ||  z8k_addr[0]);
+    wire z8k_we_hi = z8k_ram_write && (~cpu_bw_n || ~z8k_addr[0]);
+    wire z8k_we_lo = z8k_ram_write && (~cpu_bw_n ||  z8k_addr[0]);
 
     ram16 bram (
         // Port A - testbench (unused during CPU run)

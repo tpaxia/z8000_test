@@ -23,7 +23,7 @@ module trace_buffer (
     input         z8k_as_n,       // Address strobe
     input         z8k_ds_n,       // Data strobe
     input         z8k_rw_n,       // Read/Write (1=read)
-    input         z8k_bw_n,       // Byte/Word (0=byte, 1=word)
+    input         z8k_bw_n,       // Byte/Word (0=word, 1=byte)
     input         z8k_mreq_n,     // Memory request
     input  [3:0]  z8k_st,         // Status (for I/O detect)
 
@@ -132,7 +132,7 @@ module trace_buffer (
     wire [35:0] trace_entry = {
         1'b0,           // [35] spare
         latched_io,     // [34] MEM/IO (1=I/O)
-        latched_bw_n,   // [33] B/W (1=word)
+        latched_bw_n,   // [33] B/W (1=byte)
         latched_rw_n,   // [32] R/W (1=read)
         latched_data,   // [31:16] data
         latched_addr    // [15:0] address

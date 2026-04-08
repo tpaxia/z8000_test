@@ -21,7 +21,7 @@ module z8k_io_ports (
     input  [15:0] z8k_wdata,
     output [15:0] z8k_rdata,
     input         z8k_wr,         // Write strobe (active one clock)
-    input         z8k_bw_n,       // 1=word, 0=byte
+    input         z8k_bw_n,       // 0=word, 1=byte
     input         z8k_addr_lsb,   // addr[0] for byte select: 0=high byte, 1=low byte
 
     // Z80 side
@@ -49,7 +49,7 @@ module z8k_io_ports (
         end else begin
             // Z8000 writes (during test execution, z8k_rst_n=1)
             if (z8k_wr) begin
-                if (z8k_bw_n) begin
+                if (~z8k_bw_n) begin
                     // Word write
                     regs[z8k_reg_sel] <= z8k_wdata;
                 end else begin

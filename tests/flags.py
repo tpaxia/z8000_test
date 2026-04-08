@@ -12,8 +12,8 @@ FLAG_BITS = {
 
 # Control bits
 CTL_BITS = {
-    'VIE':  11,  # Vectored interrupt enable
-    'NVIE': 12,  # Non-vectored interrupt enable
+    'VIE':  12,  # Vectored interrupt enable
+    'NVIE': 11,  # Non-vectored interrupt enable
     'SYS':  14,  # System/Normal mode
     'SEG':  15,  # Segmented mode (Z8001 only)
 }
@@ -21,6 +21,9 @@ CTL_BITS = {
 # Common FCW values
 FCW_SYS = 0x4000       # System mode, all flags clear
 FCW_SYS_CARRY = 0x4080 # System mode + carry flag set
+
+
+ALL_BITS = {**FLAG_BITS, **CTL_BITS}
 
 
 def flag_mask(flag_name):
@@ -44,8 +47,8 @@ def fcw_with_flags(base=FCW_SYS, **flags):
 
 
 def get_flag(fcw, flag_name):
-    """Extract a flag value from FCW."""
-    return (fcw >> FLAG_BITS[flag_name]) & 1
+    """Extract a flag or control bit value from FCW."""
+    return (fcw >> ALL_BITS[flag_name]) & 1
 
 
 def format_flags(fcw):

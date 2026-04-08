@@ -1,4 +1,4 @@
-"""Control instruction tests: NOP, SETFLG, RESFLG, COMFLG, TCC, LDCTL."""
+"""Control instruction tests: NOP, SETFLG, RESFLG, COMFLG, TCC, LDCTL, EI, DI."""
 
 from .defs import TestCase
 from .flags import FCW_SYS, fcw_with_flags
@@ -157,5 +157,159 @@ TESTS = [
         code=[0xAF08],  # TCC T (always), R0
         regs={0: 0xFFF0},
         expected_regs={0: 0xFFF1},
+    ),
+
+    # =========================================================================
+    # LDCTL - load control register
+    # LDCTL Rd, FCW:       7d_Rd_02
+    # LDCTL FCW, Rs:       7d_Rs_0a
+    # LDCTL Rd, PSAPOFF:   7d_Rd_05
+    # LDCTL PSAPOFF, Rs:   7d_Rs_0d
+    # LDCTL Rd, REFRESH:   7d_Rd_03
+    # LDCTL REFRESH, Rs:   7d_Rs_0b
+    # =========================================================================
+    TestCase(
+        name="ldctl_read_fcw",
+        mnemonic="LDCTL",
+        instruction="LDCTL R0, FCW",
+        description="LDCTL R0, FCW: read FCW into R0",
+        tags=["control", "word", "ldctl"],
+        fcw=fcw_with_flags(C=1, Z=1),  # 0x40C0
+        code=[0x7D02],  # ldctl r0, fcw
+        regs={0: 0x0000},
+        expected_regs={0: 0x40C0},
+    ),
+    TestCase(
+        name="ldctl_read_fcw_all_flags",
+        mnemonic="LDCTL",
+        instruction="LDCTL R0, FCW",
+        description="LDCTL R0, FCW: read FCW with all flags set",
+        tags=["control", "word", "ldctl"],
+        fcw=fcw_with_flags(C=1, Z=1, S=1, V=1),  # 0x40F0
+        code=[0x7D02],  # ldctl r0, fcw
+        regs={0: 0x0000},
+        expected_regs={0: 0x40F0},
+    ),
+    TestCase(
+        name="ldctl_write_fcw",
+        mnemonic="LDCTL",
+        instruction="LDCTL FCW, R0",
+        description="LDCTL FCW, R0: write R0 into FCW (set all flags)",
+        tags=["control", "word", "ldctl", "flags"],
+        fcw=FCW_SYS,
+        code=[0x7D0A],  # ldctl fcw, r0
+        regs={0: 0x40F0},
+        expected_fcw_set=["C", "Z", "S", "V"],
+    ),
+    TestCase(
+        name="ldctl_write_fcw_clear_flags",
+        mnemonic="LDCTL",
+        instruction="LDCTL FCW, R0",
+        description="LDCTL FCW, R0: write R0 into FCW (clear all flags)",
+        tags=["control", "word", "ldctl", "flags"],
+        fcw=fcw_with_flags(C=1, Z=1, S=1, V=1),
+        code=[0x7D0A],  # ldctl fcw, r0
+        regs={0: 0x4000},
+        expected_fcw_clear=["C", "Z", "S", "V"],
+    ),
+    TestCase(
+        name="ldctl_read_fcw_r1",
+        mnemonic="LDCTL",
+        instruction="LDCTL R1, FCW",
+        description="LDCTL R1, FCW: read FCW into R1 (non-R0 dest)",
+        tags=["control", "word", "ldctl"],
+        fcw=fcw_with_flags(S=1, V=1),  # 0x4030
+        code=[0x7D12],  # ldctl r1, fcw
+        regs={1: 0x0000},
+        expected_regs={1: 0x4030},
+    ),
+    TestCase(
+        name="ldctl_write_fcw_r1",
+        mnemonic="LDCTL",
+        instruction="LDCTL FCW, R1",
+        description="LDCTL FCW, R1: write R1 into FCW (non-R0 source)",
+        tags=["control", "word", "ldctl", "flags"],
+        fcw=FCW_SYS,
+        code=[0x7D1A],  # ldctl fcw, r1
+        regs={1: 0x40F0},
+        expected_fcw_set=["C", "Z", "S", "V"],
+    ),
+
+    # =========================================================================
+    # EI - enable interrupts
+    # EI VI:      7c05  (set VIE bit 11)
+    # EI NVI:     7c06  (set NVIE bit 12)
+    # EI VI,NVI:  7c04  (set both)
+    # =========================================================================
+    TestCase(
+        name="ei_vi",
+        mnemonic="EI",
+        instruction="EI VI",
+        description="EI VI: enable vectored interrupts",
+        tags=["control", "interrupt"],
+        fcw=FCW_SYS,  # 0x4000, VIE=0, NVIE=0
+        code=[0x7C05],  # ei vi
+        expected_fcw_set=["VIE"],
+        expected_fcw_clear=["NVIE"],
+    ),
+    TestCase(
+        name="ei_nvi",
+        mnemonic="EI",
+        instruction="EI NVI",
+        description="EI NVI: enable non-vectored interrupts",
+        tags=["control", "interrupt"],
+        fcw=FCW_SYS,
+        code=[0x7C06],  # ei nvi
+        expected_fcw_set=["NVIE"],
+        expected_fcw_clear=["VIE"],
+    ),
+    TestCase(
+        name="ei_vi_nvi",
+        mnemonic="EI",
+        instruction="EI VI,NVI",
+        description="EI VI,NVI: enable both interrupt types",
+        tags=["control", "interrupt"],
+        fcw=FCW_SYS,
+        code=[0x7C04],  # ei vi,nvi
+        expected_fcw_set=["VIE", "NVIE"],
+    ),
+
+    # =========================================================================
+    # DI - disable interrupts
+    # DI VI:      7c01  (clear VIE bit 11)
+    # DI NVI:     7c02  (clear NVIE bit 12)
+    # DI VI,NVI:  7c00  (clear both)
+    # =========================================================================
+    TestCase(
+        name="di_vi",
+        mnemonic="DI",
+        instruction="DI VI",
+        description="DI VI: disable vectored interrupts",
+        tags=["control", "interrupt"],
+        fcw=FCW_SYS | 0x1800,  # VIE=1, NVIE=1
+        code=[0x7C01],  # di vi
+        expected_fcw_clear=["VIE"],
+        expected_fcw_set=["NVIE"],
+    ),
+    TestCase(
+        name="di_nvi",
+        mnemonic="DI",
+        instruction="DI NVI",
+        description="DI NVI: disable non-vectored interrupts",
+        tags=["control", "interrupt"],
+        fcw=FCW_SYS | 0x1800,  # VIE=1, NVIE=1
+        code=[0x7C02],  # di nvi
+        expected_fcw_set=["VIE"],
+        expected_fcw_clear=["NVIE"],
+    ),
+    TestCase(
+        name="di_vi_nvi",
+        mnemonic="DI",
+        instruction="DI VI,NVI",
+        description="DI VI,NVI: disable both interrupt types",
+        tags=["control", "interrupt"],
+        fcw=FCW_SYS | 0x1800,  # VIE=1, NVIE=1
+        code=[0x7C00],  # di vi,nvi
+        expected_fcw_clear=["VIE", "NVIE"],
     ),
 ]
