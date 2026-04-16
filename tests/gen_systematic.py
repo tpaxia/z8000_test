@@ -11305,13 +11305,13 @@ def generate_all_tests():
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_and_r_da_preserve_c
-        #   0000: 4710 0400           and	r0,0x400
+        #   0000: 4700 0400           and	r0,0x400
         _tc(
             name='sys_and_r_da_preserve_c',
             mnemonic='AND',
             desc='AND R0, addr with C=1: verify C preserved (DA mode)',
             tags=['word_alu', 'DA_mode', 'flag_preserve'],
-            code=[0x4710, 0x0400],
+            code=[0x4700, 0x0400],
             regs={0: 0xFFFF},
             memory={OPERAND_BASE: 0x0001},
             fcw=0x4080,
@@ -11332,13 +11332,13 @@ def generate_all_tests():
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_or_r_da_preserve_v
-        #   0000: 4510 0400           or	r0,0x400
+        #   0000: 4500 0400           or	r0,0x400
         _tc(
             name='sys_or_r_da_preserve_v',
             mnemonic='OR',
             desc='OR R0, addr with V=1: verify V preserved (DA)',
             tags=['word_alu', 'DA_mode', 'flag_preserve'],
-            code=[0x4510, 0x0400],
+            code=[0x4500, 0x0400],
             regs={0: 0x00F0},
             memory={OPERAND_BASE: 0x0F00},
             fcw=0x4010,
@@ -11489,25 +11489,25 @@ def generate_all_tests():
         # Manual: V "Unaffected" for both RLDB and RRDB
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rldb_preserve_v
-        #   0000: be21                rldb	rl0,rh1
+        #   0000: be18                rldb	rl0,rh1
         _tc(
             name='sys_rldb_preserve_v',
             mnemonic='RLDB',
             desc='RLDB RL0, RH1 with V=1: verify V preserved',
             tags=['bcd', 'R_mode', 'flag_preserve'],
-            code=[0xBE21],
+            code=[0xBE18],
             regs={0: 0x0012, 1: 0x3400},
             fcw=0x4010,  # V=1
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rrdb_preserve_v
-        #   0000: bc21                rrdb	rl0,rh1
+        #   0000: bc18                rrdb	rl0,rh1
         _tc(
             name='sys_rrdb_preserve_v',
             mnemonic='RRDB',
             desc='RRDB RL0, RH1 with V=1: verify V preserved',
             tags=['bcd', 'R_mode', 'flag_preserve'],
-            code=[0xBC21],
+            code=[0xBC18],
             regs={0: 0x0012, 1: 0x3400},
             fcw=0x4010,  # V=1
         ),
@@ -11570,49 +11570,49 @@ def generate_all_tests():
         # Manual: D,H "Unaffected" for all shift and rotate instructions
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sla_r_preserve_dh
-        #   0000: b309                sla	r0,#0x1
+        #   0000: b309 0001           sla	r0,#0x1
         _tc(
             name='sys_sla_r_preserve_dh',
             mnemonic='SLA',
             desc='SLA R0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB309],
+            code=[0xB309, 0x0001],
             regs={0: 0x0001},
             fcw=0x400C,  # D=1, H=1
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_srl_r_preserve_dh
-        #   0000: b301                srl	r0,#0x1
+        #   0000: b301 ffff           srl	r0,#0x1
         _tc(
             name='sys_srl_r_preserve_dh',
             mnemonic='SRL',
             desc='SRL R0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB301],
+            code=[0xB301, 0xFFFF],
             regs={0: 0x8000},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sra_r_preserve_dh
-        #   0000: b309                sra	r0,#0x1
+        #   0000: b309 ffff           sra	r0,#0x1
         _tc(
             name='sys_sra_r_preserve_dh',
             mnemonic='SRA',
             desc='SRA R0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB309],
+            code=[0xB309, 0xFFFF],
             regs={0: 0x8000},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sll_r_preserve_dh
-        #   0000: b309                sll	r0,#0x1
+        #   0000: b301 0001           sll	r0,#0x1
         _tc(
             name='sys_sll_r_preserve_dh',
             mnemonic='SLL',
             desc='SLL R0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB309],
+            code=[0xB301, 0x0001],
             regs={0: 0x0001},
             fcw=0x400C,
         ),
@@ -11642,25 +11642,25 @@ def generate_all_tests():
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rlc_r_preserve_dh
-        #   0000: b302                rlc	r0,#0x1
+        #   0000: b308                rlc	r0,#0x1
         _tc(
             name='sys_rlc_r_preserve_dh',
             mnemonic='RLC',
             desc='RLC R0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB302],
+            code=[0xB308],
             regs={0: 0x8001},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rrc_r_preserve_dh
-        #   0000: b306                rrc	r0,#0x1
+        #   0000: b30c                rrc	r0,#0x1
         _tc(
             name='sys_rrc_r_preserve_dh',
             mnemonic='RRC',
             desc='RRC R0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB306],
+            code=[0xB30C],
             regs={0: 0x8001},
             fcw=0x400C,
         ),
@@ -11668,49 +11668,49 @@ def generate_all_tests():
         # ---- Byte shift/rotate D,H preservation ----
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_slab_r_preserve_dh
-        #   0000: b209                slab	rh0,#0x1
+        #   0000: b209 0001           slab	rh0,#0x1
         _tc(
             name='sys_slab_r_preserve_dh',
             mnemonic='SLAB',
             desc='SLAB RH0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB209],
+            code=[0xB209, 0x0001],
             regs={0: 0x0100},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_srlb_r_preserve_dh
-        #   0000: b201                srlb	rh0,#0x1
+        #   0000: b201 00ff           srlb	rh0,#0x1
         _tc(
             name='sys_srlb_r_preserve_dh',
             mnemonic='SRLB',
             desc='SRLB RH0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB201],
+            code=[0xB201, 0x00FF],
             regs={0: 0x8000},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_srab_r_preserve_dh
-        #   0000: b209                srab	rh0,#0x1
+        #   0000: b209 00ff           srab	rh0,#0x1
         _tc(
             name='sys_srab_r_preserve_dh',
             mnemonic='SRAB',
             desc='SRAB RH0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB209],
+            code=[0xB209, 0x00FF],
             regs={0: 0x8000},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sllb_r_preserve_dh
-        #   0000: b209                sllb	rh0,#0x1
+        #   0000: b201 0001           sllb	rh0,#0x1
         _tc(
             name='sys_sllb_r_preserve_dh',
             mnemonic='SLLB',
             desc='SLLB RH0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB209],
+            code=[0xB201, 0x0001],
             regs={0: 0x0100},
             fcw=0x400C,
         ),
@@ -11740,25 +11740,25 @@ def generate_all_tests():
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rlcb_r_preserve_dh
-        #   0000: b202                rlcb	rh0,#0x1
+        #   0000: b208                rlcb	rh0,#0x1
         _tc(
             name='sys_rlcb_r_preserve_dh',
             mnemonic='RLCB',
             desc='RLCB RH0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB202],
+            code=[0xB208],
             regs={0: 0x8100},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rrcb_r_preserve_dh
-        #   0000: b206                rrcb	rh0,#0x1
+        #   0000: b20c                rrcb	rh0,#0x1
         _tc(
             name='sys_rrcb_r_preserve_dh',
             mnemonic='RRCB',
             desc='RRCB RH0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB206],
+            code=[0xB20C],
             regs={0: 0x8100},
             fcw=0x400C,
         ),
@@ -11766,49 +11766,49 @@ def generate_all_tests():
         # ---- Long shift D,H preservation ----
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_slal_rr_preserve_dh
-        #   0000: b30d                slal	rr0,#0x1
+        #   0000: b30d 0001           slal	rr0,#0x1
         _tc(
             name='sys_slal_rr_preserve_dh',
             mnemonic='SLAL',
             desc='SLAL RR0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB30D],
+            code=[0xB30D, 0x0001],
             regs={0: 0x0000, 1: 0x0001},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_srll_rr_preserve_dh
-        #   0000: b305                srll	rr0,#0x1
+        #   0000: b305 ffff           srll	rr0,#0x1
         _tc(
             name='sys_srll_rr_preserve_dh',
             mnemonic='SRLL',
             desc='SRLL RR0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB305],
+            code=[0xB305, 0xFFFF],
             regs={0: 0x8000, 1: 0x0000},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sral_rr_preserve_dh
-        #   0000: b30d                sral	rr0,#0x1
+        #   0000: b30d ffff           sral	rr0,#0x1
         _tc(
             name='sys_sral_rr_preserve_dh',
             mnemonic='SRAL',
             desc='SRAL RR0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB30D],
+            code=[0xB30D, 0xFFFF],
             regs={0: 0x8000, 1: 0x0000},
             fcw=0x400C,
         ),
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_slll_rr_preserve_dh
-        #   0000: b30d                slll	rr0,#0x1
+        #   0000: b305 0001           slll	rr0,#0x1
         _tc(
             name='sys_slll_rr_preserve_dh',
             mnemonic='SLLL',
             desc='SLLL RR0, #1 with D=1,H=1: verify D,H preserved',
             tags=['shift', 'R_mode', 'flag_preserve'],
-            code=[0xB30D],
+            code=[0xB305, 0x0001],
             regs={0: 0x0000, 1: 0x0001},
             fcw=0x400C,
         ),
@@ -11817,13 +11817,13 @@ def generate_all_tests():
         # Manual: C "Unaffected" for TESTL
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_testl_rr_preserve_c
-        #   0000: 8d04                testl	rr0
+        #   0000: 9c08                testl	rr0
         _tc(
             name='sys_testl_rr_preserve_c',
             mnemonic='TESTL',
             desc='TESTL RR0 with C=1: verify C preserved',
             tags=['word_alu', 'R_mode', 'flag_preserve'],
-            code=[0x8D04],
+            code=[0x9C08],
             regs={0: 0x1234, 1: 0x5678},
             fcw=0x4080,
         ),
