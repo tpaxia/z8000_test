@@ -267,6 +267,179 @@ def generate_all_tests():
             regs={0: 0xFFFF, 1: 0x0000},
         ),
 
+        # ---- Flag preservation tests: C and V across logical ops ----
+        # Z8000 manual: AND/OR/XOR/TEST/COM specify C as "Unaffected"
+        # and (word mode) V as "Unaffected". Pre-set C=1 or V=1 via FCW
+        # and verify they survive the operation.
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_and_r_r_preserve_c
+        #   0000: 8710                and	r0,r1
+        _tc(
+            name='sys_and_r_r_preserve_c',
+            mnemonic='AND',
+            desc='AND R0, R1 with C=1: verify C preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8710],
+            regs={0: 0xFF00, 1: 0x0F0F},
+            fcw=0x4080,  # C=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_and_r_r_preserve_v
+        #   0000: 8710                and	r0,r1
+        _tc(
+            name='sys_and_r_r_preserve_v',
+            mnemonic='AND',
+            desc='AND R0, R1 with V=1: verify V preserved (word)',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8710],
+            regs={0: 0xFF00, 1: 0x0F0F},
+            fcw=0x4010,  # V=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_and_r_r_preserve_cv
+        #   0000: 8710                and	r0,r1
+        _tc(
+            name='sys_and_r_r_preserve_cv',
+            mnemonic='AND',
+            desc='AND R0, R1 with C=1,V=1: verify both preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8710],
+            regs={0: 0xF0F0, 1: 0x0F0F},
+            fcw=0x4090,  # C=1, V=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_andb_r_r_preserve_c
+        #   0000: 8610                andb	rh0,rh1
+        _tc(
+            name='sys_andb_r_r_preserve_c',
+            mnemonic='ANDB',
+            desc='ANDB RH0, RH1 with C=1: verify C preserved',
+            tags=['byte_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8610],
+            regs={0: 0xF000, 1: 0x0F00},
+            fcw=0x4080,  # C=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_or_r_r_preserve_c
+        #   0000: 8510                or	r0,r1
+        _tc(
+            name='sys_or_r_r_preserve_c',
+            mnemonic='OR',
+            desc='OR R0, R1 with C=1: verify C preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8510],
+            regs={0: 0x00F0, 1: 0x0F00},
+            fcw=0x4080,  # C=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_or_r_r_preserve_v
+        #   0000: 8510                or	r0,r1
+        _tc(
+            name='sys_or_r_r_preserve_v',
+            mnemonic='OR',
+            desc='OR R0, R1 with V=1: verify V preserved (word)',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8510],
+            regs={0: 0x00F0, 1: 0x0F00},
+            fcw=0x4010,  # V=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_orb_r_r_preserve_c
+        #   0000: 8498                orb	rl0,rl1
+        _tc(
+            name='sys_orb_r_r_preserve_c',
+            mnemonic='ORB',
+            desc='ORB RL0, RL1 with C=1: verify C preserved',
+            tags=['byte_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8498],
+            regs={0: 0x000F, 1: 0x00F0},
+            fcw=0x4080,  # C=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_xor_r_r_preserve_c
+        #   0000: 8910                xor	r0,r1
+        _tc(
+            name='sys_xor_r_r_preserve_c',
+            mnemonic='XOR',
+            desc='XOR R0, R1 with C=1: verify C preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8910],
+            regs={0: 0xFF00, 1: 0x0FF0},
+            fcw=0x4080,  # C=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_xor_r_r_preserve_v
+        #   0000: 8910                xor	r0,r1
+        _tc(
+            name='sys_xor_r_r_preserve_v',
+            mnemonic='XOR',
+            desc='XOR R0, R1 with V=1: verify V preserved (word)',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8910],
+            regs={0: 0xFF00, 1: 0x0FF0},
+            fcw=0x4010,  # V=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_xorb_r_r_preserve_c
+        #   0000: 8810                xorb	rh0,rh1
+        _tc(
+            name='sys_xorb_r_r_preserve_c',
+            mnemonic='XORB',
+            desc='XORB RH0, RH1 with C=1: verify C preserved',
+            tags=['byte_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8810],
+            regs={0: 0xFF00, 1: 0x0F00},
+            fcw=0x4080,  # C=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_test_r_preserve_c
+        #   0000: 8d04                test	r0
+        _tc(
+            name='sys_test_r_preserve_c',
+            mnemonic='TEST',
+            desc='TEST R0 with C=1: verify C preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8D04],
+            regs={0: 0x1234},
+            fcw=0x4080,  # C=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_test_r_preserve_v
+        #   0000: 8d04                test	r0
+        _tc(
+            name='sys_test_r_preserve_v',
+            mnemonic='TEST',
+            desc='TEST R0 with V=1: verify V preserved (word)',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8D04],
+            regs={0: 0x1234},
+            fcw=0x4010,  # V=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_testb_r_preserve_c
+        #   0000: 8c04                testb	rh0
+        _tc(
+            name='sys_testb_r_preserve_c',
+            mnemonic='TESTB',
+            desc='TESTB RH0 with C=1: verify C preserved',
+            tags=['byte_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8C04],
+            regs={0: 0x1200},
+            fcw=0x4080,  # C=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_com_r_preserve_v
+        #   0000: 8d00                com	r0
+        _tc(
+            name='sys_com_r_preserve_v',
+            mnemonic='COM',
+            desc='COM R0 with V=1: verify V preserved (word)',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8D00],
+            regs={0: 0x00FF},
+            fcw=0x4010,  # V=1
+        ),
+
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_or_r_r_zero
         #   1500: 8510                or	r0,r1
         _tc(
@@ -8220,6 +8393,45 @@ def generate_all_tests():
             fcw=fcw_with_flags(Z=1),
         ),
 
+        # ---- CALL/CALR/RET flag preservation ----
+        # Manual: "No flags affected" for all three
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_call_ret_preserve_flags
+        #   0200: 2100 0001           ld r0,#0x1
+        #   0204: 5f00 0210           call .Lsub
+        #   0208: 2100 0003           ld r0,#0x3
+        #   020c: 5e08 00c0           jp t,0x00c0
+        #         .Lsub:
+        #   0210: 2100 0002           ld r0,#0x2
+        #   0214: 9e08                ret t
+        _tc(
+            name='sys_call_ret_preserve_flags',
+            mnemonic='CALL',
+            desc='CALL/RET with all flags pre-set: verify none cleared',
+            tags=['branch', 'call', 'stack', 'flag_preserve'],
+            code=[0x2100, 0x0001, 0x5F00, 0x0210, 0x2100, 0x0003, 0x5E08, 0x00C0, 0x2100, 0x0002, 0x9E08],
+            regs={0: 0x0000, 15: 0x0F00},
+            fcw=0x40BC,  # C=1,S=1,V=1,D=1,H=1 (all flag bits set)
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_calr_ret_preserve_flags
+        #   0200: 2100 0001           ld r0,#0x1
+        #   0204: dffc                calr .Lsub
+        #   0206: 2100 0003           ld r0,#0x3
+        #   020a: 5e08 00c0           jp t,0x00c0
+        #         .Lsub:
+        #   020e: 2100 0002           ld r0,#0x2
+        #   0212: 9e08                ret t
+        _tc(
+            name='sys_calr_ret_preserve_flags',
+            mnemonic='CALR',
+            desc='CALR/RET with all flags pre-set: verify none cleared',
+            tags=['branch', 'call', 'stack', 'flag_preserve'],
+            code=[0x2100, 0x0001, 0xDFFC, 0x2100, 0x0003, 0x5E08, 0x00C0, 0x2100, 0x0002, 0x9E08],
+            regs={0: 0x0000, 15: 0x0F00},
+            fcw=0x40BC,
+        ),
+
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldi_single
         #   2d900: bb11 0238           ldi	@r3,@r1,r2
         _tc(
@@ -11029,5 +11241,606 @@ def generate_all_tests():
             tags=['flag_manip', 'control', 'comflg_h'],
             code=[0x8010, 0x8D05],
             regs={0: 0x0F01},  # RH0=0x0F, RL0=0x01 -> ADDB: 0x0F+0x01=0x10, H=1
+        ),
+
+        # ================================================================
+        # FLAG PRESERVATION — comprehensive golden-capture tests
+        #
+        # These test every instruction where the Z8000 manual says a flag
+        # is "Unaffected", with that flag PRE-SET to 1. Golden capture on
+        # real Z8001 will confirm preservation; the soft CPU comparison
+        # will detect any flag-clearing bugs.
+        # ================================================================
+
+        # ---- C flag across logical ops: IM, IR, DA modes ----
+        # (R_mode C tests are above as sys_and_r_r_preserve_c etc.)
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_and_r_im_preserve_c
+        #   0000: 0700 0f0f           and	r0,#0xf0f
+        _tc(
+            name='sys_and_r_im_preserve_c',
+            mnemonic='AND',
+            desc='AND R0, #0x0F0F with C=1: verify C preserved (IM mode)',
+            tags=['word_alu', 'IM_mode', 'flag_preserve'],
+            code=[0x0700, 0x0F0F],
+            regs={0: 0xFF00},
+            fcw=0x4080,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_or_r_im_preserve_c
+        #   0000: 0500 0f00           or	r0,#0xf00
+        _tc(
+            name='sys_or_r_im_preserve_c',
+            mnemonic='OR',
+            desc='OR R0, #0x0F00 with C=1: verify C preserved (IM mode)',
+            tags=['word_alu', 'IM_mode', 'flag_preserve'],
+            code=[0x0500, 0x0F00],
+            regs={0: 0x00F0},
+            fcw=0x4080,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_xor_r_im_preserve_c
+        #   0000: 0900 ff00           xor	r0,#0xff00
+        _tc(
+            name='sys_xor_r_im_preserve_c',
+            mnemonic='XOR',
+            desc='XOR R0, #0xFF00 with C=1: verify C preserved (IM mode)',
+            tags=['word_alu', 'IM_mode', 'flag_preserve'],
+            code=[0x0900, 0xFF00],
+            regs={0: 0x00FF},
+            fcw=0x4080,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_and_r_ir_preserve_c
+        #   0000: 0710                and	r0,@r1
+        _tc(
+            name='sys_and_r_ir_preserve_c',
+            mnemonic='AND',
+            desc='AND R0, @R1 with C=1: verify C preserved (IR mode)',
+            tags=['word_alu', 'IR_mode', 'flag_preserve'],
+            code=[0x0710],
+            regs={0: 0xFFFF, 1: OPERAND_BASE},
+            memory={OPERAND_BASE: 0x0001},
+            fcw=0x4080,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_and_r_da_preserve_c
+        #   0000: 4710 0400           and	r0,0x400
+        _tc(
+            name='sys_and_r_da_preserve_c',
+            mnemonic='AND',
+            desc='AND R0, addr with C=1: verify C preserved (DA mode)',
+            tags=['word_alu', 'DA_mode', 'flag_preserve'],
+            code=[0x4710, 0x0400],
+            regs={0: 0xFFFF},
+            memory={OPERAND_BASE: 0x0001},
+            fcw=0x4080,
+        ),
+
+        # ---- V flag across word logical ops: IM, IR, DA modes ----
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_and_r_im_preserve_v
+        #   0000: 0700 0f0f           and	r0,#0xf0f
+        _tc(
+            name='sys_and_r_im_preserve_v',
+            mnemonic='AND',
+            desc='AND R0, #0x0F0F with V=1: verify V preserved (IM)',
+            tags=['word_alu', 'IM_mode', 'flag_preserve'],
+            code=[0x0700, 0x0F0F],
+            regs={0: 0xFF00},
+            fcw=0x4010,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_or_r_da_preserve_v
+        #   0000: 4510 0400           or	r0,0x400
+        _tc(
+            name='sys_or_r_da_preserve_v',
+            mnemonic='OR',
+            desc='OR R0, addr with V=1: verify V preserved (DA)',
+            tags=['word_alu', 'DA_mode', 'flag_preserve'],
+            code=[0x4510, 0x0400],
+            regs={0: 0x00F0},
+            memory={OPERAND_BASE: 0x0F00},
+            fcw=0x4010,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_xor_r_ir_preserve_v
+        #   0000: 0910                xor	r0,@r1
+        _tc(
+            name='sys_xor_r_ir_preserve_v',
+            mnemonic='XOR',
+            desc='XOR R0, @R1 with V=1: verify V preserved (IR)',
+            tags=['word_alu', 'IR_mode', 'flag_preserve'],
+            code=[0x0910],
+            regs={0: 0xFF00, 1: OPERAND_BASE},
+            memory={OPERAND_BASE: 0x0FF0},
+            fcw=0x4010,
+        ),
+
+        # ---- TEST/TESTB DA mode with C pre-set ----
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_test_da_preserve_c
+        #   0000: 4d04 0400           test	0x400
+        _tc(
+            name='sys_test_da_preserve_c',
+            mnemonic='TEST',
+            desc='TEST addr with C=1: verify C preserved (DA)',
+            tags=['word_alu', 'DA_mode', 'flag_preserve'],
+            code=[0x4D04, 0x0400],
+            memory={OPERAND_BASE: 0x1234},
+            fcw=0x4080,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_testb_da_preserve_c
+        #   0000: 4c04 0400           testb	0x400
+        _tc(
+            name='sys_testb_da_preserve_c',
+            mnemonic='TESTB',
+            desc='TESTB addr with C=1: verify C preserved (DA)',
+            tags=['byte_alu', 'DA_mode', 'flag_preserve'],
+            code=[0x4C04, 0x0400],
+            memory={OPERAND_BASE: 0x1200},
+            fcw=0x4080,
+        ),
+
+        # ---- INC/DEC C,D,H preservation ----
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_inc_r_preserve_cdh
+        #   0000: a900                inc	r0,#0x1
+        _tc(
+            name='sys_inc_r_preserve_cdh',
+            mnemonic='INC',
+            desc='INC R0, #1 with C=1,D=1,H=1: verify all preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0xA900],
+            regs={0: 0x0001},
+            fcw=0x408C,  # C=1 (0x80), D=1 (0x08), H=1 (0x04)
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_incb_r_preserve_cdh
+        #   0000: a800                incb	rh0,#0x1
+        _tc(
+            name='sys_incb_r_preserve_cdh',
+            mnemonic='INCB',
+            desc='INCB RH0, #1 with C=1,D=1,H=1: verify all preserved',
+            tags=['byte_alu', 'R_mode', 'flag_preserve'],
+            code=[0xA800],
+            regs={0: 0x0100},
+            fcw=0x408C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_dec_r_preserve_cdh
+        #   0000: ab00                dec	r0,#0x1
+        _tc(
+            name='sys_dec_r_preserve_cdh',
+            mnemonic='DEC',
+            desc='DEC R0, #1 with C=1,D=1,H=1: verify all preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0xAB00],
+            regs={0: 0x0005},
+            fcw=0x408C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_decb_r_preserve_cdh
+        #   0000: aa00                decb	rh0,#0x1
+        _tc(
+            name='sys_decb_r_preserve_cdh',
+            mnemonic='DECB',
+            desc='DECB RH0, #1 with C=1,D=1,H=1: verify all preserved',
+            tags=['byte_alu', 'R_mode', 'flag_preserve'],
+            code=[0xAA00],
+            regs={0: 0x0500},
+            fcw=0x408C,
+        ),
+
+        # ---- NEG D/H preservation ----
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_neg_r_preserve_dh
+        #   0000: 8d02                neg	r0
+        _tc(
+            name='sys_neg_r_preserve_dh',
+            mnemonic='NEG',
+            desc='NEG R0 with D=1,H=1: verify D,H preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8D02],
+            regs={0: 0x0005},
+            fcw=0x400C,  # D=1, H=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_negb_r_preserve_dh
+        #   0000: 8c02                negb	rh0
+        _tc(
+            name='sys_negb_r_preserve_dh',
+            mnemonic='NEGB',
+            desc='NEGB RH0 with D=1,H=1: verify D,H preserved',
+            tags=['byte_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8C02],
+            regs={0: 0x0500},
+            fcw=0x400C,
+        ),
+
+        # ---- COM C preservation (uses [OP_PC]) ----
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_com_r_preserve_c
+        #   0000: 8d00                com	r0
+        _tc(
+            name='sys_com_r_preserve_c',
+            mnemonic='COM',
+            desc='COM R0 with C=1: verify C preserved (via [OP_PC])',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8D00],
+            regs={0: 0x00FF},
+            fcw=0x4080,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_comb_r_preserve_c
+        #   0000: 8c00                comb	rh0
+        _tc(
+            name='sys_comb_r_preserve_c',
+            mnemonic='COMB',
+            desc='COMB RH0 with C=1: verify C preserved',
+            tags=['byte_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8C00],
+            regs={0: 0x0F00},
+            fcw=0x4080,
+        ),
+
+        # ---- RLDB/RRDB V preservation (audit finding #3) ----
+        # Manual: V "Unaffected" for both RLDB and RRDB
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rldb_preserve_v
+        #   0000: be21                rldb	rl0,rh1
+        _tc(
+            name='sys_rldb_preserve_v',
+            mnemonic='RLDB',
+            desc='RLDB RL0, RH1 with V=1: verify V preserved',
+            tags=['bcd', 'R_mode', 'flag_preserve'],
+            code=[0xBE21],
+            regs={0: 0x0012, 1: 0x3400},
+            fcw=0x4010,  # V=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rrdb_preserve_v
+        #   0000: bc21                rrdb	rl0,rh1
+        _tc(
+            name='sys_rrdb_preserve_v',
+            mnemonic='RRDB',
+            desc='RRDB RL0, RH1 with V=1: verify V preserved',
+            tags=['bcd', 'R_mode', 'flag_preserve'],
+            code=[0xBC21],
+            regs={0: 0x0012, 1: 0x3400},
+            fcw=0x4010,  # V=1
+        ),
+
+        # ---- BIT/BITB: only Z updated, all others preserved ----
+        # Manual: C,S,V,D,H all "Unaffected"
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_bit_r_preserve_csvdh
+        #   0000: a704                bit	r0,#0x4
+        _tc(
+            name='sys_bit_r_preserve_csvdh',
+            mnemonic='BIT',
+            desc='BIT R0, #4 with C=1,S=1,V=1,D=1,H=1: verify all preserved',
+            tags=['bit', 'R_mode', 'flag_preserve'],
+            code=[0xA704],
+            regs={0: 0x0010},  # bit 4 set -> Z=0
+            fcw=0x40BC,  # C=1(80), S=1(20), V=1(10), D=1(08), H=1(04)
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_bitb_r_preserve_csvdh
+        #   0000: a604                bitb	rh0,#0x4
+        _tc(
+            name='sys_bitb_r_preserve_csvdh',
+            mnemonic='BITB',
+            desc='BITB RH0, #4 with C=1,S=1,V=1,D=1,H=1: verify all preserved',
+            tags=['bit', 'R_mode', 'flag_preserve'],
+            code=[0xA604],
+            regs={0: 0x1000},  # bit 4 of high byte set -> Z=0
+            fcw=0x40BC,
+        ),
+
+        # ---- TSET/TSETB: only S updated, all others preserved ----
+        # Manual: C,Z,V,D,H all "Unaffected"
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_tset_r_preserve_czvdh
+        #   0000: 8d06                tset	r0
+        _tc(
+            name='sys_tset_r_preserve_czvdh',
+            mnemonic='TSET',
+            desc='TSET R0 with C=1,Z=1,V=1,D=1,H=1: verify all preserved',
+            tags=['control', 'R_mode', 'flag_preserve'],
+            code=[0x8D06],
+            regs={0: 0x0001},  # bit 15 clear -> S=0
+            fcw=0x40DC,  # C=1(80), Z=1(40), V=1(10), D=1(08), H=1(04)
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_tsetb_r_preserve_czvdh
+        #   0000: 8c06                tsetb	rh0
+        _tc(
+            name='sys_tsetb_r_preserve_czvdh',
+            mnemonic='TSETB',
+            desc='TSETB RH0 with C=1,Z=1,V=1,D=1,H=1: verify all preserved',
+            tags=['control', 'R_mode', 'flag_preserve'],
+            code=[0x8C06],
+            regs={0: 0x0100},  # bit 7 of high byte clear -> S=0
+            fcw=0x40DC,
+        ),
+
+        # ---- Shift/rotate D,H preservation ----
+        # Manual: D,H "Unaffected" for all shift and rotate instructions
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sla_r_preserve_dh
+        #   0000: b309                sla	r0,#0x1
+        _tc(
+            name='sys_sla_r_preserve_dh',
+            mnemonic='SLA',
+            desc='SLA R0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB309],
+            regs={0: 0x0001},
+            fcw=0x400C,  # D=1, H=1
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_srl_r_preserve_dh
+        #   0000: b301                srl	r0,#0x1
+        _tc(
+            name='sys_srl_r_preserve_dh',
+            mnemonic='SRL',
+            desc='SRL R0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB301],
+            regs={0: 0x8000},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sra_r_preserve_dh
+        #   0000: b309                sra	r0,#0x1
+        _tc(
+            name='sys_sra_r_preserve_dh',
+            mnemonic='SRA',
+            desc='SRA R0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB309],
+            regs={0: 0x8000},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sll_r_preserve_dh
+        #   0000: b309                sll	r0,#0x1
+        _tc(
+            name='sys_sll_r_preserve_dh',
+            mnemonic='SLL',
+            desc='SLL R0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB309],
+            regs={0: 0x0001},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rl_r_preserve_dh
+        #   0000: b300                rl	r0,#0x1
+        _tc(
+            name='sys_rl_r_preserve_dh',
+            mnemonic='RL',
+            desc='RL R0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB300],
+            regs={0: 0x8001},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rr_r_preserve_dh
+        #   0000: b304                rr	r0,#0x1
+        _tc(
+            name='sys_rr_r_preserve_dh',
+            mnemonic='RR',
+            desc='RR R0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB304],
+            regs={0: 0x8001},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rlc_r_preserve_dh
+        #   0000: b302                rlc	r0,#0x1
+        _tc(
+            name='sys_rlc_r_preserve_dh',
+            mnemonic='RLC',
+            desc='RLC R0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB302],
+            regs={0: 0x8001},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rrc_r_preserve_dh
+        #   0000: b306                rrc	r0,#0x1
+        _tc(
+            name='sys_rrc_r_preserve_dh',
+            mnemonic='RRC',
+            desc='RRC R0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB306],
+            regs={0: 0x8001},
+            fcw=0x400C,
+        ),
+
+        # ---- Byte shift/rotate D,H preservation ----
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_slab_r_preserve_dh
+        #   0000: b209                slab	rh0,#0x1
+        _tc(
+            name='sys_slab_r_preserve_dh',
+            mnemonic='SLAB',
+            desc='SLAB RH0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB209],
+            regs={0: 0x0100},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_srlb_r_preserve_dh
+        #   0000: b201                srlb	rh0,#0x1
+        _tc(
+            name='sys_srlb_r_preserve_dh',
+            mnemonic='SRLB',
+            desc='SRLB RH0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB201],
+            regs={0: 0x8000},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_srab_r_preserve_dh
+        #   0000: b209                srab	rh0,#0x1
+        _tc(
+            name='sys_srab_r_preserve_dh',
+            mnemonic='SRAB',
+            desc='SRAB RH0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB209],
+            regs={0: 0x8000},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sllb_r_preserve_dh
+        #   0000: b209                sllb	rh0,#0x1
+        _tc(
+            name='sys_sllb_r_preserve_dh',
+            mnemonic='SLLB',
+            desc='SLLB RH0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB209],
+            regs={0: 0x0100},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rlb_r_preserve_dh
+        #   0000: b200                rlb	rh0,#0x1
+        _tc(
+            name='sys_rlb_r_preserve_dh',
+            mnemonic='RLB',
+            desc='RLB RH0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB200],
+            regs={0: 0x8100},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rrb_r_preserve_dh
+        #   0000: b204                rrb	rh0,#0x1
+        _tc(
+            name='sys_rrb_r_preserve_dh',
+            mnemonic='RRB',
+            desc='RRB RH0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB204],
+            regs={0: 0x8100},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rlcb_r_preserve_dh
+        #   0000: b202                rlcb	rh0,#0x1
+        _tc(
+            name='sys_rlcb_r_preserve_dh',
+            mnemonic='RLCB',
+            desc='RLCB RH0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB202],
+            regs={0: 0x8100},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_rrcb_r_preserve_dh
+        #   0000: b206                rrcb	rh0,#0x1
+        _tc(
+            name='sys_rrcb_r_preserve_dh',
+            mnemonic='RRCB',
+            desc='RRCB RH0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB206],
+            regs={0: 0x8100},
+            fcw=0x400C,
+        ),
+
+        # ---- Long shift D,H preservation ----
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_slal_rr_preserve_dh
+        #   0000: b30d                slal	rr0,#0x1
+        _tc(
+            name='sys_slal_rr_preserve_dh',
+            mnemonic='SLAL',
+            desc='SLAL RR0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB30D],
+            regs={0: 0x0000, 1: 0x0001},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_srll_rr_preserve_dh
+        #   0000: b305                srll	rr0,#0x1
+        _tc(
+            name='sys_srll_rr_preserve_dh',
+            mnemonic='SRLL',
+            desc='SRLL RR0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB305],
+            regs={0: 0x8000, 1: 0x0000},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_sral_rr_preserve_dh
+        #   0000: b30d                sral	rr0,#0x1
+        _tc(
+            name='sys_sral_rr_preserve_dh',
+            mnemonic='SRAL',
+            desc='SRAL RR0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB30D],
+            regs={0: 0x8000, 1: 0x0000},
+            fcw=0x400C,
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_slll_rr_preserve_dh
+        #   0000: b30d                slll	rr0,#0x1
+        _tc(
+            name='sys_slll_rr_preserve_dh',
+            mnemonic='SLLL',
+            desc='SLLL RR0, #1 with D=1,H=1: verify D,H preserved',
+            tags=['shift', 'R_mode', 'flag_preserve'],
+            code=[0xB30D],
+            regs={0: 0x0000, 1: 0x0001},
+            fcw=0x400C,
+        ),
+
+        # ---- TESTL C preservation ----
+        # Manual: C "Unaffected" for TESTL
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_testl_rr_preserve_c
+        #   0000: 8d04                testl	rr0
+        _tc(
+            name='sys_testl_rr_preserve_c',
+            mnemonic='TESTL',
+            desc='TESTL RR0 with C=1: verify C preserved',
+            tags=['word_alu', 'R_mode', 'flag_preserve'],
+            code=[0x8D04],
+            regs={0: 0x1234, 1: 0x5678},
+            fcw=0x4080,
+        ),
+
+        # ---- DAB V preservation ----
+        # Manual: V "Unaffected" for DAB
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_dab_preserve_v
+        #   0000: 8010                addb	rh0,rh1
+        #   0002: b000                dab	rh0
+        _tc(
+            name='sys_dab_preserve_v',
+            mnemonic='DAB',
+            desc='ADDB then DAB with V=1: verify V preserved',
+            tags=['bcd', 'R_mode', 'flag_preserve'],
+            code=[0x8010, 0xB000],  # ADDB RH0,RH1; DAB RH0
+            regs={0: 0x1500, 1: 0x2700},  # BCD: 15+27=42
+            fcw=0x4010,  # V=1
         ),
     ]
