@@ -64,7 +64,7 @@ module z8002_int_test_top (
     //------------------------------------------------------------------------
     // Parameters
     //------------------------------------------------------------------------
-    parameter CLK_FRE   = 16;         // 16MHz system clock
+    parameter CLK_FRE   = 16;         // 16 MHz system clock (sys_clk = PLL c0)
     parameter UART_BAUD = 115200;
 
     //------------------------------------------------------------------------
@@ -84,26 +84,11 @@ module z8002_int_test_top (
     wire sys_clk = clk_16mhz;
 
     //------------------------------------------------------------------------
-    // Derived 4MHz CPU Clock (divide-by-4 from 16MHz)
-    // Keeps CPU in the same clock domain as the rest of the design.
-    // PLL c1 (clk_4mhz) is only used for external Z8001 fclk pin.
+    // CPU clocking: CPU runs at 16 MHz (sys_clk) with BUS_DIVIDER=4 so bus
+    // phase advances every 4th clk (= 4 MHz bus rate). Required by the
+    // biu-timing-fix branch which splits bus events onto rising/falling ticks.
+    // PLL c1 (clk_4mhz) is only used for the external Z8001 fclk pin.
     //------------------------------------------------------------------------
-    reg [1:0] cpu_clk_div;
-    reg       z8k_cpu_clk;
-
-    always @(posedge sys_clk) begin
-        if (!pll_locked) begin
-            cpu_clk_div <= 2'd0;
-            z8k_cpu_clk <= 1'b0;
-        end else begin
-            if (cpu_clk_div == 2'd1) begin
-                cpu_clk_div <= 2'd0;
-                z8k_cpu_clk <= ~z8k_cpu_clk;
-            end else begin
-                cpu_clk_div <= cpu_clk_div + 1'b1;
-            end
-        end
-    end
 
     //------------------------------------------------------------------------
     // Reset Generation
@@ -166,8 +151,8 @@ module z8002_int_test_top (
     reg  [15:0] data_to_cpu;
     assign ad_bus = (cpu_rw_n && ~cpu_ds_n) ? data_to_cpu : 16'bz;
 
-    z8000_cpu cpu (
-        .clk        (z8k_cpu_clk),
+    z8000_cpu #(.BUS_DIVIDER(4)) cpu (
+        .clk        (sys_clk),
         .rst_n      (z8k_rst_n),
         .ad         (ad_bus),
         .as_n       (cpu_as_n),
@@ -259,7 +244,7 @@ module z8002_int_test_top (
     reg [31:0] cycle_count;
     reg [15:0] fetch_count;
     reg        prev_as_n;
-    reg        prev_cpu_clk;
+    reg [1:0]  bus_tick_div;
     reg        counting;
     reg        cycle_timeout;
     reg [31:0] instr_cycle_count;
@@ -271,7 +256,10 @@ module z8002_int_test_top (
 
     wire as_falling = prev_as_n && ~cpu_as_n;
     wire opcode_fetch = as_falling && (cpu_st == 4'b1101);
-    wire cpu_clk_rising = z8k_cpu_clk && ~prev_cpu_clk;
+    // Bus-rate tick (4 MHz at sys_clk=16MHz, matches BUS_DIVIDER=4). 1 sys_clk
+    // pulse every 4 sys_clks - used as the "Z8000 clock" for cycle counting so
+    // CC/FC values stay comparable to the BUS_DIVIDER=1 legacy harness.
+    wire bus_tick = (bus_tick_div == 2'd3);
 
     always @(posedge sys_clk) begin
         if (z8k_start) begin
@@ -279,13 +267,13 @@ module z8002_int_test_top (
             cycle_count <= 32'd0;
             fetch_count <= 16'd0;
             prev_as_n <= 1'b1;
-            prev_cpu_clk <= 1'b0;
+            bus_tick_div <= 2'd0;
             counting <= 1'b1;
             cycle_timeout <= 1'b0;
             instr_cycle_count <= 32'd0;
         end else begin
             prev_as_n <= cpu_as_n;
-            prev_cpu_clk <= z8k_cpu_clk;
+            bus_tick_div <= bus_tick_div + 1'b1;
 
             if (as_falling && !bus_active)
                 bus_active <= 1'b1;
@@ -293,7 +281,7 @@ module z8002_int_test_top (
             if (!cpu_halt_n)
                 counting <= 1'b0;
 
-            if (counting && cpu_halt_n && cpu_clk_rising)
+            if (counting && cpu_halt_n && bus_tick)
                 cycle_count <= cycle_count + 1'b1;
 
             if (counting && cpu_halt_n && opcode_fetch)
@@ -302,7 +290,7 @@ module z8002_int_test_top (
             if (counting && (z8k_cycle_limit != 32'd0) && (cycle_count >= z8k_cycle_limit))
                 cycle_timeout <= 1'b1;
 
-            if (trace_active && cpu_clk_rising)
+            if (trace_active && bus_tick)
                 instr_cycle_count <= instr_cycle_count + 1'b1;
         end
     end
@@ -394,8 +382,10 @@ module z8002_int_test_top (
 
     // Z8002 write logic - level-based (internal CPU, no synchronizer delay)
     wire z8k_ram_write = ram_sel && ~cpu_rw_n && ~cpu_ds_n;
-    wire z8k_we_hi = z8k_ram_write && (cpu_bw_n || ~z8k_addr[0]);
-    wire z8k_we_lo = z8k_ram_write && (cpu_bw_n ||  z8k_addr[0]);
+    // b_w_n polarity per z8000_biu.v: 0=word, 1=byte.
+    // For word: both lanes active. For byte: only the addressed lane.
+    wire z8k_we_hi = z8k_ram_write && (~cpu_bw_n || ~z8k_addr[0]);
+    wire z8k_we_lo = z8k_ram_write && (~cpu_bw_n ||  z8k_addr[0]);
 
     wire [15:0] z80_rd_data;
     wire [15:0] z8k_rd_data;

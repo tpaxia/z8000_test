@@ -41,12 +41,18 @@ set_global_assignment -name VERILOG_FILE ../src/uart_rx.v
 set_global_assignment -name VERILOG_FILE ../src/z8k_io_ports.v
 
 # Z8000 CPU core (submodule)
+# SEARCH_PATH .. lets altsyncram resolve the "z8000_micro/rtl/microcode_rom_z8002.mif"
+# INIT_FILE path (hard-coded in microcode_rom.v) from the project directory.
 set_global_assignment -name SEARCH_PATH ../z8000_micro/rtl
+set_global_assignment -name SEARCH_PATH ..
 set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/z8000_cpu.v
 set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/z8000_biu.v
 set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/z8000_muldiv.v
 set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/decode_rom.v
 set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/microcode_rom.v
+
+# Move microcode ROM into M9K block RAM (saves ~3000 LUTs vs combinational case).
+set_global_assignment -name VERILOG_MACRO "ALTERA_BRAM=1"
 
 # TV80 Z80 core
 set_global_assignment -name VERILOG_FILE ../tv80_official/rtl/core/tv80_alu.v

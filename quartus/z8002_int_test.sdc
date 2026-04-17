@@ -4,16 +4,10 @@
 create_clock -name clk_50mhz -period 20.000 [get_ports clk]
 
 # PLL-generated clocks (auto-derived by Quartus from ALTPLL)
-# clk_16mhz: 16 MHz system clock (c0)
+# clk_16mhz: 16 MHz system clock (c0) - drives soft CPU at BUS_DIVIDER=4
 # clk_4mhz:  4 MHz external clock only (c1) - not used for internal CPU
 derive_pll_clocks
 derive_clock_uncertainty
-
-# Derived 4MHz CPU clock (register divider from 16MHz)
-create_generated_clock -name z8k_cpu_clk \
-    -source [get_pins {pll_inst|pll_inst|auto_generated|pll1|clk[0]}] \
-    -divide_by 4 \
-    [get_registers {z8k_cpu_clk}]
 
 # UART is asynchronous - false path
 set_false_path -from [get_ports urxd1]

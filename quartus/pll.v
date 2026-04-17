@@ -67,8 +67,8 @@ module pll (
     // Replace this with MegaWizard-generated ALTPLL instantiation
     // Example configuration:
     //   inclk0 = 50 MHz
-    //   c0 = 16 MHz (multiply by 8, divide by 25)
-    //   c1 = 4 MHz (multiply by 2, divide by 25)
+    //   c0 = 16 MHz (multiply by 8, divide by 25) - sys_clk for soft CPU
+    //   c1 = 4 MHz  (multiply by 2, divide by 25) - external Z8001 fclk pin
 
     altpll #(
         .bandwidth_type("AUTO"),
