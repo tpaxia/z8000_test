@@ -1,0 +1,7 @@
+# Quartus Project File for Z8001 Internal Test Harness
+# Internal Verilog Z8001 CPU (segmented mode) on Cyclone IV, external Z8001 disabled
+
+QUARTUS_VERSION = "13.0"
+DATE = "2026-04-16"
+
+PROJECT_REVISION = "z8001_int_test"

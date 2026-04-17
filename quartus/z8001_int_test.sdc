@@ -1,0 +1,27 @@
+# Timing Constraints for Z8001 Internal Test Harness
+
+# Input clock (50 MHz oscillator)
+create_clock -name clk_50mhz -period 20.000 [get_ports clk]
+
+# PLL-generated clocks (auto-derived by Quartus from ALTPLL)
+# clk_16mhz: 16 MHz system clock (c0) - drives soft CPU at BUS_DIVIDER=4
+# clk_4mhz:  4 MHz external clock only (c1) - not used for internal CPU
+derive_pll_clocks
+derive_clock_uncertainty
+
+# UART is asynchronous - false path
+set_false_path -from [get_ports urxd1]
+set_false_path -to [get_ports utxd1]
+
+# Reset is asynchronous
+set_false_path -from [get_ports n_reset]
+
+# LED is slow - false path
+set_false_path -to [get_ports driveLED]
+
+# External Z8001 pins - all false paths (CPU in reset, buffers disabled)
+set_false_path -to [get_ports {freset fclk fbreq fwait fnvi fvi fnmi}]
+set_false_path -to [get_ports {fbuscs fbusrd}]
+set_false_path -to [get_ports {n_sRamCS0 n_sRamCS1 n_sRamOE n_sRamWE}]
+set_false_path -from [get_ports {fas fds fbw fmreq frw}]
+set_false_path -from [get_ports {fst[*] fsn[*] sramData[*]}]

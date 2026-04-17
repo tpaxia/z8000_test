@@ -1,0 +1,244 @@
+# Quartus Settings File for Z8001 Internal Test Harness
+# Internal Verilog Z8001 CPU core (segmented mode) on Cyclone IV.
+# External Z8001 held in reset, bus buffers disabled.
+# Target: Cyclone IV EP4CE15F23C8 (QMTECH board)
+
+set_global_assignment -name FAMILY "Cyclone IV E"
+set_global_assignment -name DEVICE EP4CE15F23C8
+set_global_assignment -name TOP_LEVEL_ENTITY z8001_int_test_top
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION "21.1.0 LITE EDITION"
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "2026-04-16"
+set_global_assignment -name LAST_QUARTUS_VERSION "21.1.0 Lite Edition"
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name DEVICE_FILTER_PACKAGE FBGA
+set_global_assignment -name DEVICE_FILTER_SPEED_GRADE 8
+set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
+set_global_assignment -name NOMINAL_CORE_SUPPLY_VOLTAGE 1.2V
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "3.3-V LVTTL"
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+
+# ============================================================================
+# Source Files
+# ============================================================================
+
+# Top level (internal Z8001 segmented)
+set_global_assignment -name VERILOG_FILE z8001_int_test_top.v
+
+# Quartus-specific modules (shared with Z8002 project)
+set_global_assignment -name VERILOG_FILE trace_buffer_altera.v
+set_global_assignment -name VERILOG_FILE ram16_altera.v
+set_global_assignment -name VERILOG_FILE pll.v
+
+# Z80 harness (Quartus version with altsyncram for RAM)
+set_global_assignment -name VERILOG_FILE z80_harness_quartus.v
+
+# Shared modules
+set_global_assignment -name VERILOG_FILE ../src/uart_tx.v
+set_global_assignment -name VERILOG_FILE ../src/uart_rx.v
+set_global_assignment -name VERILOG_FILE ../src/z8k_io_ports.v
+
+# Z8000 CPU core (submodule)
+# SEARCH_PATH .. lets altsyncram resolve the "z8000_micro/rtl/microcode_rom_z8001.mif"
+# INIT_FILE path (hard-coded in microcode_rom.v) from the project directory.
+set_global_assignment -name SEARCH_PATH ../z8000_micro/rtl
+set_global_assignment -name SEARCH_PATH ..
+set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/z8000_cpu.v
+set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/z8000_biu.v
+set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/z8000_muldiv.v
+set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/decode_rom.v
+set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/microcode_rom.v
+
+# ============================================================================
+# Verilog macros
+# ============================================================================
+# Z8001_MODE   : segmented CPU (RR14 stack, 8-byte PSA, sn[6:0] output)
+# ACTIVE_BUS   : split ad_out/ad_in/ad_oe (no internal tri-state)
+# ALTERA_BRAM  : microcode ROM in M9K block RAM (saves ~3000 LUTs)
+set_global_assignment -name VERILOG_MACRO "Z8001_MODE=1"
+set_global_assignment -name VERILOG_MACRO "ACTIVE_BUS=1"
+set_global_assignment -name VERILOG_MACRO "ALTERA_BRAM=1"
+
+# TV80 Z80 core
+set_global_assignment -name VERILOG_FILE ../tv80_official/rtl/core/tv80_alu.v
+set_global_assignment -name VERILOG_FILE ../tv80_official/rtl/core/tv80_core.v
+set_global_assignment -name VERILOG_FILE ../tv80_official/rtl/core/tv80_mcode.v
+set_global_assignment -name VERILOG_FILE ../tv80_official/rtl/core/tv80_reg.v
+set_global_assignment -name VERILOG_FILE ../tv80_official/rtl/core/tv80s.v
+
+# Timing Constraints
+set_global_assignment -name SDC_FILE z8001_int_test.sdc
+
+# Memory Initialization File (Z80 firmware - same binary for Z8001/Z8002)
+set_global_assignment -name MIF_FILE z80_fw.mif
+
+# ============================================================================
+# Pin Assignments (same QMTECH board as Z8002 project)
+# ============================================================================
+
+# Clock and Reset
+set_location_assignment PIN_T2 -to clk
+set_location_assignment PIN_W13 -to n_reset
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to n_reset
+
+# Serial Port 1 (UART)
+set_location_assignment PIN_B22 -to urxd1
+set_location_assignment PIN_B18 -to utxd1
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to urxd1
+
+# LED
+set_location_assignment PIN_E4 -to driveLED
+
+# External SRAM (disabled)
+set_location_assignment PIN_B5 -to n_sRamCS0
+set_location_assignment PIN_B6 -to n_sRamCS1
+set_location_assignment PIN_C4 -to n_sRamOE
+set_location_assignment PIN_E1 -to n_sRamWE
+
+# External Z8001 CPU Control (driven to safe states, CPU held in reset)
+set_location_assignment PIN_F1 -to fclk
+set_location_assignment PIN_B17 -to freset
+set_location_assignment PIN_H2 -to fbreq
+set_location_assignment PIN_J2 -to fwait
+set_location_assignment PIN_F2 -to fnvi
+set_location_assignment PIN_B2 -to fvi
+set_location_assignment PIN_B3 -to fnmi
+
+# External Z8001 Bus Buffer Control (buffers disabled)
+set_location_assignment PIN_R2 -to fbuscs
+set_location_assignment PIN_P2 -to fbusrd
+
+# External Z8001 Segment Number (inputs from disconnected CPU)
+set_location_assignment PIN_R1 -to fsn[0]
+set_location_assignment PIN_N1 -to fsn[1]
+set_location_assignment PIN_N2 -to fsn[2]
+set_location_assignment PIN_M1 -to fsn[3]
+
+# External Z8001 Status Lines (inputs from disconnected CPU)
+set_location_assignment PIN_D2 -to fst[0]
+set_location_assignment PIN_C1 -to fst[1]
+set_location_assignment PIN_C2 -to fst[2]
+set_location_assignment PIN_B1 -to fst[3]
+
+# External Z8001 Bus Control (inputs from disconnected CPU)
+set_location_assignment PIN_A8 -to fas
+set_location_assignment PIN_A9 -to fds
+set_location_assignment PIN_A7 -to fbw
+set_location_assignment PIN_A10 -to fmreq
+set_location_assignment PIN_A13 -to frw
+
+# External AD Bus (input only - buffers disabled, FPGA does not drive)
+set_location_assignment PIN_B7 -to sramData[0]
+set_location_assignment PIN_B9 -to sramData[1]
+set_location_assignment PIN_B13 -to sramData[2]
+set_location_assignment PIN_B16 -to sramData[3]
+set_location_assignment PIN_B15 -to sramData[4]
+set_location_assignment PIN_B14 -to sramData[5]
+set_location_assignment PIN_B10 -to sramData[6]
+set_location_assignment PIN_B8 -to sramData[7]
+set_location_assignment PIN_E22 -to sramData[8]
+set_location_assignment PIN_D22 -to sramData[9]
+set_location_assignment PIN_C22 -to sramData[10]
+set_location_assignment PIN_A20 -to sramData[11]
+set_location_assignment PIN_A19 -to sramData[12]
+set_location_assignment PIN_A18 -to sramData[13]
+set_location_assignment PIN_A17 -to sramData[14]
+set_location_assignment PIN_C21 -to sramData[15]
+
+# ============================================================================
+# IO Standards
+# ============================================================================
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to clk
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to n_reset
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to urxd1
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to utxd1
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to driveLED
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to n_sRamCS0
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to n_sRamCS1
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to n_sRamOE
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to n_sRamWE
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fclk
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to freset
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fbreq
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fwait
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fnvi
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fvi
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fnmi
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fbuscs
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fbusrd
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fsn[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fsn[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fsn[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fsn[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fst[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fst[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fst[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fst[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fas
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fds
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fbw
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fmreq
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to frw
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[4]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[5]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[6]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[7]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[8]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[9]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[10]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[11]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[12]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[13]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[14]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sramData[15]
+
+# Weak pull-ups on Z8001 input pins (CPU in reset, buffers disabled)
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fas
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fds
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fbw
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fmreq
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to frw
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fst[0]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fst[1]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fst[2]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fst[3]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fsn[0]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fsn[1]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fsn[2]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to fsn[3]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[0]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[1]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[2]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[3]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[4]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[5]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[6]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[7]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[8]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[9]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[10]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[11]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[12]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[13]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[14]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to sramData[15]
+
+# ============================================================================
+# Compilation Settings
+# ============================================================================
+set_global_assignment -name SMART_RECOMPILE ON
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+
+
+set_global_assignment -name QIP_FILE ram_hi.qip
+set_global_assignment -name QIP_FILE ram_lo.qip
+
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
