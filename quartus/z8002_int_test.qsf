@@ -51,7 +51,9 @@ set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/z8000_muldiv.v
 set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/decode_rom.v
 set_global_assignment -name VERILOG_FILE ../z8000_micro/rtl/microcode_rom.v
 
-# Move microcode ROM into M9K block RAM (saves ~3000 LUTs vs combinational case).
+# ACTIVE_BUS   : split ad_out/ad_in/ad_oe (no internal tri-state bus)
+# ALTERA_BRAM  : microcode ROM into M9K block RAM (saves ~3000 LUTs)
+set_global_assignment -name VERILOG_MACRO "ACTIVE_BUS=1"
 set_global_assignment -name VERILOG_MACRO "ALTERA_BRAM=1"
 
 # TV80 Z80 core

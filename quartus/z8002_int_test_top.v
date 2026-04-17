@@ -141,20 +141,26 @@ module z8002_int_test_top (
     //------------------------------------------------------------------------
     wire z8k_rst_n;                      // From Z80 harness
 
-    wire [15:0] ad_bus;
+    wire [15:0] ad_out;
+    wire        ad_oe;
+    reg  [15:0] data_to_cpu;             // mux result (RAM / IO / pull-ups)
+
+    // With ACTIVE_BUS, the CPU drives ad_out when ad_oe=1 (address+write)
+    // and reads ad_in when ad_oe=0 (read phase). Loop ad_out back when the
+    // CPU is driving so the input mux is clean; otherwise deliver read data.
+    wire [15:0] ad_in = ad_oe ? ad_out : data_to_cpu;
+
     wire        cpu_as_n, cpu_ds_n, cpu_rw_n, cpu_mreq_n, cpu_bw_n;
     wire [3:0]  cpu_st;
     wire        cpu_halt_n;
     wire        cpu_busack_n, cpu_ns;
 
-    // Read data driven onto AD bus during CPU read cycles
-    reg  [15:0] data_to_cpu;
-    assign ad_bus = (cpu_rw_n && ~cpu_ds_n) ? data_to_cpu : 16'bz;
-
     z8000_cpu #(.BUS_DIVIDER(4)) cpu (
         .clk        (sys_clk),
         .rst_n      (z8k_rst_n),
-        .ad         (ad_bus),
+        .ad_out     (ad_out),
+        .ad_in      (ad_in),
+        .ad_oe      (ad_oe),
         .as_n       (cpu_as_n),
         .ds_n       (cpu_ds_n),
         .rw_n       (cpu_rw_n),
@@ -171,8 +177,8 @@ module z8002_int_test_top (
         .halt_n     (cpu_halt_n)
     );
 
-    // Write data from CPU
-    wire [15:0] z8k_wdata = ad_bus;
+    // Write data from CPU is ad_out during data phase (ad_oe=1, ds_n=0)
+    wire [15:0] z8k_wdata = ad_out;
 
     //------------------------------------------------------------------------
     // Address Latch
@@ -185,7 +191,7 @@ module z8002_int_test_top (
         if (!sys_rst_n)
             z8k_addr <= 16'd0;
         else if (~cpu_as_n)
-            z8k_addr <= ad_bus;
+            z8k_addr <= ad_out;
     end
 
     //------------------------------------------------------------------------
