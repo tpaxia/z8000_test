@@ -7817,6 +7817,102 @@ def generate_all_tests():
             regs={0: 0xFF00},
         ),
 
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldb_r_x_even
+        #   2aa00: 6020 0400           ldb	rh0,0x400(r2)
+        _tc(
+            name='sys_ldb_r_x_even',
+            mnemonic='LDB',
+            desc='LDB RH0, 0x0400(R2): indexed byte load from even addr',
+            tags=['load', 'byte', 'X_mode'],
+            code=[0x6020, 0x0400],
+            regs={0: 0x0000, 2: 0x0004},
+            memory={0x0404: 0xBE77},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldb_r_x_odd
+        #   2ab00: 6020 0400           ldb	rh0,0x400(r2)
+        _tc(
+            name='sys_ldb_r_x_odd',
+            mnemonic='LDB',
+            desc='LDB RH0, 0x0400(R2): indexed byte load from odd addr',
+            tags=['load', 'byte', 'X_mode'],
+            code=[0x6020, 0x0400],
+            regs={0: 0x0000, 2: 0x0005},
+            memory={0x0404: 0x77EF},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldb_x_r_even
+        #   2ac00: 6e20 0400           ldb	0x400(r2),rh0
+        _tc(
+            name='sys_ldb_x_r_even',
+            mnemonic='LDB',
+            desc='LDB 0x0400(R2), RH0: indexed byte store to even addr',
+            tags=['load', 'byte', 'X_mode', 'store'],
+            code=[0x6E20, 0x0400],
+            regs={0: 0xA500, 2: 0x0004},
+            memory={0x0404: 0x1122},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldb_x_r_odd
+        #   2ad00: 6e20 0400           ldb	0x400(r2),rh0
+        _tc(
+            name='sys_ldb_x_r_odd',
+            mnemonic='LDB',
+            desc='LDB 0x0400(R2), RH0: indexed byte store to odd addr',
+            tags=['load', 'byte', 'X_mode', 'store'],
+            code=[0x6E20, 0x0400],
+            regs={0: 0x5A00, 2: 0x0005},
+            memory={0x0404: 0x1122},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldb_r_ba_even
+        #   2ae00: 3020 0034           ldb	rh0,r2(#0x34)
+        _tc(
+            name='sys_ldb_r_ba_even',
+            mnemonic='LDB',
+            desc='LDB RH0, R2(#0x0034): base+disp byte load from even addr',
+            tags=['load', 'byte', 'BA_mode'],
+            code=[0x3020, 0x0034],
+            regs={0: 0x0000, 2: 0x0400},
+            memory={0x0434: 0xAB88},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldb_r_ba_odd
+        #   2af00: 3020 0033           ldb	rh0,r2(#0x33)
+        _tc(
+            name='sys_ldb_r_ba_odd',
+            mnemonic='LDB',
+            desc='LDB RH0, R2(#0x0033): base+disp byte load from odd addr',
+            tags=['load', 'byte', 'BA_mode'],
+            code=[0x3020, 0x0033],
+            regs={0: 0x0000, 2: 0x0400},
+            memory={0x0432: 0x88CD},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldb_ba_r_even
+        #   2b000: 3220 0034           ldb	r2(#0x34),rh0
+        _tc(
+            name='sys_ldb_ba_r_even',
+            mnemonic='LDB',
+            desc='LDB R2(#0x0034), RH0: base+disp byte store to even addr',
+            tags=['load', 'byte', 'BA_mode', 'store'],
+            code=[0x3220, 0x0034],
+            regs={0: 0xA500, 2: 0x0400},
+            memory={0x0434: 0x1122},
+        ),
+
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldb_ba_r_odd
+        #   2b100: 3220 0033           ldb	r2(#0x33),rh0
+        _tc(
+            name='sys_ldb_ba_r_odd',
+            mnemonic='LDB',
+            desc='LDB R2(#0x0033), RH0: base+disp byte store to odd addr',
+            tags=['load', 'byte', 'BA_mode', 'store'],
+            code=[0x3220, 0x0033],
+            regs={0: 0x5A00, 2: 0x0400},
+            memory={0x0432: 0x1122},
+        ),
+
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_ldl_rr_rr_normal
         #   2ac00: 9420                ldl	rr0,rr2
         _tc(

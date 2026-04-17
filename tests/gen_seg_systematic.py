@@ -55,6 +55,10 @@ def _transform(t):
     if 'IR_mode' in tags:
         return [_make_ir_seg(t, seg_fcw)]
 
+    # BA_mode: base register becomes segmented pointer pair; displacement stays
+    if 'BA_mode' in tags:
+        return [_make_ba_seg(t, seg_fcw)]
+
     # Non-DA/IR: identical code, just segmented FCW
     # Add stack verification for CALR tests (opcode 0xDxxx)
     calr_idx = next((i for i, w in enumerate(t.code) if (w & 0xF000) == 0xD000), None)
@@ -122,14 +126,19 @@ def _make_x_long(t, fcw):
 
 
 def _make_x_short(t, fcw):
-    """Indexed DA -> segmented short-form: [opcode, short_DA], memory remapped."""
-    # Extract index register and its value
+    """Indexed DA -> segmented short-form: [opcode, short_DA], memory remapped.
+
+    Preserves the parity of the effective address so byte-at-odd-address tests
+    keep their odd effective addr in short form.
+    """
     index_reg = (t.code[0] >> 4) & 0xF
     index_val = t.regs.get(index_reg, 0)
-    new_da = SEG0_SHORT_ADDR - index_val
+    orig_da = t.code[1]
+    orig_parity = (orig_da + index_val) & 1
+    target = (SEG0_SHORT_ADDR & ~1) | orig_parity
+    new_da = target - index_val
     code = [t.code[0], new_da]
-    # Remap memory: shift by (new_da - OPERAND_BASE)
-    delta = new_da - OPERAND_BASE
+    delta = new_da - orig_da
     memory = {addr + delta: val for addr, val in t.memory.items()}
     return _clone(t, f"seg_{t.name}_short", fcw, code=code, memory=memory)
 
@@ -149,6 +158,23 @@ def _make_ir_seg(t, fcw):
     regs = dict(t.regs)
     regs[ireg] = 0x8000       # segment 0, long form
     regs[ireg + 1] = flat_addr  # offset
+    return _clone(t, f"seg_{t.name}", fcw, regs=regs)
+
+
+# --- BA_mode: base register becomes segmented pointer pair ---
+
+def _make_ba_seg(t, fcw):
+    """BA_mode -> segmented: base register pair holds segmented pointer.
+
+    In segmented mode the base of a base+displacement access is a register
+    pair: R(n) = 0x8000 (seg 0, long form), R(n+1) = offset. The 16-bit
+    displacement word in the instruction is unchanged.
+    """
+    breg = (t.code[0] >> 4) & 0xF  # base register from opcode bits [7:4]
+    flat_addr = t.regs.get(breg, 0)
+    regs = dict(t.regs)
+    regs[breg] = 0x8000
+    regs[breg + 1] = flat_addr
     return _clone(t, f"seg_{t.name}", fcw, regs=regs)
 
 
