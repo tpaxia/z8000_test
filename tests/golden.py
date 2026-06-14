@@ -125,12 +125,14 @@ def compare_golden(results, golden):
             ref_val = ref_regs.get(reg, 0)
             dut_val = r.actual_regs.get(reg, 0)
             if ref_val != dut_val:
+                ref_str = f"0x{ref_val:04X}" if ref_val is not None else "None"
+                dut_str = f"0x{dut_val:04X}" if dut_val is not None else "None"
                 diffs.append(ComparisonDiff(
                     field=f"R{reg}",
                     ref_value=ref_val,
                     dut_value=dut_val,
-                    description=(f"R{reg}: ref=0x{ref_val:04X}, "
-                                 f"dut=0x{dut_val:04X}"),
+                    description=(f"R{reg}: ref={ref_str}, "
+                                 f"dut={dut_str}"),
                 ))
 
         # Compare flags individually

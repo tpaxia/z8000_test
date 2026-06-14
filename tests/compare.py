@@ -32,6 +32,10 @@ import json
 from .gen_systematic import generate_all_tests
 from .gen_segmented import generate_segmented_tests
 from .gen_seg_systematic import generate_seg_systematic_tests
+from .gen_opcode_coverage import (
+    generate_opcode_coverage_tests,
+    generate_segmented_opcode_coverage_tests,
+)
 from .golden import save_golden, load_golden, compare_golden
 from .auto_generate import generate_golden_test_file
 from .runner import TestRunner
@@ -70,6 +74,8 @@ def main():
     parser.add_argument('--target', default=None,
                         choices=['common', 'z8001', 'z8002', 'z8001-seg'],
                         help='Target CPU type')
+    parser.add_argument('--opcode-coverage', action='store_true',
+                        help='Add assembler-generated opcode variant coverage tests')
     parser.add_argument('--list', '-l', action='store_true',
                         help='List tests without running')
     parser.add_argument('--verbose', '-v', action='store_true',
@@ -90,6 +96,8 @@ def main():
 
     # Generate tests
     all_tests = list(generate_all_tests())
+    if args.opcode_coverage and args.target != "z8001-seg":
+        all_tests.extend(generate_opcode_coverage_tests())
 
     # Add segmented tests when targeting z8001-seg
     if args.target == "z8001-seg":
@@ -97,6 +105,8 @@ def main():
         seg_sys_tests = generate_seg_systematic_tests()
         all_tests.extend(seg_tests)
         all_tests.extend(seg_sys_tests)
+        if args.opcode_coverage:
+            all_tests.extend(generate_segmented_opcode_coverage_tests())
 
     if not all_tests:
         print("No tests generated.")
