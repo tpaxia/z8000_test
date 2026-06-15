@@ -2,7 +2,7 @@
 
 Transforms all 826 tests from gen_systematic.py to run under Z8001 segmented mode.
 - Non-DA tests: identical code, FCW has SEG bit set
-- DA tests: long-form (insert 0x8000 segment word) + short-form (remap to offset < 256)
+- DA tests: long-form (insert 0x8000 segment word) + short-form (no segment word)
 - Branch/CALL DA: long-form only (targets >= 0x200 can't short-form)
 """
 
@@ -12,7 +12,9 @@ from .gen_systematic import generate_all_tests
 from .defs import TestCase
 from .helpers import CODE_BASE, STACK_BASE
 
-SEG0_SHORT_ADDR = 0x00B4  # Short-form DA in seg 0 gap (between bootstrap and dump)
+SEG1_SHORT_WORD = 0x0180  # Short-form DA: segment 1, offset 0x80
+SEG1_SHORT_OFFSET = SEG1_SHORT_WORD & 0x00FF
+SEG1_SHORT_PHYS_ADDR = 0x1000 + SEG1_SHORT_OFFSET
 OPERAND_BASE = 0x0400
 
 _SKIP_TESTS = {
@@ -136,7 +138,7 @@ def _make_da_long(t, fcw):
 def _make_da_short(t, fcw):
     """Simple DA -> segmented short-form: [opcode, short_DA], memory remapped."""
     code = list(t.code)
-    code[_address_word_index(t)] = SEG0_SHORT_ADDR
+    code[_address_word_index(t)] = SEG1_SHORT_WORD
     memory = _remap_operand_mem(t.memory)
     return _clone(t, f"seg_{t.name}_short", fcw, code=code, memory=memory)
 
@@ -161,17 +163,18 @@ def _make_x_short(t, fcw):
     address_idx = _address_word_index(t)
     orig_da = t.code[address_idx]
     orig_parity = (orig_da + index_val) & 1
-    target = (SEG0_SHORT_ADDR & ~1) | orig_parity
-    new_da = target - index_val
+    target_offset = (SEG1_SHORT_OFFSET & ~1) | orig_parity
+    new_da = target_offset - index_val
     regs = dict(t.regs)
-    if new_da < 0 or new_da >= 0x8000:
+    if new_da < 0 or new_da > 0x00FF:
         index_val = 0x0010
         regs[index_reg] = index_val
-        new_da = target - index_val
+        new_da = target_offset - index_val
     code = list(t.code)
-    code[address_idx] = new_da & 0xFFFF
-    delta = target - ((orig_da + t.regs.get(index_reg, 0)) & 0xFFFF)
-    memory = {((addr + delta) & 0xFFFF): val for addr, val in t.memory.items()}
+    code[address_idx] = (SEG1_SHORT_WORD & 0x7F00) | (new_da & 0x00FF)
+    target_phys = 0x1000 + target_offset
+    delta = target_phys - ((orig_da + t.regs.get(index_reg, 0)) & 0xFFFF)
+    memory = _remap_operand_mem(t.memory, delta)
     return _clone(t, f"seg_{t.name}_short", fcw, code=code, regs=regs, memory=memory)
 
 
@@ -270,7 +273,15 @@ def _make_call_long(t, fcw):
 
 # --- Memory remapping ---
 
-def _remap_operand_mem(mem):
-    """Remap memory addresses from OPERAND_BASE region to SEG0_SHORT_ADDR."""
-    delta = SEG0_SHORT_ADDR - OPERAND_BASE
-    return {((addr + delta) & 0xFFFF): val for addr, val in mem.items()}
+def _remap_operand_mem(mem, delta=None):
+    """Remap memory addresses from OPERAND_BASE region to segment-1 short space."""
+    if delta is None:
+        delta = SEG1_SHORT_PHYS_ADDR - OPERAND_BASE
+    return {
+        (((addr + delta) & 0xFFFF) if _is_operand_mem(addr) else addr): val
+        for addr, val in mem.items()
+    }
+
+
+def _is_operand_mem(addr):
+    return OPERAND_BASE - 0x20 <= addr < OPERAND_BASE + 0x40

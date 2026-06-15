@@ -6,9 +6,11 @@
 //   EU runs at 16MHz, BIU divides by 4 -> ~4MHz bus rate.
 // Simulation: raw clk, no PLL, BUS_DIVIDER=1 (/3.5 divider).
 //
-// BRAM addressing: Port B uses {sn[0], addr[11:0]} to split 8KB into 2x4KB:
+// BRAM addressing: Port B uses {2'b00, sn[0], addr[11:0]} to split CPU
+// test RAM into 2x4KB windows:
 //   sn[0]=0 (Seg 0) -> BRAM 0x0000-0x0FFF
 //   sn[0]=1 (Seg 1) -> BRAM 0x1000-0x1FFF
+// The Z80 harness uses 0x3000+ as bootstrap shadow storage.
 // Backward-compatible: Z8002 mode has sn=0, all accesses in lower 4KB.
 //
 // Target: Tang Nano 20K (GW2AR-18C) or Tang Primer 20K (GW2A-18C)
@@ -311,7 +313,7 @@ wire [3:0] z8k_io_reg_sel = z8k_addr[3:1] + (io_spc_sel ? 4'd6 : 4'd0);
 // ===========================================
 // True Dual-Port BRAM (Gowin DPB)
 // Port A: Z80 harness  - always connected, no mux
-// Port B: Z8000 CPU    - segment-addressed via {sn[0], addr[11:0]}
+// Port B: Z8000 CPU    - segment-addressed via {2'b00, sn[0], addr[11:0]}
 // Both ports independent, no contention possible.
 //
 // Segment mapping (Port B):
@@ -332,14 +334,14 @@ ram16 bram (
     .clka    (sys_clk),
     .wea_hi  (z8k_mem_we),
     .wea_lo  (z8k_mem_we),
-    .addra   (z80_addr[12:0]),
+    .addra   (z80_addr),
     .dina    (z8k_mem_wdata),
     .douta   (z80_rd_data),
     // Port B - Z8000 CPU (fetch/execute, segment-addressed)
     .clkb    (sys_clk),
     .web_hi  (z8k_we_hi),
     .web_lo  (z8k_we_lo),
-    .addrb   ({z8k_sn[0], z8k_addr[11:0]}),
+    .addrb   ({2'b00, z8k_sn[0], z8k_addr[11:0]}),
     .dinb    (z8k_wdata),
     .doutb   (z8k_rd_data)
 );

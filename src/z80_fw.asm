@@ -722,15 +722,15 @@ mt_f:
         jp main
 
 ; INIT - Initialize Z8000 memory with bootstrap code
-; If bootstrap has been uploaded to BRAM shadow (0x1000), copies it to active
+; If bootstrap has been uploaded to BRAM shadow (0x3000), copies it to active
 ; area (0x0000). Otherwise writes a minimal default (reset vector + HALT).
 do_init:
         ; Assert reset first
         xor a
         out (0x14), a
 
-        ; Read bootstrap word count from BRAM 0x1FFE
-        ld de, 0x1FFE
+        ; Read bootstrap word count from BRAM 0x3FFE
+        ld de, 0x3FFE
         call z8kr                   ; HL = word count
         ld a, h
         or l
@@ -740,14 +740,14 @@ do_init:
         ld b, h
         ld c, l
 
-        ; Copy from shadow (0x1000+) to active (0x0000+)
+        ; Copy from shadow (0x3000+) to active (0x0000+)
         ld ix, 0x0000               ; IX = dest address counter
 init_shadow_loop:
-        ; Read source word: source addr = dest + 0x1000
+        ; Read source word: source addr = dest + 0x3000
         push ix
         pop de
         ld a, d
-        add a, 0x10                 ; DE += 0x1000
+        add a, 0x30                 ; DE += 0x3000
         ld d, a
         call z8kr                   ; HL = word from shadow
 
@@ -1470,4 +1470,4 @@ z8kr:
         ret
 
 ; Bootstrap data removed - now uploaded at runtime via Python test framework.
-; See tests/harness.py upload_bootstrap() and BRAM shadow area at 0x1000.
+; See tests/harness.py upload_bootstrap() and BRAM shadow area at 0x3000.

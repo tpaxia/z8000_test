@@ -142,7 +142,7 @@ class Z8000TestHarness:
         return self.send_command(f'TO{value:04X}')
 
     def upload_bootstrap(self, target="z8002", bin_path=None):
-        """Upload Z8000 bootstrap binary to BRAM shadow area (0x1000).
+        """Upload Z8000 bootstrap binary to BRAM shadow area (0x3000).
 
         Reads src/bootstrap.bin (or bootstrap_seg.bin for z8001-seg),
         replaces reset vectors for the target CPU, and uploads to BRAM
@@ -180,13 +180,13 @@ class Z8000TestHarness:
         full_image = vectors + body
         word_count = len(full_image) // 2
 
-        # Upload to BRAM shadow area at 0x1000
+        # Upload to BRAM shadow area at 0x3000
         for i in range(0, len(full_image), 2):
             word = (full_image[i] << 8) | full_image[i + 1]
-            self.write_mem(0x1000 + i, word)
+            self.write_mem(0x3000 + i, word)
 
-        # Write word count to 0x1FFE
-        self.write_mem(0x1FFE, word_count)
+        # Write word count to 0x3FFE
+        self.write_mem(0x3FFE, word_count)
 
     def cycle_count(self):
         """Read cycle count (Z8000 clocks from reset to halt)"""

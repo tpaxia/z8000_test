@@ -94,21 +94,21 @@ class SimRunner:
 
         Returns dict with paths: {bram_hi, bram_lo, io_preload (if needed)}.
         """
-        # Start with 4096-word memory (8KB), all zeros
-        mem_hi = [0] * 4096
-        mem_lo = [0] * 4096
+        # Start with 16384-word memory (32KB), all zeros.
+        mem_hi = [0] * 16384
+        mem_lo = [0] * 16384
 
         # Load bootstrap
         bootstrap = self._load_bootstrap()
         for i in range(0, len(bootstrap), 2):
             word_addr = i // 2
-            if word_addr < 4096:
+            if word_addr < len(mem_hi):
                 mem_hi[word_addr] = bootstrap[i]
                 mem_lo[word_addr] = bootstrap[i + 1]
 
         def write_word(byte_addr, value):
             wa = byte_addr // 2
-            if wa < 4096:
+            if wa < len(mem_hi):
                 mem_hi[wa] = (value >> 8) & 0xFF
                 mem_lo[wa] = value & 0xFF
 

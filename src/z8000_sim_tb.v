@@ -148,7 +148,7 @@ module z8000_sim_tb;
         .clka    (clk),
         .wea_hi  (1'b0),
         .wea_lo  (1'b0),
-        .addra   (13'd0),
+        .addra   (15'd0),
         .dina    (16'd0),
         .douta   (),
         // Port B - Z8000 CPU (segment-addressed: sn[0] banks upper 4KB)
@@ -156,9 +156,9 @@ module z8000_sim_tb;
         .web_hi  (z8k_we_hi),
         .web_lo  (z8k_we_lo),
 `ifdef Z8001_MODE
-        .addrb   ({z8k_sn[0], z8k_addr[11:0]}),
+        .addrb   ({2'b00, z8k_sn[0], z8k_addr[11:0]}),
 `else
-        .addrb   (z8k_addr[12:0]),
+        .addrb   ({2'b00, z8k_addr[12:0]}),
 `endif
         .dinb    (z8k_wdata),
         .doutb   (z8k_rd_data)
