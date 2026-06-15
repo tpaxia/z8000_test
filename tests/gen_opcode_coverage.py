@@ -62,8 +62,10 @@ def generate_segmented_opcode_coverage_tests():
     from .gen_seg_systematic import _transform
 
     tests = []
-    for tc in generate_opcode_coverage_tests():
-        tests.extend(_transform(tc))
+    for index, row in enumerate(_opcode_rows(), start=1):
+        tc = _make_test(index, row, segmented=True)
+        if tc is not None:
+            tests.extend(_transform(tc))
     return tests
 
 
@@ -72,12 +74,12 @@ def _opcode_rows():
         return list(csv.DictReader(f))
 
 
-def _make_test(index, row):
+def _make_test(index, row, segmented=False):
     mnemonic = row["instruction"]
     if mnemonic in SKIP_MNEMONICS:
         return None
 
-    asm = _instantiate(row["syntax"])
+    asm = _instantiate(row["syntax"], segmented=segmented)
     words = _assemble(asm)
     if words is None:
         return None
@@ -106,14 +108,14 @@ def _make_test(index, row):
         tags=tags,
         instruction=asm,
         code=words,
-        regs=_base_regs(mnemonic),
+        regs=_base_regs(mnemonic, asm),
         fcw=FCW_SYS,
         memory=memory,
         io_preloads={0: 0x1234, 1: 0x5678, 2: 0x9ABC, 3: 0xDEF0},
     )
 
 
-def _base_regs(mnemonic=None):
+def _base_regs(mnemonic=None, asm=""):
     regs = {
         0: 0x1111,
         1: OPERAND_BASE,
@@ -123,6 +125,12 @@ def _base_regs(mnemonic=None):
         5: 0x2222,
         6: 0x3333,
         7: 0x4444,
+        8: 0x1111,
+        9: 0x2222,
+        10: 0x3333,
+        11: 0x0010,
+        12: 0x4444,
+        13: 0x0004,
         14: STACK_BASE,
         15: STACK_BASE,
     }
@@ -132,7 +140,35 @@ def _base_regs(mnemonic=None):
         regs[1] = 0x0500
         regs[2] = OPERAND_BASE
         regs[4] = 0x0001
+    for reg in _indirect_registers(asm):
+        regs[reg] = _pointer_base_for(mnemonic, asm, reg)
+    for reg in _address_index_registers(asm):
+        regs[reg] = OPERAND_BASE
+    for reg in _base_index_registers(asm):
+        regs[reg] = 0x0010
     return regs
+
+
+def _indirect_registers(asm):
+    return {int(m.group(1)) for m in re.finditer(r"@r(\d+)", asm)}
+
+
+def _address_index_registers(asm):
+    return {int(m.group(1)) for m in re.finditer(r"0x[0-9a-fA-F]+\(r(\d+)\)", asm)}
+
+
+def _base_index_registers(asm):
+    return {int(m.group(1)) for m in re.finditer(r"\br\d+\(r(\d+)\)", asm)}
+
+
+def _pointer_base_for(mnemonic, asm, reg):
+    if reg == 15:
+        return STACK_BASE
+    if mnemonic in TRANSLATE_MNEMONICS and "@r5" in asm and reg == 5:
+        return 0x0500
+    if mnemonic.startswith("TRT") and reg == 5:
+        return 0x0500
+    return OPERAND_BASE
 
 
 def _base_memory():
@@ -161,13 +197,13 @@ def _setup_relative_load_memory(memory, asm, words):
         memory[(target + 2) & 0xFFFF] = 0x0604
 
 
-def _instantiate(syntax):
+def _instantiate(syntax, segmented=False):
     parts = syntax.split(" ", 1)
     mnemonic = parts[0]
     operands = parts[1] if len(parts) > 1 else ""
 
     # Use non-zero indirect/index registers because R0 is illegal for IR/X.
-    replacements = [
+    replacements = _segmented_replacements() if segmented else [
         ("Rs1", "r3"),
         ("Rs2", "r1"),
         ("Rbs", "rh1"),
@@ -201,21 +237,28 @@ def _instantiate(syntax):
     for src, dst in replacements:
         operands = operands.replace(src, dst)
 
+    src_reg = "r5" if segmented else "r1"
+
     if mnemonic in DYNAMIC_SHIFT_MNEMONICS | DYNAMIC_BIT_MNEMONICS:
-        operands = re.sub(r", r1$", ", r4", operands)
+        operands = re.sub(rf", {src_reg}$", ", r4", operands)
     elif mnemonic in TRANSLATE_MNEMONICS:
-        operands = operands.replace("@r1", "@r1")
+        pass
     elif mnemonic == "POP":
-        operands = operands.replace("@r1", "@r15")
+        stack_reg = "r14" if segmented else "r15"
+        operands = operands.replace(f"@{src_reg}", f"@{stack_reg}")
     elif mnemonic == "POPL":
-        operands = operands.replace("@r1", "@r15")
-        operands = operands.replace("rr0,", "rr4,")
+        stack_reg = "r14" if segmented else "r15"
+        operands = operands.replace(f"@{src_reg}", f"@{stack_reg}")
+        operands = operands.replace("rr0,", "rr4,").replace("rr8,", "rr4,")
 
     operands = re.sub(r"(?<=, )r(?=,|$)", "r4", operands)
     operands = re.sub(r"(?<= )R(?=,|$)", "r2", operands)
     operands = operands.replace("(0x0010)r1", "0x0010(r1)")
     operands = operands.replace("(0x0010)r2", "0x0010(r2)")
     operands = operands.replace("(0x0010)r3", "0x0010(r3)")
+    operands = operands.replace("(0x0010)r5", "0x0010(r5)")
+    operands = operands.replace("(0x0010)r8", "0x0010(r8)")
+    operands = operands.replace("(0x0010)r11", "0x0010(r11)")
     operands = re.sub(r"(r\d+)\((0x[0-9a-fA-F]+)\)", r"\2(\1)", operands)
 
     # Keep branch smoke tests non-taking so they fall through to the dump jump.
@@ -230,6 +273,40 @@ def _instantiate(syntax):
         operands = operands.replace("#0x0001", "#1")
 
     return (mnemonic + (f" {operands}" if operands else "")).lower()
+
+
+def _segmented_replacements():
+    return [
+        ("Rs1", "r9"),
+        ("Rs2", "r5"),
+        ("Rbs", "rh1"),
+        ("Rbd", "rh0"),
+        ("RRs", "rr12"),
+        ("RRd", "rr8"),
+        ("RQd", "rq8"),
+        ("Rx", "r11"),
+        ("Rd", "r8"),
+        ("Rs", "r5"),
+        ("Rb", "rh0"),
+        ("FCW", "fcw"),
+        ("FLAGS", "flags"),
+        ("REFRESH", "refresh"),
+        ("PSAPSEG", "psapseg"),
+        ("PSAP", "psap"),
+        ("NSPSEG", "nspseg"),
+        ("NSP", "nsp"),
+        ("cc", "f"),
+        ("flags", "c"),
+        ("int", "vi"),
+        ("port", "0x0002"),
+        ("address", "0x0400"),
+        ("addr", "0x0010"),
+        ("#data", "#0x0001"),
+        ("#disp", "0x0010"),
+        ("#src", "#0"),
+        ("#n", "#1"),
+        ("#b", "#1"),
+    ]
 
 
 @lru_cache(maxsize=None)

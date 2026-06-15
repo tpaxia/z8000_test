@@ -6,6 +6,8 @@ Transforms all 826 tests from gen_systematic.py to run under Z8001 segmented mod
 - Branch/CALL DA: long-form only (targets >= 0x200 can't short-form)
 """
 
+import re
+
 from .gen_systematic import generate_all_tests
 from .defs import TestCase
 from .helpers import CODE_BASE, STACK_BASE
@@ -18,6 +20,8 @@ _SKIP_TESTS = {
     'sys_lda_r_da_src',       # LDA semantics change in segmented mode
     'sys_ldctl_write_fcw',    # Would clear SEG bit, breaking dump routine
 }
+
+_PORT_INDIRECT_MNEMONICS = {'IN', 'INB', 'OUT', 'OUTB'}
 
 
 def generate_seg_systematic_tests():
@@ -33,6 +37,7 @@ def generate_seg_systematic_tests():
 def _transform(t):
     """Transform a single test into segmented variant(s)."""
     tags = set(t.tags)
+    tag_names = {tag.lower() for tag in tags}
     seg_fcw = t.fcw | 0x8000
 
     # Tests containing CALL DA (0x5F00 opcode in code) -> long-form only
@@ -40,29 +45,33 @@ def _transform(t):
         return [_make_call_long(t, seg_fcw)]
 
     # Branch JP with DA -> long-form only (targets >= 0x200)
-    if 'branch' in tags and 'DA_mode' in tags:
+    if 'branch' in tag_names and 'da_mode' in tag_names:
         return [_make_branch_long(t, seg_fcw)]
 
     # Simple DA (ALU + LD/ST) -> long + short
-    if 'DA_mode' in tags:
+    if 'da_mode' in tag_names:
         return [_make_da_long(t, seg_fcw), _make_da_short(t, seg_fcw)]
 
     # Indexed DA -> long + short
-    if 'X_mode' in tags:
+    if 'x_mode' in tag_names:
         return [_make_x_long(t, seg_fcw), _make_x_short(t, seg_fcw)]
 
     # IR_mode: convert indirect register to segmented pointer pair
-    if 'IR_mode' in tags:
+    if 'ir_mode' in tag_names:
         return [_make_ir_seg(t, seg_fcw)]
 
     # BA_mode: base register becomes segmented pointer pair; displacement stays
-    if 'BA_mode' in tags:
+    if 'ba_mode' in tag_names:
         return [_make_ba_seg(t, seg_fcw)]
+
+    # BX_mode: base register becomes segmented pointer pair; index stays scalar
+    if 'bx_mode' in tag_names:
+        return [_make_bx_seg(t, seg_fcw)]
 
     # Non-DA/IR: identical code, just segmented FCW
     # Add stack verification for CALR tests (opcode 0xDxxx)
     calr_idx = next((i for i, w in enumerate(t.code) if (w & 0xF000) == 0xD000), None)
-    if calr_idx is not None and 'call' in tags:
+    if calr_idx is not None and 'call' in tag_names:
         ret_addr = CODE_BASE + (calr_idx + 1) * 2
         expected_memory = dict(t.expected_memory)
         expected_memory[STACK_BASE - 4] = 0x8000   # PCSEG
@@ -97,7 +106,22 @@ def _clone(t, name, fcw, **overrides):
     )
     for key, val in overrides.items():
         setattr(tc, key, val)
+    if tc.fcw & 0x8000 and tc.mnemonic not in _PORT_INDIRECT_MNEMONICS:
+        tc.regs = _with_segmented_indirect_regs(tc)
     return tc
+
+
+def _with_segmented_indirect_regs(t):
+    regs = dict(t.regs)
+    for ireg in _assembly_indirect_regs(t):
+        if ireg >= 15:
+            raise ValueError(f"{t.name}: @r{ireg} cannot form a segmented pointer")
+        if regs.get(ireg) == 0x8000:
+            continue
+        flat_addr = regs.get(ireg, 0)
+        regs[ireg] = 0x8000
+        regs[ireg + 1] = flat_addr
+    return regs
 
 
 # --- DA long-form: insert 0x8000 segment word after opcode ---
@@ -105,13 +129,14 @@ def _clone(t, name, fcw, **overrides):
 def _make_da_long(t, fcw):
     """Simple DA -> segmented long-form: [opcode, 0x8000, DA]."""
     code = list(t.code)
-    code.insert(1, 0x8000)
+    code.insert(_address_word_index(t), 0x8000)
     return _clone(t, f"seg_{t.name}_long", fcw, code=code)
 
 
 def _make_da_short(t, fcw):
     """Simple DA -> segmented short-form: [opcode, short_DA], memory remapped."""
-    code = [t.code[0], SEG0_SHORT_ADDR]
+    code = list(t.code)
+    code[_address_word_index(t)] = SEG0_SHORT_ADDR
     memory = _remap_operand_mem(t.memory)
     return _clone(t, f"seg_{t.name}_short", fcw, code=code, memory=memory)
 
@@ -121,7 +146,7 @@ def _make_da_short(t, fcw):
 def _make_x_long(t, fcw):
     """Indexed DA -> segmented long-form: [opcode, 0x8000, DA]."""
     code = list(t.code)
-    code.insert(1, 0x8000)
+    code.insert(_address_word_index(t), 0x8000)
     return _clone(t, f"seg_{t.name}_long", fcw, code=code)
 
 
@@ -133,31 +158,43 @@ def _make_x_short(t, fcw):
     """
     index_reg = (t.code[0] >> 4) & 0xF
     index_val = t.regs.get(index_reg, 0)
-    orig_da = t.code[1]
+    address_idx = _address_word_index(t)
+    orig_da = t.code[address_idx]
     orig_parity = (orig_da + index_val) & 1
     target = (SEG0_SHORT_ADDR & ~1) | orig_parity
     new_da = target - index_val
-    code = [t.code[0], new_da]
-    delta = new_da - orig_da
-    memory = {addr + delta: val for addr, val in t.memory.items()}
-    return _clone(t, f"seg_{t.name}_short", fcw, code=code, memory=memory)
+    regs = dict(t.regs)
+    if new_da < 0 or new_da >= 0x8000:
+        index_val = 0x0010
+        regs[index_reg] = index_val
+        new_da = target - index_val
+    code = list(t.code)
+    code[address_idx] = new_da & 0xFFFF
+    delta = target - ((orig_da + t.regs.get(index_reg, 0)) & 0xFFFF)
+    memory = {((addr + delta) & 0xFFFF): val for addr, val in t.memory.items()}
+    return _clone(t, f"seg_{t.name}_short", fcw, code=code, regs=regs, memory=memory)
+
+
+def _address_word_index(t):
+    """Return the code word containing the DA/X address operand."""
+    return 2 if t.mnemonic == "LDM" and len(t.code) > 2 else 1
 
 
 # --- IR_mode: convert indirect register to segmented pointer pair ---
 
 def _make_ir_seg(t, fcw):
-    """IR_mode -> segmented: convert @Rn to @RRn (register pair as segmented pointer).
+    """IR_mode -> segmented: convert every @Rn to a segmented pointer pair.
 
     In segmented mode, indirect addressing uses a register pair:
       R(n)   = 0x8000 | (segment << 8)  -- long-form segment selector
       R(n+1) = offset
-    All existing IR_mode tests use segment 0, so R(n) = 0x8000.
+    All generated IR_mode tests use segment 0, so R(n) = 0x8000.
     """
-    ireg = (t.code[0] >> 4) & 0xF  # indirect register from opcode bits [7:4]
-    flat_addr = t.regs.get(ireg, 0)
     regs = dict(t.regs)
-    regs[ireg] = 0x8000       # segment 0, long form
-    regs[ireg + 1] = flat_addr  # offset
+    for ireg in _indirect_regs(t):
+        flat_addr = regs.get(ireg, 0)
+        regs[ireg] = 0x8000       # segment 0, long form
+        regs[ireg + 1] = flat_addr  # offset
     return _clone(t, f"seg_{t.name}", fcw, regs=regs)
 
 
@@ -176,6 +213,31 @@ def _make_ba_seg(t, fcw):
     regs[breg] = 0x8000
     regs[breg + 1] = flat_addr
     return _clone(t, f"seg_{t.name}", fcw, regs=regs)
+
+
+def _make_bx_seg(t, fcw):
+    """BX_mode -> segmented: base register pair holds segmented pointer.
+
+    The index register remains a scalar displacement. Tests must choose a base
+    register pair that does not overlap the index or destination registers.
+    """
+    breg = (t.code[0] >> 4) & 0xF
+    flat_addr = t.regs.get(breg, 0)
+    regs = dict(t.regs)
+    regs[breg] = 0x8000
+    regs[breg + 1] = flat_addr
+    return _clone(t, f"seg_{t.name}", fcw, regs=regs)
+
+
+def _indirect_regs(t):
+    regs = _assembly_indirect_regs(t)
+    if not regs:
+        regs.add((t.code[0] >> 4) & 0xF)
+    return regs
+
+
+def _assembly_indirect_regs(t):
+    return {int(m.group(1)) for m in re.finditer(r"@r(\d+)", t.instruction or "")}
 
 
 # --- Branch JP with DA: long-form only, target += 2 ---
@@ -211,4 +273,4 @@ def _make_call_long(t, fcw):
 def _remap_operand_mem(mem):
     """Remap memory addresses from OPERAND_BASE region to SEG0_SHORT_ADDR."""
     delta = SEG0_SHORT_ADDR - OPERAND_BASE
-    return {addr + delta: val for addr, val in mem.items()}
+    return {((addr + delta) & 0xFFFF): val for addr, val in mem.items()}
