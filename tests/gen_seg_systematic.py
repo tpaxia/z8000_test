@@ -24,6 +24,26 @@ _SKIP_TESTS = {
 }
 
 _PORT_INDIRECT_MNEMONICS = {'IN', 'INB', 'OUT', 'OUTB'}
+_BLOCK_TRANSFER_MNEMONICS = {
+    'LDI', 'LDIR', 'LDD', 'LDDR',
+    'LDIB', 'LDIRB', 'LDDB', 'LDDRB',
+}
+_BLOCK_COMPARE_MNEMONICS = {
+    'CPI', 'CPIR', 'CPD', 'CPDR',
+    'CPIB', 'CPIRB', 'CPDB', 'CPDRB',
+}
+_BLOCK_STRING_MNEMONICS = {
+    'CPSI', 'CPSIR', 'CPSD', 'CPSDR',
+    'CPSIB', 'CPSIRB', 'CPSDB', 'CPSDRB',
+}
+_SEG_BLOCK_SRC_REG = 8
+_SEG_BLOCK_DST_REG = 10
+_SEG_BLOCK_COUNT_REG = 4
+_SEG_BLOCK_CMP_REG = 0
+_ALL_BLOCK_MNEMONICS = (
+    _BLOCK_TRANSFER_MNEMONICS | _BLOCK_COMPARE_MNEMONICS |
+    _BLOCK_STRING_MNEMONICS
+)
 
 
 def generate_seg_systematic_tests():
@@ -49,6 +69,15 @@ def _transform(t):
     # Branch JP with DA -> long-form only (targets >= 0x200)
     if 'branch' in tag_names and 'da_mode' in tag_names:
         return [_make_branch_long(t, seg_fcw)]
+
+    # Block instructions use address registers. In segmented mode those are
+    # register pairs, so the source, destination, and counter must not overlap.
+    if t.mnemonic in _BLOCK_TRANSFER_MNEMONICS:
+        return [_make_block_transfer_seg(t, seg_fcw)]
+    if t.mnemonic in _BLOCK_COMPARE_MNEMONICS:
+        return [_make_block_compare_seg(t, seg_fcw)]
+    if t.mnemonic in _BLOCK_STRING_MNEMONICS:
+        return [_make_block_string_seg(t, seg_fcw)]
 
     # Simple DA (ALU + LD/ST) -> long + short
     if 'da_mode' in tag_names:
@@ -108,7 +137,9 @@ def _clone(t, name, fcw, **overrides):
     )
     for key, val in overrides.items():
         setattr(tc, key, val)
-    if tc.fcw & 0x8000 and tc.mnemonic not in _PORT_INDIRECT_MNEMONICS:
+    if (tc.fcw & 0x8000 and
+            tc.mnemonic not in _PORT_INDIRECT_MNEMONICS and
+            tc.mnemonic not in _ALL_BLOCK_MNEMONICS):
         tc.regs = _with_segmented_indirect_regs(tc)
     return tc
 
@@ -230,6 +261,75 @@ def _make_bx_seg(t, fcw):
     regs[breg] = 0x8000
     regs[breg + 1] = flat_addr
     return _clone(t, f"seg_{t.name}", fcw, regs=regs)
+
+
+# --- Block instructions: use non-overlapping segmented register pairs ---
+
+def _make_block_transfer_seg(t, fcw):
+    """LDI/LDD family: @RRsrc, @RRdst, and count must not overlap."""
+    src_old, count_old, dst_old = _block_fields(t)
+    regs = _block_regs(t, src_old, count_old, dst_old)
+    code = _block_code(t, _SEG_BLOCK_SRC_REG, _SEG_BLOCK_COUNT_REG,
+                       _SEG_BLOCK_DST_REG)
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+
+
+def _make_block_compare_seg(t, fcw):
+    """CPI/CPD family: source pointer pair must not overlap the counter."""
+    src_old, count_old, cmp_old = _block_fields(t)
+    regs = dict(t.regs)
+    src_offset = t.regs.get(src_old, 0)
+    cmp_value = t.regs.get(cmp_old, 0)
+    regs.pop(src_old, None)
+    regs.pop(count_old, None)
+    regs.pop(cmp_old, None)
+    regs[_SEG_BLOCK_COUNT_REG] = t.regs.get(count_old, 0)
+    regs[_SEG_BLOCK_CMP_REG] = cmp_value
+    _put_seg_ptr(regs, _SEG_BLOCK_SRC_REG, src_offset)
+    code = _block_code(t, _SEG_BLOCK_SRC_REG, _SEG_BLOCK_COUNT_REG,
+                       _SEG_BLOCK_CMP_REG)
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+
+
+def _make_block_string_seg(t, fcw):
+    """CPSI/CPSD family: both memory operands are segmented pointer pairs."""
+    src_old, count_old, dst_old = _block_fields(t)
+    regs = _block_regs(t, src_old, count_old, dst_old)
+    code = _block_code(t, _SEG_BLOCK_SRC_REG, _SEG_BLOCK_COUNT_REG,
+                       _SEG_BLOCK_DST_REG)
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+
+
+def _block_fields(t):
+    """Return source, counter, and destination/compare fields."""
+    return (t.code[0] >> 4) & 0xF, (t.code[1] >> 8) & 0xF, (t.code[1] >> 4) & 0xF
+
+
+def _block_code(t, src_reg, count_reg, dst_or_cmp_reg):
+    code = list(t.code)
+    code[0] = (code[0] & 0xFF0F) | (src_reg << 4)
+    code[1] = (code[1] & 0xF00F) | (count_reg << 8) | (dst_or_cmp_reg << 4)
+    return code
+
+
+def _block_regs(t, src_old, count_old, dst_old):
+    regs = dict(t.regs)
+    src_offset = t.regs.get(src_old, 0)
+    dst_offset = t.regs.get(dst_old, 0)
+    count = t.regs.get(count_old, 0)
+    if dst_offset == src_offset:
+        dst_offset = (dst_offset + 0x10) & 0xFFFF
+    for old in (src_old, count_old, dst_old):
+        regs.pop(old, None)
+    _put_seg_ptr(regs, _SEG_BLOCK_SRC_REG, src_offset)
+    _put_seg_ptr(regs, _SEG_BLOCK_DST_REG, dst_offset)
+    regs[_SEG_BLOCK_COUNT_REG] = count
+    return regs
+
+
+def _put_seg_ptr(regs, reg, offset):
+    regs[reg] = 0x8000
+    regs[reg + 1] = offset
 
 
 def _indirect_regs(t):
