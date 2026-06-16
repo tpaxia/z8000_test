@@ -30,6 +30,7 @@ set_global_assignment -name VERILOG_FILE z8002_int_test_top.v
 # Quartus-specific modules (shared with Z8001 project)
 set_global_assignment -name VERILOG_FILE trace_buffer_altera.v
 set_global_assignment -name VERILOG_FILE ram16_altera.v
+set_global_assignment -name VERILOG_FILE ../src/boot_master.v
 set_global_assignment -name VERILOG_FILE pll.v
 
 # Z80 harness (Quartus version with altsyncram for RAM)

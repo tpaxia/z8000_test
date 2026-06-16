@@ -396,11 +396,16 @@ module z8002_int_test_top (
     wire [15:0] z80_rd_data;
     wire [15:0] z8k_rd_data;
 
+    // Z80 accesses to 0x2000-0x3FFF target the bootstrap master store instead
+    // of the active CPU RAM. The CPU's Port B only drives z8k_addr[12:0], never
+    // z80_addr[13], so the master is physically unreachable by the CPU.
+    wire master_sel = z80_addr[13];
+
     ram16_altera bram (
-        // Port A - Z80 harness
+        // Port A - Z80 harness (active CPU RAM only; master accesses excluded)
         .clka    (sys_clk),
-        .wea_hi  (z8k_mem_we),
-        .wea_lo  (z8k_mem_we),
+        .wea_hi  (z8k_mem_we & ~master_sel),
+        .wea_lo  (z8k_mem_we & ~master_sel),
         .addra   (z80_addr[12:0]),
         .dina    (z8k_mem_wdata),
         .douta   (z80_rd_data),
@@ -413,7 +418,20 @@ module z8002_int_test_top (
         .doutb   (z8k_rd_data)
     );
 
-    assign z8k_mem_rdata = z80_rd_data;
+    // Bootstrap master store (Z80-only, read-only to the CPU)
+    wire [15:0] master_rd_data;
+    boot_master boot_master_inst (
+        .clk   (sys_clk),
+        .we    (z8k_mem_we & master_sel),
+        .waddr (z80_addr[11:1]),
+        .din   (z8k_mem_wdata),
+        .dout  (master_rd_data)
+    );
+
+    // Read mux: select registered once to match the 1-cycle BRAM read latency.
+    reg master_sel_q;
+    always @(posedge sys_clk) master_sel_q <= master_sel;
+    assign z8k_mem_rdata = master_sel_q ? master_rd_data : z80_rd_data;
 
     //------------------------------------------------------------------------
     // I/O Port Registers

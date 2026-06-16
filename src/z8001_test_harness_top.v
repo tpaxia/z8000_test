@@ -6,12 +6,13 @@
 //   EU runs at 16MHz, BIU divides by 4 -> ~4MHz bus rate.
 // Simulation: raw clk, no PLL, BUS_DIVIDER=1 (/3.5 divider).
 //
-// BRAM addressing: Port B uses {2'b00, sn[0], addr[11:0]} to split CPU
-// test RAM into 2x4KB windows:
+// BRAM addressing: 8KB active CPU RAM. Port B uses {sn[0], addr[11:0]} to
+// split it into 2x4KB windows:
 //   sn[0]=0 (Seg 0) -> BRAM 0x0000-0x0FFF
 //   sn[0]=1 (Seg 1) -> BRAM 0x1000-0x1FFF
-// The Z80 harness uses 0x3000+ as bootstrap shadow storage.
 // Backward-compatible: Z8002 mode has sn=0, all accesses in lower 4KB.
+// The bootstrap master lives in a separate Z80-only store (boot_master.v),
+// reached via z80_addr[13] (0x3000), so the CPU can never corrupt it.
 //
 // Target: Tang Nano 20K (GW2AR-18C) or Tang Primer 20K (GW2A-18C)
 // Each project includes its own Gowin_rPLL IP (gowin_rpll_nano or gowin_rpll_primer)
@@ -329,24 +330,42 @@ wire z8k_we_lo = z8k_ram_write && (~cpu_bw_n ||  z8k_addr[0]);
 wire [15:0] z80_rd_data;   // Port A read (Z80)
 wire [15:0] z8k_rd_data;   // Port B read (Z8000)
 
+// Z80 accesses to 0x2000-0x3FFF target the bootstrap master store instead of
+// the active CPU RAM. The CPU's Port B only reaches 8KB (segments 0/1), so it
+// can never drive z80_addr[13] and never reach the master (see boot_master.v).
+wire master_sel = z80_addr[13];
+
 ram16 bram (
-    // Port A - Z80 harness (load/verify test code)
+    // Port A - Z80 harness (8KB active CPU RAM; master accesses excluded)
     .clka    (sys_clk),
-    .wea_hi  (z8k_mem_we),
-    .wea_lo  (z8k_mem_we),
-    .addra   (z80_addr),
+    .wea_hi  (z8k_mem_we & ~master_sel),
+    .wea_lo  (z8k_mem_we & ~master_sel),
+    .addra   (z80_addr[12:0]),
     .dina    (z8k_mem_wdata),
     .douta   (z80_rd_data),
-    // Port B - Z8000 CPU (fetch/execute, segment-addressed)
+    // Port B - Z8000 CPU (fetch/execute, segment-addressed: sn[0] banks 4KB)
     .clkb    (sys_clk),
     .web_hi  (z8k_we_hi),
     .web_lo  (z8k_we_lo),
-    .addrb   ({2'b00, z8k_sn[0], z8k_addr[11:0]}),
+    .addrb   ({z8k_sn[0], z8k_addr[11:0]}),
     .dinb    (z8k_wdata),
     .doutb   (z8k_rd_data)
 );
 
-assign z8k_mem_rdata = z80_rd_data;   // Z80 reads via Port A
+// Bootstrap master store (Z80-only, read-only to the CPU)
+wire [15:0] master_rd_data;
+boot_master boot_master_inst (
+    .clk   (sys_clk),
+    .we    (z8k_mem_we & master_sel),
+    .waddr (z80_addr[11:1]),
+    .din   (z8k_mem_wdata),
+    .dout  (master_rd_data)
+);
+
+// Read mux: select registered once to match the 1-cycle BRAM read latency.
+reg master_sel_q;
+always @(posedge sys_clk) master_sel_q <= master_sel;
+assign z8k_mem_rdata = master_sel_q ? master_rd_data : z80_rd_data;   // Z80 reads
 
 // ===========================================
 // I/O Port Registers
