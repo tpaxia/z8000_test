@@ -25,6 +25,8 @@
 //   0x29: Z8000 ST (R, 4-bit status type from CPU)
 //   0x2A-0x2D: Instr cycle count (R, 32-bit little-endian, address-gated)
 //   0x30-0x47: I/O port registers (12 regs, 2 bytes each: even=low, odd=high)
+//   0x48-0xA7: I/O scripted-read FIFO slots (12 regs x 4 words)
+//   0xA8: Clear all I/O scripted-read FIFO slots/counts (W)
 
 `timescale 1ns / 1ps
 
@@ -71,6 +73,14 @@ module z80_harness (
     input  [15:0]     io_port_rdata,    // Read data (full word)
     output reg        io_port_wr_lo,    // Write low byte strobe
     output reg        io_port_wr_hi,    // Write high byte strobe
+
+    // I/O scripted-read FIFO interface
+    output [3:0]      io_seq_reg_sel,
+    output [1:0]      io_seq_slot_sel,
+    output [7:0]      io_seq_wbyte,
+    output reg        io_seq_wr_lo,
+    output reg        io_seq_wr_hi,
+    output reg        io_seq_clear,
 
     // Instruction cycle counter (address-gated)
     input  [31:0]     z8k_instr_cycle_count,
@@ -179,6 +189,16 @@ assign io_port_reg_sel = io_port_off[4:1];       // (addr-0x30)/2 = reg index
 wire   io_port_byte_hi = io_port_off[0];         // odd addr = high byte
 assign io_port_wbyte = cpu_dout;
 
+// I/O scripted-read FIFO decode (ports 0x48-0xA7, 12 regs x 4 words)
+wire io_seq_sel = (cpu_addr[7:0] >= 8'h48) && (cpu_addr[7:0] <= 8'hA7);
+wire [6:0] io_seq_off = cpu_addr[7:0] - 8'h48;
+wire [5:0] io_seq_word = io_seq_off[6:1];
+assign io_seq_reg_sel = io_seq_word[5:2];
+assign io_seq_slot_sel = io_seq_word[1:0];
+wire io_seq_byte_hi = io_seq_off[0];
+assign io_seq_wbyte = cpu_dout;
+wire io_seq_clear_sel = (cpu_addr[7:0] == 8'hA8);
+
 // I/O Read
 always @(*) begin
     io_dout = 8'hFF;
@@ -236,6 +256,9 @@ always @(posedge clk or negedge rst_n) begin
         trace_rd_addr <= 10'h000;
         io_port_wr_lo <= 1'b0;
         io_port_wr_hi <= 1'b0;
+        io_seq_wr_lo <= 1'b0;
+        io_seq_wr_hi <= 1'b0;
+        io_seq_clear <= 1'b0;
     end else begin
         // Defaults
         uart_tx_valid <= 1'b0;
@@ -243,6 +266,9 @@ always @(posedge clk or negedge rst_n) begin
         z8k_mem_we <= 1'b0;
         io_port_wr_lo <= 1'b0;
         io_port_wr_hi <= 1'b0;
+        io_seq_wr_lo <= 1'b0;
+        io_seq_wr_hi <= 1'b0;
+        io_seq_clear <= 1'b0;
 
         // Clear consumed flag when rx_valid goes low
         if (!uart_rx_valid)
@@ -274,7 +300,14 @@ always @(posedge clk or negedge rst_n) begin
                 8'h20: trace_rd_addr[7:0] <= cpu_dout;      // Trace read addr low
                 8'h21: trace_rd_addr[9:8] <= cpu_dout[1:0]; // Trace read addr high
                 default: begin
-                    if (io_port_sel) begin
+                    if (io_seq_clear_sel) begin
+                        io_seq_clear <= 1'b1;
+                    end else if (io_seq_sel) begin
+                        if (io_seq_byte_hi)
+                            io_seq_wr_hi <= 1'b1;
+                        else
+                            io_seq_wr_lo <= 1'b1;
+                    end else if (io_port_sel) begin
                         if (io_port_byte_hi)
                             io_port_wr_hi <= 1'b1;
                         else

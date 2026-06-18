@@ -343,6 +343,12 @@ module z8002_int_test_top (
     wire [15:0] z80_io_rdata;
     wire        z80_io_wr_lo;
     wire        z80_io_wr_hi;
+    wire [3:0]  z80_io_seq_reg_sel;
+    wire [1:0]  z80_io_seq_slot_sel;
+    wire [7:0]  z80_io_seq_wbyte;
+    wire        z80_io_seq_wr_lo;
+    wire        z80_io_seq_wr_hi;
+    wire        z80_io_seq_clear;
 
     // I/O port register signals (Z8000 side)
     wire [15:0] z8k_io_rdata;
@@ -376,6 +382,12 @@ module z8002_int_test_top (
         .io_port_rdata  (z80_io_rdata),
         .io_port_wr_lo  (z80_io_wr_lo),
         .io_port_wr_hi  (z80_io_wr_hi),
+        .io_seq_reg_sel (z80_io_seq_reg_sel),
+        .io_seq_slot_sel(z80_io_seq_slot_sel),
+        .io_seq_wbyte   (z80_io_seq_wbyte),
+        .io_seq_wr_lo   (z80_io_seq_wr_lo),
+        .io_seq_wr_hi   (z80_io_seq_wr_hi),
+        .io_seq_clear   (z80_io_seq_clear),
         .z8k_instr_cycle_count(instr_cycle_count),
         .z80_alive      ()
     );
@@ -437,6 +449,7 @@ module z8002_int_test_top (
     // I/O Port Registers
     //------------------------------------------------------------------------
     wire z8k_io_wr = io_port_match && ~cpu_rw_n && ~cpu_ds_n;
+    wire z8k_io_rd = io_port_match &&  cpu_rw_n && ~cpu_ds_n;
 
     z8k_io_ports io_ports (
         .clk           (sys_clk),
@@ -446,6 +459,7 @@ module z8002_int_test_top (
         .z8k_wdata     (z8k_wdata),
         .z8k_rdata     (z8k_io_rdata),
         .z8k_wr        (z8k_io_wr),
+        .z8k_rd        (z8k_io_rd),
         .z8k_bw_n      (cpu_bw_n),
         .z8k_addr_lsb  (z8k_addr[0]),
         // Z80 side
@@ -453,7 +467,13 @@ module z8002_int_test_top (
         .z80_wbyte     (z80_io_wbyte),
         .z80_rdata     (z80_io_rdata),
         .z80_wr_lo     (z80_io_wr_lo),
-        .z80_wr_hi     (z80_io_wr_hi)
+        .z80_wr_hi     (z80_io_wr_hi),
+        .z80_seq_reg_sel   (z80_io_seq_reg_sel),
+        .z80_seq_slot_sel  (z80_io_seq_slot_sel),
+        .z80_seq_wbyte     (z80_io_seq_wbyte),
+        .z80_seq_wr_lo     (z80_io_seq_wr_lo),
+        .z80_seq_wr_hi     (z80_io_seq_wr_hi),
+        .z80_seq_clear     (z80_io_seq_clear)
     );
 
     // Z8002 data bus mux
