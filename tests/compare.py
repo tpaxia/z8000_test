@@ -71,6 +71,8 @@ def main():
                         help='Output file for auto-generated tests')
     parser.add_argument('--save-json', default=None,
                         help='Save comparison results to JSON file')
+    parser.add_argument('--save-traces', default=None,
+                        help='Save per-test bus traces to a directory')
     parser.add_argument('--mnemonic', '-m', default=None,
                         help='Filter by mnemonic (e.g. ADD)')
     parser.add_argument('--name', '-n', default=None,
@@ -199,6 +201,12 @@ def _run_capture(args, all_tests, filtered):
     count = save_golden(results, args.golden_dir)
     print(f"Saved {count} golden results to {args.golden_dir}/")
 
+    # Save bus traces
+    if args.save_traces:
+        from .traces import save_traces
+        n = save_traces(results, args.save_traces)
+        print(f"Saved {n} traces to {args.save_traces}/")
+
     sys.exit(0)
 
 
@@ -295,6 +303,12 @@ def _run_compare(args, all_tests, filtered):
     if args.save_json:
         _save_comparison_json(comparisons, all_tests, args.save_json)
         print(f"\nSaved comparison results to {args.save_json}")
+
+    # Save bus traces
+    if args.save_traces:
+        from .traces import save_traces
+        n = save_traces(results, args.save_traces)
+        print(f"Saved {n} traces to {args.save_traces}/")
 
     # Auto-generate test file
     real_diffs = [c for c in diffs
