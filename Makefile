@@ -17,6 +17,7 @@ TV80_SRCS = \
 # Z80 harness sources
 Z80_HARNESS_SRCS = \
 	$(SRC_DIR)/z80_harness.v \
+	$(SRC_DIR)/z80_fw_ram_generic.v \
 	$(SRC_DIR)/z8000_test_harness_top.v \
 	$(SRC_DIR)/z8000_bus_fpga.v \
 	$(SRC_DIR)/uart_tx.v \
@@ -116,10 +117,11 @@ for i in range(0, len(data), 8): \
 # Z80 Harness Simulation (without Z8000 - tests harness only)
 #
 .PHONY: sim
-sim: firmware $(SRC_DIR)/z8000_test_harness_tb.v $(SRC_DIR)/z80_harness.v $(TV80_SRCS)
+sim: firmware $(SRC_DIR)/z8000_test_harness_tb.v $(SRC_DIR)/z80_harness.v $(SRC_DIR)/z80_fw_ram_generic.v $(TV80_SRCS)
 	iverilog -g2012 -DSIMULATION $(VERILOG_INCS) -o z8000_test_harness_tb.vvp \
 		$(SRC_DIR)/z8000_test_harness_tb.v \
 		$(SRC_DIR)/z80_harness.v \
+		$(SRC_DIR)/z80_fw_ram_generic.v \
 		$(SRC_DIR)/uart_tx.v \
 		$(SRC_DIR)/uart_rx.v \
 		$(TV80_SRCS)

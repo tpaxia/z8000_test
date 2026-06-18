@@ -119,21 +119,19 @@ tv80s #(
     .dout     (cpu_dout)
 );
 
-// ==============================================
-// Z80 RAM (8KB)
-// ==============================================
-reg [7:0] ram [0:8191];
-reg [7:0] ram_dout;
-
 wire ram_cs = ~cpu_mreq_n && (cpu_addr[15:13] == 3'b000); // 0x0000-0x1FFF
 wire ram_we = ram_cs && ~cpu_wr_n;
 wire ram_rd = ram_cs && ~cpu_rd_n;
 
-always @(posedge clk) begin
-    if (ram_we)
-        ram[cpu_addr[12:0]] <= cpu_dout;
-    ram_dout <= ram[cpu_addr[12:0]];
-end
+wire [7:0] ram_dout;
+
+z80_fw_ram z80_ram (
+    .clk  (clk),
+    .addr (cpu_addr[12:0]),
+    .din  (cpu_dout),
+    .we   (ram_we),
+    .dout (ram_dout)
+);
 
 // ==============================================
 // I/O Decoding
@@ -330,15 +328,5 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 assign z80_alive = alive_cnt[19];
-
-// ==============================================
-// RAM Initialization
-// ==============================================
-// Z80 Firmware: 770 bytes
-// Commands: ST, RS, EX, WRnxxxx, RRn, WMaaaaxxxx, RMaaaa, DA, MT
-// Generated from z80_fw.asm - run 'make firmware' to rebuild
-initial begin
-    $readmemh("z80_fw.hex", ram);
-end
 
 endmodule

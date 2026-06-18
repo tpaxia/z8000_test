@@ -29,8 +29,9 @@ set_global_assignment -name VERILOG_FILE ram16_altera.v
 set_global_assignment -name VERILOG_FILE ../src/boot_master.v
 set_global_assignment -name VERILOG_FILE pll.v
 
-# Z80 harness (Quartus version with altsyncram for RAM)
-set_global_assignment -name VERILOG_FILE z80_harness_quartus.v
+# Common Z80 harness with Quartus firmware RAM adapter
+set_global_assignment -name VERILOG_FILE ../src/z80_harness.v
+set_global_assignment -name VERILOG_FILE z80_fw_ram_altera.v
 
 # Shared modules
 set_global_assignment -name VERILOG_FILE ../src/uart_tx.v

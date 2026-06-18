@@ -382,10 +382,10 @@ module z8000_test_harness_tb;
     initial begin
         #2000;  // After reset
         $display("RAM[0x00-0x0F]: %02X %02X %02X %02X %02X %02X %02X %02X  %02X %02X %02X %02X %02X %02X %02X %02X",
-            dut.ram[0], dut.ram[1], dut.ram[2], dut.ram[3],
-            dut.ram[4], dut.ram[5], dut.ram[6], dut.ram[7],
-            dut.ram[8], dut.ram[9], dut.ram[10], dut.ram[11],
-            dut.ram[12], dut.ram[13], dut.ram[14], dut.ram[15]);
+            dut.z80_ram.ram[0], dut.z80_ram.ram[1], dut.z80_ram.ram[2], dut.z80_ram.ram[3],
+            dut.z80_ram.ram[4], dut.z80_ram.ram[5], dut.z80_ram.ram[6], dut.z80_ram.ram[7],
+            dut.z80_ram.ram[8], dut.z80_ram.ram[9], dut.z80_ram.ram[10], dut.z80_ram.ram[11],
+            dut.z80_ram.ram[12], dut.z80_ram.ram[13], dut.z80_ram.ram[14], dut.z80_ram.ram[15]);
     end
 
     // Debug: trace CPU instruction fetches after command received

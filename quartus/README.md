@@ -79,7 +79,7 @@ quartus/
 ├── z8001_ext_test_top.v        # Top-level module (bus wiring, halt detect, instrumentation)
 ├── z8001_bus_external.v        # External Z8001 bus interface (sync, latch, buffer control)
 ├── trace_buffer_altera.v       # Bus trace capture (behavioral RAM, no Gowin SDPB)
-├── z80_harness_quartus.v       # Z80 harness (Altera altsyncram for Z80 RAM)
+├── z80_fw_ram_altera.v         # Altera altsyncram implementation of Z80 firmware RAM
 ├── ram16_altera.v              # Dual-port RAM (Altera altsyncram)
 ├── pll.v                       # PLL wrapper (replace with MegaWizard output)
 ├── z80_fw_echo.asm             # Z80 test runner firmware (pyz80 syntax)
@@ -200,9 +200,9 @@ These modules are shared with the Gowin project:
 - `uart_tx.v` / `uart_rx.v` - UART modules
 - `tv80_official/` - TV80 Z80 core
 
-Quartus-specific versions (adapted from shared code):
+Quartus-specific support modules:
 
-- `z80_harness_quartus.v` - Z80 harness with Altera altsyncram for Z80 RAM
+- `z80_fw_ram_altera.v` - Altera altsyncram implementation used by shared `../src/z80_harness.v`
 - `ram16_altera.v` - Dual-port BRAM with Altera altsyncram
 - `trace_buffer_altera.v` - Trace buffer with behavioral RAM (no Gowin SDPB)
 
@@ -250,7 +250,8 @@ FPGA never drives the level shifters.
 
 The internal harnesses reuse the same support modules as `z8001_ext_test`:
 
-- `pll.v`, `trace_buffer_altera.v`, `ram16_altera.v`, `z80_harness_quartus.v`
+- `pll.v`, `trace_buffer_altera.v`, `ram16_altera.v`, `z80_fw_ram_altera.v`
+- `../src/z80_harness.v`
 - `../src/uart_tx.v`, `../src/uart_rx.v`
 - `../src/z8k_io_ports.v` — full 12×16-bit I/O port register file (Z80 ↔ Z8000),
   giving these projects the same I/O port map as the Gowin reference design
