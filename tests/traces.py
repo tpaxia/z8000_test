@@ -80,13 +80,17 @@ def _normalize_trace(trace):
     for entry in trace:
         if entry is None:
             continue
-        normalized.append({
+        norm = {
             "addr": entry.get("addr", 0),
             "data": entry.get("data", 0),
             "rw": entry.get("rw", "?"),
             "bw": entry.get("bw", "?"),
             "io": entry.get("io", "?"),
-        })
+        }
+        # Segment bank bit (sn[0]) only present with newer firmware.
+        if "seg" in entry:
+            norm["seg"] = entry["seg"]
+        normalized.append(norm)
     return normalized
 
 

@@ -13,7 +13,7 @@
 //   [32]    - R/W (1=read, 0=write)
 //   [33]    - B/W (0=byte, 1=word)
 //   [34]    - MEM/IO (0=memory, 1=I/O)
-//   [35]    - Spare
+//   [35]    - Segment bank bit (sn[0]): 0=segment-0 bank, 1=segment-1 bank
 
 module trace_buffer_altera (
     input         clk,            // System clock
@@ -29,6 +29,7 @@ module trace_buffer_altera (
     input         z8k_bw_n,       // Byte/Word (0=byte, 1=word)
     input         z8k_mreq_n,     // Memory request
     input  [3:0]  z8k_st,         // Status (for I/O detect)
+    input         z8k_sn,         // Segment bank bit (sn[0]) for this access
 
     // Z80 read interface
     input  [9:0]  rd_addr,        // Read address (0-1023)
@@ -99,6 +100,7 @@ module trace_buffer_altera (
     reg        latched_rw_n;
     reg        latched_bw_n;
     reg        latched_io;
+    reg        latched_sn;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -107,6 +109,7 @@ module trace_buffer_altera (
             latched_rw_n <= 1'b1;
             latched_bw_n <= 1'b1;
             latched_io   <= 1'b0;
+            latched_sn   <= 1'b0;
         end else if (~z8k_ds_n) begin
             // Continuously update while DS_n is active
             latched_addr <= z8k_addr;
@@ -114,12 +117,13 @@ module trace_buffer_altera (
             latched_rw_n <= z8k_rw_n;
             latched_bw_n <= z8k_bw_n;
             latched_io   <= io_cycle;
+            latched_sn   <= z8k_sn;
         end
     end
 
     // Build trace entry from latched values (valid at DS_n rising)
     wire [35:0] trace_entry = {
-        1'b0,           // [35] spare
+        latched_sn,     // [35] segment bank bit (sn[0])
         latched_io,     // [34] MEM/IO (1=I/O)
         latched_bw_n,   // [33] B/W (1=word)
         latched_rw_n,   // [32] R/W (1=read)

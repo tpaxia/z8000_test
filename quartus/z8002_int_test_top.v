@@ -323,6 +323,7 @@ module z8002_int_test_top (
         .z8k_bw_n   (cpu_bw_n),
         .z8k_mreq_n (cpu_mreq_n),
         .z8k_st     (st_latched),
+        .z8k_sn     (1'b0),              // Z8002 is non-segmented: always bank 0
         .rd_addr    (trace_rd_addr),
         .rd_data    (trace_rd_data),
         .wr_count   (trace_wr_count),

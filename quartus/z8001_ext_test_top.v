@@ -354,6 +354,7 @@ module z8001_ext_test_top (
         .z8k_bw_n   (z8k_bw_n_sync),
         .z8k_mreq_n (z8k_mreq_n_sync),
         .z8k_st     (z8k_st),
+        .z8k_sn     (sn_latched[0]),
         .rd_addr    (trace_rd_addr),
         .rd_data    (trace_rd_data),
         .wr_count   (trace_wr_count),

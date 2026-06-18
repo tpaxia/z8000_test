@@ -115,7 +115,7 @@ class Z8000TestHarness:
         return [self.read_trace_entry(i) for i in range(count)]
 
     def _parse_trace_line(self, line):
-        """Parse a trace entry line like '000: 0040 4100 R W M'"""
+        """Parse a trace entry line like '000: 0040 4100 R W M 0'"""
         line = line.strip()
         if not line or ':' not in line:
             return None
@@ -123,7 +123,7 @@ class Z8000TestHarness:
             idx_str, rest = line.split(':', 1)
             parts = rest.split()
             if len(parts) >= 5:
-                return {
+                entry = {
                     'index': int(idx_str.strip(), 16),
                     'addr': int(parts[0], 16),
                     'data': int(parts[1], 16),
@@ -131,6 +131,10 @@ class Z8000TestHarness:
                     'bw': parts[3],       # 'W' (word) or 'B' (byte)
                     'io': parts[4],       # 'M' (memory) or 'I' (I/O)
                 }
+                # Segment bank bit (sn[0]): optional 6th token from newer firmware
+                if len(parts) >= 6:
+                    entry['seg'] = int(parts[5], 16)
+                return entry
         except (ValueError, IndexError):
             pass
         return None

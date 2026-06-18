@@ -944,9 +944,10 @@ do_tr_one:
         jp main
 
 ; Print trace entry from ports 0x22-0x26
-; Format: aaaa dddd R W M
+; Format: aaaa dddd R W M s
 ; addr = bytes 0-1, data = bytes 2-3, flags = byte 4
 ; flags[0] = R/W (1=read), flags[1] = B/W (1=word), flags[2] = I/O (1=I/O cycle)
+; flags[3] = segment bank bit sn[0] (s: 0=segment-0 bank, 1=segment-1 bank)
 print_trace_entry:
         ; Read and print address (bytes 0-1, little endian)
         in a, (0x23)            ; Addr high
@@ -995,6 +996,17 @@ pte_bw_out:
 pte_mem:
         ld a, 'M'
 pte_io_out:
+        call put_char
+        ld a, ' '
+        call put_char
+        ; Segment bank bit (byte 4, bit 3): 0=segment-0 bank, 1=segment-1 bank
+        bit 3, b
+        jp z, pte_seg0
+        ld a, '1'
+        jp pte_seg_out
+pte_seg0:
+        ld a, '0'
+pte_seg_out:
         call put_char
         call put_crlf
         ret
