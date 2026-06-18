@@ -36,13 +36,17 @@ _BLOCK_STRING_MNEMONICS = {
     'CPSI', 'CPSIR', 'CPSD', 'CPSDR',
     'CPSIB', 'CPSIRB', 'CPSDB', 'CPSDRB',
 }
+_TRANSLATE_MNEMONICS = {
+    'TRIB', 'TRIRB', 'TRDB', 'TRDRB',
+    'TRTIB', 'TRTIRB', 'TRTDB', 'TRTDRB',
+}
 _SEG_BLOCK_SRC_REG = 8
 _SEG_BLOCK_DST_REG = 10
 _SEG_BLOCK_COUNT_REG = 4
 _SEG_BLOCK_CMP_REG = 0
 _ALL_BLOCK_MNEMONICS = (
     _BLOCK_TRANSFER_MNEMONICS | _BLOCK_COMPARE_MNEMONICS |
-    _BLOCK_STRING_MNEMONICS
+    _BLOCK_STRING_MNEMONICS | _TRANSLATE_MNEMONICS
 )
 
 
@@ -78,6 +82,8 @@ def _transform(t):
         return [_make_block_compare_seg(t, seg_fcw)]
     if t.mnemonic in _BLOCK_STRING_MNEMONICS:
         return [_make_block_string_seg(t, seg_fcw)]
+    if t.mnemonic in _TRANSLATE_MNEMONICS:
+        return [_make_translate_seg(t, seg_fcw)]
 
     # Simple DA (ALU + LD/ST) -> long + short
     if 'da_mode' in tag_names:
@@ -132,6 +138,8 @@ def _clone(t, name, fcw, **overrides):
         expected_fcw_clear=list(t.expected_fcw_clear),
         expected_memory=dict(t.expected_memory),
         expected_io=dict(t.expected_io),
+        observe_memory=list(t.observe_memory),
+        observe_io=list(t.observe_io),
         expected_trace=t.expected_trace,
         expected_result=t.expected_result,
     )
@@ -171,7 +179,9 @@ def _make_da_short(t, fcw):
     code = list(t.code)
     code[_address_word_index(t)] = SEG1_SHORT_WORD
     memory = _remap_operand_mem(t.memory)
-    return _clone(t, f"seg_{t.name}_short", fcw, code=code, memory=memory)
+    observe_memory = _remap_operand_addrs(t.observe_memory)
+    return _clone(t, f"seg_{t.name}_short", fcw, code=code, memory=memory,
+                  observe_memory=observe_memory)
 
 
 # --- X mode: indexed DA ---
@@ -206,7 +216,9 @@ def _make_x_short(t, fcw):
     target_phys = 0x1000 + target_offset
     delta = target_phys - ((orig_da + t.regs.get(index_reg, 0)) & 0xFFFF)
     memory = _remap_operand_mem(t.memory, delta)
-    return _clone(t, f"seg_{t.name}_short", fcw, code=code, regs=regs, memory=memory)
+    observe_memory = _remap_operand_addrs(t.observe_memory, delta)
+    return _clone(t, f"seg_{t.name}_short", fcw, code=code, regs=regs,
+                  memory=memory, observe_memory=observe_memory)
 
 
 def _address_word_index(t):
@@ -300,6 +312,28 @@ def _make_block_string_seg(t, fcw):
     return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
 
 
+def _make_translate_seg(t, fcw):
+    """TR*/TRT* family: destination/string, table, and count must not overlap."""
+    dst_old = (t.code[0] >> 4) & 0xF
+    count_old = (t.code[1] >> 8) & 0xF
+    table_old = (t.code[1] >> 4) & 0xF
+    regs = dict(t.regs)
+    dst_offset = t.regs.get(dst_old, 0)
+    table_offset = t.regs.get(table_old, 0)
+    count = t.regs.get(count_old, 0)
+    for old in (dst_old, count_old, table_old):
+        regs.pop(old, None)
+    _put_seg_ptr(regs, _SEG_BLOCK_DST_REG, dst_offset)
+    _put_seg_ptr(regs, _SEG_BLOCK_SRC_REG, table_offset)
+    regs[_SEG_BLOCK_COUNT_REG] = count
+    code = list(t.code)
+    code[0] = (code[0] & 0xFF0F) | (_SEG_BLOCK_DST_REG << 4)
+    code[1] = ((code[1] & 0xF00F) |
+               (_SEG_BLOCK_COUNT_REG << 8) |
+               (_SEG_BLOCK_SRC_REG << 4))
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+
+
 def _block_fields(t):
     """Return source, counter, and destination/compare fields."""
     return (t.code[0] >> 4) & 0xF, (t.code[1] >> 8) & 0xF, (t.code[1] >> 4) & 0xF
@@ -381,6 +415,16 @@ def _remap_operand_mem(mem, delta=None):
         (((addr + delta) & 0xFFFF) if _is_operand_mem(addr) else addr): val
         for addr, val in mem.items()
     }
+
+
+def _remap_operand_addrs(addrs, delta=None):
+    """Remap observed flat operand addresses to segment-1 short physical space."""
+    if delta is None:
+        delta = SEG1_SHORT_PHYS_ADDR - OPERAND_BASE
+    return [
+        (((addr + delta) & 0xFFFF) if _is_operand_mem(addr) else addr)
+        for addr in addrs
+    ]
 
 
 def _is_operand_mem(addr):

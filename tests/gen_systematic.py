@@ -16,6 +16,7 @@ from .helpers import (
     CODE_BASE, OPERAND_BASE, SRC_BUF, DST_BUF, STACK_BASE,
     preload_buffer,
 )
+from .observability import add_observations
 
 
 def _tc(name, mnemonic, desc, tags, code, regs=None, fcw=FCW_SYS,
@@ -34,7 +35,7 @@ def _tc(name, mnemonic, desc, tags, code, regs=None, fcw=FCW_SYS,
 
 
 def generate_all_tests():
-    return [
+    tests = [
 
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_add_r_r_zero
         #   0000: 8110                add	r0,r1
@@ -11940,3 +11941,4 @@ def generate_all_tests():
             fcw=0x4010,  # V=1
         ),
     ]
+    return [add_observations(t) for t in tests]

@@ -1,0 +1,21 @@
+{
+  "_README": [
+    "Per-test field masks for golden comparison. Combined with the rule engine",
+    "in tests/golden_masks.py at compare time; the golden captures are never",
+    "modified. Use this file only for one-off undefined-output cases that the",
+    "general rules do not cover -- most undefined behaviour (e.g. DIV overflow)",
+    "is handled by a rule and needs no entry here.",
+    "",
+    "Schema:",
+    "  \"tests\": {",
+    "    \"<test_name>\": {",
+    "      \"ignore_fields\": [\"R0\", \"R1\", \"flag_S\", \"mem_0x0400\", ...],",
+    "      \"reason\": \"why these fields are undefined (cite the manual)\"",
+    "    }",
+    "  }",
+    "",
+    "Field names match compare_golden output: R<n>, flag_<C|Z|S|V|DA|H>,",
+    "mem_0x<addr>, io_0x<idx>, exec_result."
+  ],
+  "tests": {}
+}

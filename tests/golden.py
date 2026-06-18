@@ -15,11 +15,18 @@ from .flags import FLAG_BITS, get_flag
 
 @dataclass
 class ComparisonDiff:
-    """A single field difference between golden and actual results."""
+    """A single field difference between golden and actual results.
+
+    ``masked`` marks a difference in a field the architecture leaves undefined
+    (see golden_masks.py); ``reason`` documents why.  Masked diffs do not count
+    toward failure but are retained for display.
+    """
     field: str
     ref_value: object
     dut_value: object
     description: str
+    masked: bool = False
+    reason: str = ""
 
 
 @dataclass
@@ -28,6 +35,16 @@ class ComparisonResult:
     test_name: str
     match: bool
     diffs: list[ComparisonDiff] = field(default_factory=list)
+
+    @property
+    def unmasked_diffs(self):
+        """Differences that count as failures (undefined fields excluded)."""
+        return [d for d in self.diffs if not d.masked]
+
+    @property
+    def masked_diffs(self):
+        """Differences ignored because the field is architecturally undefined."""
+        return [d for d in self.diffs if d.masked]
 
 
 def save_golden(results, golden_dir):
@@ -52,6 +69,7 @@ def save_golden(results, golden_dir):
             "regs": {str(k): v for k, v in sorted(r.actual_regs.items())},
             "fcw": r.actual_fcw,
             "memory": {str(k): v for k, v in sorted(r.actual_memory.items())},
+            "io": {str(k): v for k, v in sorted(r.actual_io.items())},
         }
         with open(path, 'w') as f:
             json.dump(data, f, indent=2)
@@ -78,12 +96,15 @@ def load_golden(golden_dir):
     return golden
 
 
-def compare_golden(results, golden):
+def compare_golden(results, golden, masks=None):
     """Compare test results against golden reference data.
 
     Args:
         results: list of TestResult from DUT
         golden: dict from load_golden()
+        masks: optional GoldenMasks (golden_masks.py). Fields it flags as
+            architecturally undefined are recorded as masked diffs and do not
+            count toward a mismatch.
 
     Returns:
         list of ComparisonResult
@@ -151,7 +172,7 @@ def compare_golden(results, golden):
                                      f"dut={dut_flag}"),
                     ))
 
-        # Compare memory - all addresses that were preloaded in the test
+        # Compare requested memory readbacks.
         ref_mem = {int(k): v for k, v in ref.get("memory", {}).items()}
         all_mem_keys = set(r.actual_memory.keys()) | set(ref_mem.keys())
         for addr in sorted(all_mem_keys):
@@ -168,9 +189,35 @@ def compare_golden(results, golden):
                                  f"dut={dut_str}"),
                 ))
 
+        # Compare requested I/O readbacks.
+        ref_io = {int(k): v for k, v in ref.get("io", {}).items()}
+        all_io_keys = set(r.actual_io.keys()) | set(ref_io.keys())
+        for idx in sorted(all_io_keys):
+            ref_val = ref_io.get(idx, 0)
+            dut_val = r.actual_io.get(idx, 0)
+            if ref_val != dut_val:
+                ref_str = f"0x{ref_val:04X}" if ref_val is not None else "None"
+                dut_str = f"0x{dut_val:04X}" if dut_val is not None else "None"
+                diffs.append(ComparisonDiff(
+                    field=f"io_0x{idx:02X}",
+                    ref_value=ref_val,
+                    dut_value=dut_val,
+                    description=(f"IO[0x{idx:02X}]: ref={ref_str}, "
+                                 f"dut={dut_str}"),
+                ))
+
+        # Reclassify diffs in architecturally-undefined fields as masked so
+        # they are reported but do not count as failures.
+        if masks is not None:
+            field_masks = masks.field_masks(r.test, ref)
+            for d in diffs:
+                if d.field in field_masks:
+                    d.masked = True
+                    d.reason = field_masks[d.field]
+
         comparisons.append(ComparisonResult(
             test_name=name,
-            match=len(diffs) == 0,
+            match=all(d.masked for d in diffs),
             diffs=diffs,
         ))
 

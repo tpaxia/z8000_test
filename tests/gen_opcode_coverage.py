@@ -17,6 +17,7 @@ from functools import lru_cache
 from .defs import TestCase
 from .flags import FCW_SYS
 from .helpers import CODE_BASE, OPERAND_BASE, STACK_BASE
+from .observability import add_observations
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -45,6 +46,16 @@ DYNAMIC_SHIFT_MNEMONICS = {"SDA", "SDAB", "SDAL", "SDL", "SDLB", "SDLL"}
 DYNAMIC_BIT_MNEMONICS = {"BIT", "BITB", "SET", "SETB", "RES", "RESB"}
 RELATIVE_LOAD_MNEMONICS = {"LDR", "LDRB", "LDRL"}
 TRANSLATE_MNEMONICS = {"TRDB", "TRDRB", "TRIB", "TRIRB"}
+OUTPUT_MNEMONICS = {
+    "OUT", "OUTB", "OUTD", "OUTDB", "OUTI", "OUTIB", "OTDR", "OTDRB",
+    "OTIR", "OTIRB", "SOUTD", "SOUTDB", "SOUTI", "SOUTIB", "SOTDR",
+    "SOTDRB", "SOTIR", "SOTIRB",
+}
+INPUT_MNEMONICS = {
+    "IN", "INB", "IND", "INDB", "INDR", "INDRB", "INI", "INIB", "INIR",
+    "INIRB", "SIND", "SINDB", "SINDR", "SINDRB", "SINI", "SINIB",
+    "SINIR", "SINIRB",
+}
 
 
 def generate_opcode_coverage_tests():
@@ -101,7 +112,7 @@ def _make_test(index, row, segmented=False):
         memory[OPERAND_BASE - 2] = 0x0000
         memory[0x0500] = 0x0000
 
-    return TestCase(
+    tc = TestCase(
         name=name,
         mnemonic=mnemonic,
         description=f"Opcode coverage: {asm}",
@@ -111,8 +122,12 @@ def _make_test(index, row, segmented=False):
         regs=_base_regs(mnemonic, asm),
         fcw=FCW_SYS,
         memory=memory,
-        io_preloads={0: 0x1234, 1: 0x5678, 2: 0x9ABC, 3: 0xDEF0},
+        io_preloads={
+            0: 0x1234, 1: 0x5678, 2: 0x9ABC, 3: 0xDEF0,
+            6: 0x4321, 7: 0x8765, 8: 0xCBA9, 9: 0x0FED,
+        },
     )
+    return add_observations(tc)
 
 
 def _base_regs(mnemonic=None, asm=""):
@@ -164,11 +179,27 @@ def _base_index_registers(asm):
 def _pointer_base_for(mnemonic, asm, reg):
     if reg == 15:
         return STACK_BASE
+    if mnemonic in OUTPUT_MNEMONICS:
+        regs = _indirect_registers_ordered(asm)
+        if regs and regs[0] == reg:
+            return _io_port_for(mnemonic)
+    if mnemonic in INPUT_MNEMONICS:
+        regs = _indirect_registers_ordered(asm)
+        if regs and regs[-1] == reg:
+            return _io_port_for(mnemonic)
     if mnemonic in TRANSLATE_MNEMONICS and "@r5" in asm and reg == 5:
         return 0x0500
     if mnemonic.startswith("TRT") and reg == 5:
         return 0x0500
     return OPERAND_BASE
+
+
+def _indirect_registers_ordered(asm):
+    return [int(m.group(1)) for m in re.finditer(r"@r(\d+)", asm)]
+
+
+def _io_port_for(mnemonic):
+    return 0x0104 if mnemonic.endswith("B") else 0x0106
 
 
 def _base_memory():

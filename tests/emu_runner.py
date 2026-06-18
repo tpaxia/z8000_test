@@ -101,12 +101,12 @@ class EmuRunner:
         for idx, val in sorted(tc.io_preloads.items()):
             lines.append(f"IO:{idx}:{val:04X}")
 
-        # Verify memory addresses (from expected_memory)
-        for addr in sorted(tc.expected_memory.keys()):
+        # Memory readback addresses for verification or golden comparison
+        for addr in sorted(set(tc.expected_memory) | set(tc.observe_memory)):
             lines.append(f"VERIFY_MEM:{addr:04X}")
 
-        # Verify I/O indices (from expected_io)
-        for idx in sorted(tc.expected_io.keys()):
+        # I/O readback indices for verification or golden comparison
+        for idx in sorted(set(tc.expected_io) | set(tc.observe_io)):
             lines.append(f"VERIFY_IO:{idx}")
 
         lines.append("RUN")
@@ -193,11 +193,11 @@ class EmuRunner:
         actual_fcw = parsed["fcw"]
 
         actual_memory = {}
-        for addr in tc.expected_memory:
+        for addr in sorted(set(tc.expected_memory) | set(tc.observe_memory)):
             actual_memory[addr] = parsed["memory"].get(addr)
 
         actual_io = {}
-        for idx in tc.expected_io:
+        for idx in sorted(set(tc.expected_io) | set(tc.observe_io)):
             actual_io[idx] = parsed["io"].get(idx)
 
         failures = verify_result(

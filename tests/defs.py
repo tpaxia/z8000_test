@@ -28,6 +28,8 @@ class TestCase:
     expected_fcw_clear: list[str] = field(default_factory=list)  # Flags that must be 0
     expected_memory: dict[int, int] = field(default_factory=dict)
     expected_io: dict[int, int] = field(default_factory=dict)  # {reg_index: word}
+    observe_memory: list[int] = field(default_factory=list)  # Read back for golden compare only
+    observe_io: list[int] = field(default_factory=list)      # Read back for golden compare only
     expected_trace: list[dict] | None = None         # Optional trace pattern
     expected_result: str = "HALT"                    # Expected EX result
 

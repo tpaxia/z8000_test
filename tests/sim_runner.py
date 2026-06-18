@@ -260,13 +260,13 @@ class SimRunner:
         actual_regs = parsed["regs"]
         actual_fcw = parsed["fcw"]
 
-        # Only include memory addresses we need to verify
+        # Include verify + observe addresses (mirrors emu_runner)
         actual_memory = {}
-        for addr in tc.expected_memory:
+        for addr in set(tc.expected_memory) | set(tc.observe_memory):
             actual_memory[addr] = parsed["memory"].get(addr)
 
         actual_io = {}
-        for idx in tc.expected_io:
+        for idx in set(tc.expected_io) | set(tc.observe_io):
             actual_io[idx] = parsed["io"].get(idx)
 
         failures = verify_result(

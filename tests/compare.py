@@ -37,6 +37,7 @@ from .gen_opcode_coverage import (
     generate_segmented_opcode_coverage_tests,
 )
 from .golden import save_golden, load_golden, compare_golden
+from .golden_masks import load_masks, DEFAULT_MASKS_PATH
 from .auto_generate import generate_golden_test_file
 from .runner import TestRunner
 
@@ -59,6 +60,10 @@ def main():
                         help='Capture golden results from reference CPU')
     parser.add_argument('--golden-dir', default='golden/z8001',
                         help='Directory for golden result files')
+    parser.add_argument('--masks', default=DEFAULT_MASKS_PATH,
+                        help='Sidecar JSON of per-test undefined-field masks')
+    parser.add_argument('--no-masks', action='store_true',
+                        help='Disable undefined-field masking (compare every field)')
     parser.add_argument('--auto-generate', action='store_true',
                         help='Auto-generate test file from diffs')
     parser.add_argument('--output', default='tests/test_z8001_golden.py',
@@ -225,16 +230,19 @@ def _run_compare(args, all_tests, filtered):
     )
     print("=" * 60)
 
-    # Compare against golden
-    comparisons = compare_golden(results, golden)
+    # Compare against golden (masking architecturally-undefined fields)
+    masks = None if args.no_masks else load_masks(args.masks)
+    comparisons = compare_golden(results, golden, masks=masks)
     matches = sum(1 for c in comparisons if c.match)
     diffs = [c for c in comparisons if not c.match]
     no_ref = sum(1 for c in comparisons
                   if not c.match and len(c.diffs) == 1
                   and c.diffs[0].field == "golden")
+    ignored = sum(1 for c in comparisons if c.match and c.masked_diffs)
 
     print()
-    print(f"Golden comparison: {matches} match, {len(diffs)} differ"
+    extra = f", {ignored} with undefined fields ignored" if ignored else ""
+    print(f"Golden comparison: {matches} match{extra}, {len(diffs)} differ"
           f" ({no_ref} missing reference)")
 
     if diffs and args.verbose:
@@ -253,9 +261,20 @@ def _run_compare(args, all_tests, filtered):
             for c in comps:
                 print(f"    {c.test_name}:")
                 for d in c.diffs:
-                    print(f"      {d.description}")
+                    tag = "  [undefined, ignored]" if d.masked else ""
+                    print(f"      {d.description}{tag}")
 
-    elif diffs:
+    if ignored and args.verbose:
+        print()
+        print("Undefined fields ignored (counted as match):")
+        for c in comparisons:
+            if c.match and c.masked_diffs:
+                print(f"  {c.test_name}:")
+                for d in c.masked_diffs:
+                    print(f"      {d.description}")
+                    print(f"        -> {d.reason}")
+
+    if diffs and not args.verbose:
         # Brief summary
         print()
         tc_map = {tc.name: tc for tc in all_tests}
@@ -331,6 +350,8 @@ def _save_comparison_json(comparisons, all_tests, path):
                     "ref": d.ref_value,
                     "dut": d.dut_value,
                     "description": d.description,
+                    "masked": d.masked,
+                    "reason": d.reason,
                 }
                 for d in c.diffs
             ],

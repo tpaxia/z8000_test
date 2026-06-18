@@ -57,9 +57,9 @@ class TestRunner:
         else:
             actual_fcw = self.harness.read_fcw()
 
-        # 8. Read back memory
+        # 8. Read back memory requested for verification or golden comparison
         actual_memory = {}
-        for addr in tc.expected_memory:
+        for addr in sorted(set(tc.expected_memory) | set(tc.observe_memory)):
             actual_memory[addr] = self.harness.read_mem(addr)
 
         # 9. Read cycle/fetch counts and trace
@@ -70,9 +70,10 @@ class TestRunner:
 
         # 9b. Read I/O port registers (requires reset first)
         actual_io = {}
-        if tc.expected_io:
+        io_readback = sorted(set(tc.expected_io) | set(tc.observe_io))
+        if io_readback:
             self.harness.reset()
-            for idx in tc.expected_io:
+            for idx in io_readback:
                 actual_io[idx] = self.harness.read_io_port(idx)
 
         # 10. Verify
