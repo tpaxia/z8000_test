@@ -229,6 +229,74 @@ Quartus-specific versions (adapted from shared code):
 | Peripherals | UART, Timer, SD, VGA, PS/2 | UART only |
 | Control | Boot ROM | Z80 harness via UART |
 
+## Sibling Projects: Internal (Soft-CPU) Test Harnesses
+
+This directory also contains two additional Quartus projects that synthesize the
+**Verilog `z8000_micro` soft CPU core** inside the FPGA instead of driving a
+physical external Z8001. They share the same QMTECH board, PLL, Z80 harness,
+trace buffer, BRAM, UART, and I/O port file as the external project.
+
+| Project | Top Module | CPU Variant | Verilog Macros |
+|---------|-----------|-------------|----------------|
+| `z8002_int_test` | `z8002_int_test_top.v` | Z8002 (non-segmented) | `ACTIVE_BUS=1`, `ALTERA_BRAM=1` |
+| `z8001_int_test` | `z8001_int_test_top.v` | Z8001 (segmented) | `Z8001_MODE=1`, `ACTIVE_BUS=1`, `ALTERA_BRAM=1` |
+
+In both projects the external Z8001 socket is **disabled**: the CPU is held in
+reset (`freset=0`), bus buffers are off (`fbuscs=1`), all Z8001-facing control
+pins are driven inactive, and the `sramData` bus is declared as an input so the
+FPGA never drives the level shifters.
+
+### Shared vs. external project
+
+The internal harnesses reuse the same support modules as `z8001_ext_test`:
+
+- `pll.v`, `trace_buffer_altera.v`, `ram16_altera.v`, `z80_harness_quartus.v`
+- `../src/uart_tx.v`, `../src/uart_rx.v`
+- `../src/z8k_io_ports.v` — full 12×16-bit I/O port register file (Z80 ↔ Z8000),
+  giving these projects the same I/O port map as the Gowin reference design
+  (richer than the external project's single LED latch)
+- `../src/boot_master.v` — Z80-only bootstrap master store (CPU cannot reach it)
+
+The soft CPU itself comes from the `../z8000_micro/rtl/` submodule:
+`z8000_cpu.v`, `z8000_biu.v`, `z8000_muldiv.v`, `decode_rom.v`, `microcode_rom.v`.
+
+### Key implementation details (common to both)
+
+- **CPU clocking**: the soft core runs at 16 MHz (`sys_clk`, PLL c0) instantiated
+  with `BUS_DIVIDER=4`, so the bus phase advances every 4th clock (≈4 MHz bus
+  rate). PLL c1 (4 MHz) only feeds the unused external `fclk` pin.
+- **`ACTIVE_BUS`**: the core exposes split `ad_out` / `ad_in` / `ad_oe` signals
+  (no internal tri-state). `ad_in = ad_oe ? ad_out : data_to_cpu`.
+- **`ALTERA_BRAM`**: the microcode ROM is placed in M9K block RAM (≈3000 LUTs
+  saved). The `SEARCH_PATH ..` assignment lets `altsyncram` resolve the hard-coded
+  `z8000_micro/rtl/microcode_rom_z800{1,2}.mif` INIT_FILE path.
+- **Halt detection**: direct `halt_n` from the core — no opcode sniffing needed
+  (unlike the external project, which sniffs `0x7A00` on `ST=1101`).
+- **Address/status latches**: address captured level-sensitively while `as_n` is
+  low; status latched on the `AS` falling edge.
+- **Instrumentation & trace**: identical cycle/fetch counters and 1024-entry
+  trace buffer as the external project, clocked off the 4 MHz `bus_tick`.
+
+### Z8001 vs. Z8002 internal differences
+
+`z8001_int_test` adds the following over `z8002_int_test`:
+
+- CPU compiled with `Z8001_MODE` (segmented addressing, RR14 stack, 8-byte PSA).
+- A 7-bit segment number (`sn`) is latched from the core alongside the address.
+- `sn[0]` extends the BRAM Port B address (`{sn[0], addr[11:0]}`), splitting the
+  8 KB BRAM into two 4 KB segments — segment 0 at `0x0000–0x0FFF`, segment 1 at
+  `0x1000–0x1FFF`. (`z8002_int_test` uses a flat `addr[12:0]`.)
+
+### Building the internal projects
+
+```bash
+make firmware                       # Z80 firmware MIF (shared by all three projects)
+```
+
+Then open `z8002_int_test.qpf` or `z8001_int_test.qpf` in Quartus, generate/replace
+the PLL as described below, and compile. Each project has its own
+`.qsf` (source/pin/macro list) and `.sdc` (timing constraints).
+
 ## Building
 
 ### Prerequisites
