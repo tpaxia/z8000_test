@@ -15,6 +15,7 @@ from .helpers import CODE_BASE, STACK_BASE
 SEG1_SHORT_WORD = 0x0180  # Short-form DA: segment 1, offset 0x80
 SEG1_SHORT_OFFSET = SEG1_SHORT_WORD & 0x00FF
 SEG1_SHORT_PHYS_ADDR = 0x1000 + SEG1_SHORT_OFFSET
+SEG1_LONG_DELTA = 0x1000
 OPERAND_BASE = 0x0400
 
 _SKIP_TESTS = {
@@ -24,6 +25,7 @@ _SKIP_TESTS = {
 }
 
 _PORT_INDIRECT_MNEMONICS = {'IN', 'INB', 'OUT', 'OUTB'}
+_DIRECT_PORT_MNEMONICS = {'IN', 'INB', 'OUT', 'OUTB', 'SIN', 'SINB', 'SOUT', 'SOUTB'}
 _BLOCK_TRANSFER_MNEMONICS = {
     'LDI', 'LDIR', 'LDD', 'LDDR',
     'LDIB', 'LDIRB', 'LDDB', 'LDDRB',
@@ -40,13 +42,22 @@ _TRANSLATE_MNEMONICS = {
     'TRIB', 'TRIRB', 'TRDB', 'TRDRB',
     'TRTIB', 'TRTIRB', 'TRTDB', 'TRTDRB',
 }
+_BLOCK_INPUT_MNEMONICS = {
+    'IND', 'INDB', 'INDR', 'INDRB', 'INI', 'INIB', 'INIR', 'INIRB',
+    'SIND', 'SINDB', 'SINDR', 'SINDRB', 'SINI', 'SINIB', 'SINIR', 'SINIRB',
+}
+_BLOCK_OUTPUT_MNEMONICS = {
+    'OUTD', 'OUTDB', 'OUTI', 'OUTIB', 'OTDR', 'OTDRB', 'OTIR', 'OTIRB',
+    'SOUTD', 'SOUTDB', 'SOUTI', 'SOUTIB', 'SOTDR', 'SOTDRB', 'SOTIR', 'SOTIRB',
+}
 _SEG_BLOCK_SRC_REG = 8
 _SEG_BLOCK_DST_REG = 10
 _SEG_BLOCK_COUNT_REG = 4
 _SEG_BLOCK_CMP_REG = 0
 _ALL_BLOCK_MNEMONICS = (
     _BLOCK_TRANSFER_MNEMONICS | _BLOCK_COMPARE_MNEMONICS |
-    _BLOCK_STRING_MNEMONICS | _TRANSLATE_MNEMONICS
+    _BLOCK_STRING_MNEMONICS | _TRANSLATE_MNEMONICS |
+    _BLOCK_INPUT_MNEMONICS | _BLOCK_OUTPUT_MNEMONICS
 )
 
 
@@ -82,8 +93,17 @@ def _transform(t):
         return [_make_block_compare_seg(t, seg_fcw)]
     if t.mnemonic in _BLOCK_STRING_MNEMONICS:
         return [_make_block_string_seg(t, seg_fcw)]
+    if t.mnemonic in _BLOCK_INPUT_MNEMONICS:
+        return [_make_block_input_seg(t, seg_fcw)]
+    if t.mnemonic in _BLOCK_OUTPUT_MNEMONICS:
+        return [_make_block_output_seg(t, seg_fcw)]
     if t.mnemonic in _TRANSLATE_MNEMONICS:
         return [_make_translate_seg(t, seg_fcw)]
+
+    # Immediate-port I/O operands are encoded like a following word, but they
+    # are not segmented memory addresses and must not get DA long/short forms.
+    if t.mnemonic in _DIRECT_PORT_MNEMONICS:
+        return [_clone(t, f"seg_{t.name}", seg_fcw)]
 
     # Simple DA (ALU + LD/ST) -> long + short
     if 'da_mode' in tag_names:
@@ -155,13 +175,13 @@ def _clone(t, name, fcw, **overrides):
 def _with_segmented_indirect_regs(t):
     regs = dict(t.regs)
     for ireg in _assembly_indirect_regs(t):
-        if ireg >= 15:
+        seg_reg, off_reg = _seg_pair_regs(ireg)
+        if off_reg >= 16:
             raise ValueError(f"{t.name}: @r{ireg} cannot form a segmented pointer")
-        if regs.get(ireg) == 0x8000:
+        if regs.get(seg_reg, 0) & 0x8000:
             continue
-        flat_addr = regs.get(ireg, 0)
-        regs[ireg] = 0x8000
-        regs[ireg + 1] = flat_addr
+        flat_addr = regs.get(ireg, regs.get(off_reg, 0))
+        _put_seg_ptr(regs, ireg, flat_addr)
     return regs
 
 
@@ -231,17 +251,18 @@ def _address_word_index(t):
 def _make_ir_seg(t, fcw):
     """IR_mode -> segmented: convert every @Rn to a segmented pointer pair.
 
-    In segmented mode, indirect addressing uses a register pair:
-      R(n)   = 0x8000 | (segment << 8)  -- long-form segment selector
-      R(n+1) = offset
-    All generated IR_mode tests use segment 0, so R(n) = 0x8000.
+    In segmented mode, indirect addressing uses a register pair. Opcode
+    coverage uses segment 1 so stale/default MARSEG errors are visible.
     """
     regs = dict(t.regs)
+    segment = 1 if _is_opcode_coverage(t) else 0
     for ireg in _indirect_regs(t):
         flat_addr = regs.get(ireg, 0)
-        regs[ireg] = 0x8000       # segment 0, long form
-        regs[ireg + 1] = flat_addr  # offset
-    return _clone(t, f"seg_{t.name}", fcw, regs=regs)
+        _put_seg_ptr(regs, ireg, flat_addr, segment=segment)
+    memory = _remap_seg1_long(t.memory) if segment else dict(t.memory)
+    observe_memory = _remap_seg1_long_addrs(t.observe_memory) if segment else list(t.observe_memory)
+    return _clone(t, f"seg_{t.name}", fcw, regs=regs, memory=memory,
+                  observe_memory=observe_memory)
 
 
 # --- BA_mode: base register becomes segmented pointer pair ---
@@ -250,15 +271,18 @@ def _make_ba_seg(t, fcw):
     """BA_mode -> segmented: base register pair holds segmented pointer.
 
     In segmented mode the base of a base+displacement access is a register
-    pair: R(n) = 0x8000 (seg 0, long form), R(n+1) = offset. The 16-bit
-    displacement word in the instruction is unchanged.
+    pair. Opcode coverage uses segment 1 so LDA/LD/ST stale-segment errors are
+    visible without adding a second test case.
     """
     breg = (t.code[0] >> 4) & 0xF  # base register from opcode bits [7:4]
-    flat_addr = t.regs.get(breg, 0)
     regs = dict(t.regs)
-    regs[breg] = 0x8000
-    regs[breg + 1] = flat_addr
-    return _clone(t, f"seg_{t.name}", fcw, regs=regs)
+    segment = 1 if _is_opcode_coverage(t) else 0
+    flat_addr = OPERAND_BASE if segment else t.regs.get(breg, 0)
+    _put_seg_ptr(regs, breg, flat_addr, segment=segment)
+    memory = _remap_seg1_long(t.memory) if segment else dict(t.memory)
+    observe_memory = _remap_seg1_long_addrs(t.observe_memory) if segment else list(t.observe_memory)
+    return _clone(t, f"seg_{t.name}", fcw, regs=regs, memory=memory,
+                  observe_memory=observe_memory)
 
 
 def _make_bx_seg(t, fcw):
@@ -268,11 +292,14 @@ def _make_bx_seg(t, fcw):
     register pair that does not overlap the index or destination registers.
     """
     breg = (t.code[0] >> 4) & 0xF
-    flat_addr = t.regs.get(breg, 0)
     regs = dict(t.regs)
-    regs[breg] = 0x8000
-    regs[breg + 1] = flat_addr
-    return _clone(t, f"seg_{t.name}", fcw, regs=regs)
+    segment = 1 if _is_opcode_coverage(t) else 0
+    flat_addr = OPERAND_BASE if segment else t.regs.get(breg, 0)
+    _put_seg_ptr(regs, breg, flat_addr, segment=segment)
+    memory = _remap_seg1_long(t.memory) if segment else dict(t.memory)
+    observe_memory = _remap_seg1_long_addrs(t.observe_memory) if segment else list(t.observe_memory)
+    return _clone(t, f"seg_{t.name}", fcw, regs=regs, memory=memory,
+                  observe_memory=observe_memory)
 
 
 # --- Block instructions: use non-overlapping segmented register pairs ---
@@ -320,7 +347,7 @@ def _make_translate_seg(t, fcw):
     regs = dict(t.regs)
     dst_offset = t.regs.get(dst_old, 0)
     table_offset = t.regs.get(table_old, 0)
-    count = t.regs.get(count_old, 0)
+    count = 1 if _is_opcode_coverage(t) else t.regs.get(count_old, 0)
     for old in (dst_old, count_old, table_old):
         regs.pop(old, None)
     _put_seg_ptr(regs, _SEG_BLOCK_DST_REG, dst_offset)
@@ -331,6 +358,40 @@ def _make_translate_seg(t, fcw):
     code[1] = ((code[1] & 0xF00F) |
                (_SEG_BLOCK_COUNT_REG << 8) |
                (_SEG_BLOCK_SRC_REG << 4))
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+
+
+def _make_block_input_seg(t, fcw):
+    """Block input: destination is memory pair, source is scalar I/O port."""
+    src_old, count_old, dst_old = _block_fields(t)
+    regs = dict(t.regs)
+    port = t.regs.get(src_old, 0)
+    dst_offset = t.regs.get(dst_old, 0)
+    count = 1 if _is_opcode_coverage(t) else t.regs.get(count_old, 0)
+    for old in (src_old, count_old, dst_old):
+        regs.pop(old, None)
+    regs[_SEG_BLOCK_SRC_REG] = port
+    _put_seg_ptr(regs, _SEG_BLOCK_DST_REG, dst_offset)
+    regs[_SEG_BLOCK_COUNT_REG] = count
+    code = _block_code(t, _SEG_BLOCK_SRC_REG, _SEG_BLOCK_COUNT_REG,
+                       _SEG_BLOCK_DST_REG)
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+
+
+def _make_block_output_seg(t, fcw):
+    """Block output: destination is scalar I/O port, source is memory pair."""
+    src_old, count_old, dst_old = _block_fields(t)
+    regs = dict(t.regs)
+    src_offset = t.regs.get(src_old, 0)
+    port = t.regs.get(dst_old, 0)
+    count = 1 if _is_opcode_coverage(t) else t.regs.get(count_old, 0)
+    for old in (src_old, count_old, dst_old):
+        regs.pop(old, None)
+    _put_seg_ptr(regs, _SEG_BLOCK_SRC_REG, src_offset)
+    regs[_SEG_BLOCK_DST_REG] = port
+    regs[_SEG_BLOCK_COUNT_REG] = count
+    code = _block_code(t, _SEG_BLOCK_SRC_REG, _SEG_BLOCK_COUNT_REG,
+                       _SEG_BLOCK_DST_REG)
     return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
 
 
@@ -361,11 +422,6 @@ def _block_regs(t, src_old, count_old, dst_old):
     return regs
 
 
-def _put_seg_ptr(regs, reg, offset):
-    regs[reg] = 0x8000
-    regs[reg + 1] = offset
-
-
 def _indirect_regs(t):
     regs = _assembly_indirect_regs(t)
     if not regs:
@@ -374,7 +430,24 @@ def _indirect_regs(t):
 
 
 def _assembly_indirect_regs(t):
-    return {int(m.group(1)) for m in re.finditer(r"@r(\d+)", t.instruction or "")}
+    return {
+        int(m.group(1) or m.group(2))
+        for m in re.finditer(r"@(?:rr(\d+)|r(\d+))", t.instruction or "")
+    }
+
+
+def _is_opcode_coverage(t):
+    return "opcode_coverage" in t.tags
+
+
+def _seg_pair_regs(reg):
+    return reg & 0xE, reg | 0x1
+
+
+def _put_seg_ptr(regs, reg, offset, segment=0):
+    seg_reg, off_reg = _seg_pair_regs(reg)
+    regs[seg_reg] = 0x8000 | ((segment & 0x7F) << 8)
+    regs[off_reg] = offset & 0xFFFF
 
 
 # --- Branch JP with DA: long-form only, target += 2 ---
@@ -425,6 +498,16 @@ def _remap_operand_addrs(addrs, delta=None):
         (((addr + delta) & 0xFFFF) if _is_operand_mem(addr) else addr)
         for addr in addrs
     ]
+
+
+def _remap_seg1_long(mem):
+    """Remap operand-region memory to segment 1 with the same 16-bit offset."""
+    return _remap_operand_mem(mem, SEG1_LONG_DELTA)
+
+
+def _remap_seg1_long_addrs(addrs):
+    """Remap observed operand-region addresses to segment 1 long-form space."""
+    return _remap_operand_addrs(addrs, SEG1_LONG_DELTA)
 
 
 def _is_operand_mem(addr):

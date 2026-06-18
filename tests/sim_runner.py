@@ -156,6 +156,25 @@ class SimRunner:
                     f.write(f"{val:04x}\n")
             paths["io_preload"] = io_path
 
+        if tc.io_sequences:
+            io_seq_path = os.path.join(self._tmpdir, "io_sequence.hex")
+            io_seq_count_path = os.path.join(self._tmpdir, "io_sequence_count.hex")
+            seq_words = [0] * (12 * 4)
+            seq_counts = [0] * 12
+            for idx, values in tc.io_sequences.items():
+                clipped = values[:4]
+                seq_counts[idx] = len(clipped)
+                for slot, val in enumerate(clipped):
+                    seq_words[idx * 4 + slot] = val & 0xFFFF
+            with open(io_seq_path, 'w') as f:
+                for val in seq_words:
+                    f.write(f"{val:04x}\n")
+            with open(io_seq_count_path, 'w') as f:
+                for val in seq_counts:
+                    f.write(f"{val:02x}\n")
+            paths["io_sequence"] = io_seq_path
+            paths["io_sequence_count"] = io_seq_count_path
+
         return paths
 
     def _run_vvp(self, paths):
@@ -167,6 +186,9 @@ class SimRunner:
         ]
         if "io_preload" in paths:
             cmd.append(f"+io_preload={paths['io_preload']}")
+        if "io_sequence" in paths:
+            cmd.append(f"+io_sequence={paths['io_sequence']}")
+            cmd.append(f"+io_sequence_count={paths['io_sequence_count']}")
 
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=30

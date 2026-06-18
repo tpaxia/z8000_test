@@ -67,6 +67,16 @@ class Z8000TestHarness:
         """Write I/O port register (index 0-11, value 16-bit)"""
         return self.send_command(f'WP{index:02X}{value:04X}')
 
+    def write_io_sequence(self, index, values):
+        """Write up to 4 scripted read values for an I/O port register."""
+        for slot, value in enumerate(values[:4]):
+            virtual_index = 0x0C + index * 4 + slot
+            self.send_command(f'WP{virtual_index:02X}{value & 0xFFFF:04X}')
+
+    def clear_io_sequences(self):
+        """Clear all scripted I/O read sequences."""
+        return self.send_command('WP3C0000')
+
     def read_io_port(self, index):
         """Read I/O port register (index 0-11, returns 16-bit value)"""
         resp = self.send_command(f'RP{index:02X}')

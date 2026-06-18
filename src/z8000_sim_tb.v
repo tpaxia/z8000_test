@@ -168,6 +168,7 @@ module z8000_sim_tb;
     // I/O Port Registers
     // ==========================================
     wire z8k_io_wr = io_port_match && ~cpu_rw_n && ~cpu_ds_n;
+    wire z8k_io_rd = io_port_match &&  cpu_rw_n && ~cpu_ds_n;
 
     z8k_io_ports io_ports (
         .clk           (clk),
@@ -176,6 +177,7 @@ module z8000_sim_tb;
         .z8k_wdata     (z8k_wdata),
         .z8k_rdata     (z8k_io_rdata),
         .z8k_wr        (z8k_io_wr),
+        .z8k_rd        (z8k_io_rd),
         .z8k_bw_n      (cpu_bw_n),
         .z8k_addr_lsb  (z8k_addr[0]),
         // Z80 side - unused in sim
@@ -183,7 +185,13 @@ module z8000_sim_tb;
         .z80_wbyte     (8'd0),
         .z80_rdata     (),
         .z80_wr_lo     (1'b0),
-        .z80_wr_hi     (1'b0)
+        .z80_wr_hi     (1'b0),
+        .z80_seq_reg_sel  (4'd0),
+        .z80_seq_slot_sel (2'd0),
+        .z80_seq_wbyte    (8'd0),
+        .z80_seq_wr_lo    (1'b0),
+        .z80_seq_wr_hi    (1'b0),
+        .z80_seq_clear    (1'b0)
     );
 
     // ==========================================
@@ -227,6 +235,8 @@ module z8000_sim_tb;
     reg [1024*8-1:0] bram_hi_path;
     reg [1024*8-1:0] bram_lo_path;
     reg [1024*8-1:0] io_preload_path;
+    reg [1024*8-1:0] io_sequence_path;
+    reg [1024*8-1:0] io_sequence_count_path;
     integer i;
     reg got_halt;
 
@@ -260,6 +270,13 @@ module z8000_sim_tb;
         // Load I/O preloads AFTER reset (so they aren't cleared by rst_n)
         if ($value$plusargs("io_preload=%s", io_preload_path))
             $readmemh(io_preload_path, io_ports.regs);
+        if ($value$plusargs("io_sequence=%s", io_sequence_path)) begin
+            $readmemh(io_sequence_path, io_ports.seq_regs);
+            if ($value$plusargs("io_sequence_count=%s", io_sequence_count_path))
+                $readmemh(io_sequence_count_path, io_ports.seq_count);
+            for (i = 0; i < 12; i = i + 1)
+                io_ports.seq_pos[i] = 3'd0;
+        end
 
         // Release Z8000 reset
         repeat (2) @(posedge clk);

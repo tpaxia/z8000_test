@@ -21,6 +21,7 @@ class TestCase:
     fcw: int = 0x4000                                # Initial FCW (system mode)
     memory: dict[int, int] = field(default_factory=dict)  # {addr: word}
     io_preloads: dict[int, int] = field(default_factory=dict)  # {reg_index: word}
+    io_sequences: dict[int, list[int]] = field(default_factory=dict)  # scripted read FIFO per I/O reg
 
     # Expected results
     expected_regs: dict[int, int] = field(default_factory=dict)

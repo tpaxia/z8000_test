@@ -36,6 +36,7 @@ from .gen_opcode_coverage import (
     generate_opcode_coverage_tests,
     generate_segmented_opcode_coverage_tests,
 )
+from . import test_io
 from .golden import save_golden, load_golden, compare_golden
 from .golden_masks import load_masks, DEFAULT_MASKS_PATH
 from .auto_generate import generate_golden_test_file
@@ -101,6 +102,7 @@ def main():
 
     # Generate tests
     all_tests = list(generate_all_tests())
+    all_tests.extend(test_io.TESTS)
     if args.opcode_coverage and args.target != "z8001-seg":
         all_tests.extend(generate_opcode_coverage_tests())
 

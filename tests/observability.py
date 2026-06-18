@@ -22,6 +22,11 @@ INPUT_BLOCK_MNEMONICS = {
 INPUT_BLOCK_BYTE_MNEMONICS = {
     "INDB", "INDRB", "INIB", "INIRB", "SINDB", "SINDRB", "SINIB", "SINIRB",
 }
+OUTPUT_MNEMONICS = {
+    "OUT", "OUTB", "SOUT", "SOUTB",
+    "OUTD", "OUTDB", "OUTI", "OUTIB", "OTDR", "OTDRB", "OTIR", "OTIRB",
+    "SOUTD", "SOUTDB", "SOUTI", "SOUTIB", "SOTDR", "SOTDRB", "SOTIR", "SOTIRB",
+}
 TRANSLATE_MNEMONICS = {
     "TRDB", "TRDRB", "TRIB", "TRIRB", "TRTDB", "TRTDRB", "TRTIB", "TRTIRB",
 }
@@ -73,6 +78,9 @@ def _add_instruction_observations(tc, mem, io):
     elif mnemonic in INPUT_BLOCK_BYTE_MNEMONICS:
         _observe_block(mem, operands, regs, byte_mode=True,
                        repeat=mnemonic.endswith("R"), decrement="D" in mnemonic)
+    elif mnemonic in OUTPUT_MNEMONICS:
+        _observe_io_operand(io, _operand(operands, 0), regs,
+                            special=mnemonic.startswith("S"))
     elif mnemonic in TRANSLATE_MNEMONICS:
         _observe_block(mem, operands, regs, byte_mode=True,
                        repeat=mnemonic.endswith("R"), decrement="D" in mnemonic)
@@ -148,6 +156,16 @@ def _observe_operand(mem, operand, regs, words=0, bytes_=0):
         mem.add((addr + i * 2) & 0xFFFF)
 
 
+def _observe_io_operand(io, operand, regs, special):
+    addr = _effective_addr(operand, regs)
+    if addr is None:
+        return
+    if (addr & 0xFFF0) != 0x0100 or (addr & 0x000E) > 0x000A:
+        return
+    idx = ((addr >> 1) & 0x07) + (6 if special else 0)
+    io.add(idx)
+
+
 def _observe_block(mem, operands, regs, byte_mode, repeat, decrement):
     dest = _effective_addr(_operand(operands, 0), regs)
     if dest is None:
@@ -187,7 +205,7 @@ def _effective_addr(operand, regs):
     if operand.startswith("@"):
         return regs.get(_reg_num(operand[1:]), 0)
 
-    m = re.fullmatch(r"0x([0-9a-f]+)", operand)
+    m = re.fullmatch(r"#?0x([0-9a-f]+)", operand)
     if m:
         return int(m.group(1), 16)
 
@@ -195,7 +213,15 @@ def _effective_addr(operand, regs):
     if m:
         return (int(m.group(1), 16) + regs.get(int(m.group(2)), 0)) & 0xFFFF
 
-    m = re.fullmatch(r"r(\d+)\(r(\d+)\)", operand)
+    m = re.fullmatch(r"(?:rr|r)(\d+)\(#0x([0-9a-f]+)\)", operand)
+    if m:
+        return (regs.get(int(m.group(1)), 0) + int(m.group(2), 16)) & 0xFFFF
+
+    m = re.fullmatch(r"(?:rr|r)(\d+)\(#([0-9]+)\)", operand)
+    if m:
+        return (regs.get(int(m.group(1)), 0) + int(m.group(2), 10)) & 0xFFFF
+
+    m = re.fullmatch(r"(?:rr|r)(\d+)\(r(\d+)\)", operand)
     if m:
         return (regs.get(int(m.group(1)), 0) + regs.get(int(m.group(2)), 0)) & 0xFFFF
 
@@ -217,4 +243,3 @@ def _immediate_count(operand, default):
     if not m:
         return default
     return int(m.group(1), 16 if "0x" in m.group(0) else 10)
-

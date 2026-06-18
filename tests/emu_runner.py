@@ -100,6 +100,9 @@ class EmuRunner:
         # I/O preloads
         for idx, val in sorted(tc.io_preloads.items()):
             lines.append(f"IO:{idx}:{val:04X}")
+        for idx, values in sorted(tc.io_sequences.items()):
+            for slot, val in enumerate(values[:4]):
+                lines.append(f"IOSEQ:{idx}:{slot}:{val & 0xFFFF:04X}")
 
         # Memory readback addresses for verification or golden comparison
         for addr in sorted(set(tc.expected_memory) | set(tc.observe_memory)):

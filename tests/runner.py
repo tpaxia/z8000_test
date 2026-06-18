@@ -30,8 +30,11 @@ class TestRunner:
             self.harness.write_mem(addr, val)
 
         # 3b. Preload I/O port registers
+        self.harness.clear_io_sequences()
         for idx, val in tc.io_preloads.items():
             self.harness.write_io_port(idx, val)
+        for idx, values in tc.io_sequences.items():
+            self.harness.write_io_sequence(idx, values)
 
         # 4. Load test code at CODE_BASE + append JP dump_routine
         jp = JP_DUMP_SEG if self.target == "z8001-seg" else JP_DUMP

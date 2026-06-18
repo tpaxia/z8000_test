@@ -28,6 +28,7 @@ struct TestSpec {
     uint16_t fcw = 0x4000;
     std::map<uint16_t, uint16_t> mem_preloads;
     std::map<int, uint16_t> io_preloads;
+    std::map<int, std::vector<uint16_t>> io_sequences;
     std::vector<uint16_t> verify_mem;
     std::vector<int> verify_io;
     bool z8001_mode = false;
@@ -98,6 +99,22 @@ static bool parse_spec(const char* path, TestSpec& spec) {
             uint16_t val = parse_hex16(line.substr(first + 1));
             spec.io_preloads[idx] = val;
 
+        } else if (line.substr(0, 6) == "IOSEQ:") {
+            // IOSEQ:index:slot:val
+            auto first = line.find(':', 6);
+            if (first == std::string::npos) continue;
+            auto second = line.find(':', first + 1);
+            if (second == std::string::npos) continue;
+            int idx = std::stoi(line.substr(6, first - 6));
+            int slot = std::stoi(line.substr(first + 1, second - first - 1));
+            uint16_t val = parse_hex16(line.substr(second + 1));
+            if (idx >= 0 && idx < 12 && slot >= 0 && slot < 4) {
+                auto& seq = spec.io_sequences[idx];
+                if (seq.size() < static_cast<size_t>(slot + 1))
+                    seq.resize(slot + 1, 0);
+                seq[slot] = val;
+            }
+
         } else if (line.substr(0, 11) == "VERIFY_MEM:") {
             spec.verify_mem.push_back(parse_hex16(line.substr(11)));
 
@@ -159,6 +176,9 @@ int main(int argc, char* argv[]) {
     // Set I/O preloads
     for (auto& [idx, val] : spec.io_preloads) {
         io.preload(idx, val);
+    }
+    for (auto& [idx, values] : spec.io_sequences) {
+        io.preload_sequence(idx, values);
     }
 
     // Create CPU (Z8001 segmented or Z8002 non-segmented)

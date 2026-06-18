@@ -447,9 +447,8 @@ def generate_segmented_tests():
     # ---- Test 17f: LDL via BA (segmented register-PAIR base + immediate disp) ----
     # Mirrors PCOS `ldl rr10, rr2(#4)` (opcode 0x35, LDL base+disp). Base RR2 =
     # seg0:0x400, disp #4 -> load the 32-bit value at seg0:0x404 into RR10.
-    # NOTE: the only existing 0x35 seg test (seg_cov_239) is LDRL (PC-relative,
-    # rs=0); the base-register form (rs!=0) is otherwise uncovered. The
-    # seg_cov_218 "ldl_ba" test actually encodes X-mode (0x54) with an odd base.
+    # NOTE: seg_cov_218 also covers the generated BA form. Keep this targeted
+    # test as a stronger segmented-pair check with a known 32-bit value.
     # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
     #   200: 7602 8000 0400    lda  rr2,0x400
     #   206: 352a 0004         ldl  rr10,rr2(#0x4)
@@ -467,9 +466,8 @@ def generate_segmented_tests():
     # ---- Test 17g: LDA via BA (segmented register-PAIR base + immediate disp) ----
     # `lda rr8, rr2(#4)` (opcode 0x34, LDA base+disp). Base RR2 = seg0:0x400,
     # disp #4 -> RR8 receives the effective segmented address seg0:0x404 (no
-    # memory read). dest(RR8) != base(RR2). NOTE: the only existing 0x34 seg test
-    # (seg_cov_175) is LDAR (PC-relative, rs=0); the cov_173 "lda_ba" test is
-    # actually opcode 0x76 (indexed). The base-register form is otherwise uncovered.
+    # memory read). dest(RR8) != base(RR2). NOTE: seg_cov_173 also covers the
+    # generated BA form. Keep this targeted test as a stronger segmented-pair check.
     # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
     #   200: 7602 8000 0400    lda  rr2,0x400
     #   206: 3428 0004         lda  rr8,rr2(#0x4)

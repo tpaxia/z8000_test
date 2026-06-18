@@ -46,6 +46,22 @@ DYNAMIC_SHIFT_MNEMONICS = {"SDA", "SDAB", "SDAL", "SDL", "SDLB", "SDLL"}
 DYNAMIC_BIT_MNEMONICS = {"BIT", "BITB", "SET", "SETB", "RES", "RESB"}
 RELATIVE_LOAD_MNEMONICS = {"LDR", "LDRB", "LDRL"}
 TRANSLATE_MNEMONICS = {"TRDB", "TRDRB", "TRIB", "TRIRB"}
+TRANSLATE_TEST_MNEMONICS = {"TRTDB", "TRTDRB", "TRTIB", "TRTIRB"}
+BLOCK_POINTER_MNEMONICS = {
+    "CPI", "CPIR", "CPD", "CPDR", "CPIB", "CPIRB", "CPDB", "CPDRB",
+    "CPSI", "CPSIR", "CPSD", "CPSDR", "CPSIB", "CPSIRB", "CPSDB", "CPSDRB",
+    "LDI", "LDIR", "LDD", "LDDR", "LDIB", "LDIRB", "LDDB", "LDDRB",
+    "TRDB", "TRDRB", "TRIB", "TRIRB",
+    "TRTDB", "TRTDRB", "TRTIB", "TRTIRB",
+}
+BLOCK_INPUT_MNEMONICS = {
+    "IND", "INDB", "INDR", "INDRB", "INI", "INIB", "INIR", "INIRB",
+    "SIND", "SINDB", "SINDR", "SINDRB", "SINI", "SINIB", "SINIR", "SINIRB",
+}
+BLOCK_OUTPUT_MNEMONICS = {
+    "OUTD", "OUTDB", "OUTI", "OUTIB", "OTDR", "OTDRB", "OTIR", "OTIRB",
+    "SOUTD", "SOUTDB", "SOUTI", "SOUTIB", "SOTDR", "SOTDRB", "SOTIR", "SOTIRB",
+}
 OUTPUT_MNEMONICS = {
     "OUT", "OUTB", "OUTD", "OUTDB", "OUTI", "OUTIB", "OTDR", "OTDRB",
     "OTIR", "OTIRB", "SOUTD", "SOUTDB", "SOUTI", "SOUTIB", "SOTDR",
@@ -90,12 +106,13 @@ def _make_test(index, row, segmented=False):
     if mnemonic in SKIP_MNEMONICS:
         return None
 
-    asm = _instantiate(row["syntax"], segmented=segmented)
-    words = _assemble(asm)
+    mode = row["addressing_mode"]
+    asm = _instantiate(row["syntax"], segmented=segmented, mode=mode)
+    use_z8001_asm = segmented and mode in {"IR", "BA", "BX"}
+    words = _assemble(asm, z8001=use_z8001_asm)
     if words is None:
         return None
 
-    mode = row["addressing_mode"]
     name = (
         f"cov_{index:03d}_{mnemonic.lower()}_"
         f"{_mode_name(mode)}_{_slug(row['syntax'])}"
@@ -155,9 +172,14 @@ def _base_regs(mnemonic=None, asm=""):
         regs[1] = 0x0500
         regs[2] = OPERAND_BASE
         regs[4] = 0x0001
-    for reg in _indirect_registers(asm):
-        regs[reg] = _pointer_base_for(mnemonic, asm, reg)
+    if mnemonic not in BLOCK_POINTER_MNEMONICS:
+        for reg in _indirect_registers(asm):
+            regs[reg] = _pointer_base_for(mnemonic, asm, reg)
     for reg in _address_index_registers(asm):
+        regs[reg] = OPERAND_BASE
+    for reg in _base_displacement_registers(asm):
+        regs[reg] = OPERAND_BASE
+    for reg in _base_index_base_registers(asm):
         regs[reg] = OPERAND_BASE
     for reg in _base_index_registers(asm):
         regs[reg] = 0x0010
@@ -165,7 +187,10 @@ def _base_regs(mnemonic=None, asm=""):
 
 
 def _indirect_registers(asm):
-    return {int(m.group(1)) for m in re.finditer(r"@r(\d+)", asm)}
+    return {
+        int(m.group(1) or m.group(2))
+        for m in re.finditer(r"@(?:rr(\d+)|r(\d+))", asm)
+    }
 
 
 def _address_index_registers(asm):
@@ -173,7 +198,24 @@ def _address_index_registers(asm):
 
 
 def _base_index_registers(asm):
-    return {int(m.group(1)) for m in re.finditer(r"\br\d+\(r(\d+)\)", asm)}
+    return {
+        int(m.group(1))
+        for m in re.finditer(r"\b(?:rr?\d+)\(r(\d+)\)", asm)
+    }
+
+
+def _base_index_base_registers(asm):
+    return {
+        int(m.group(1))
+        for m in re.finditer(r"\b(?:rr|r)(\d+)\(r\d+\)", asm)
+    }
+
+
+def _base_displacement_registers(asm):
+    return {
+        int(m.group(1))
+        for m in re.finditer(r"\b(?:rr|r)(\d+)\(#", asm)
+    }
 
 
 def _pointer_base_for(mnemonic, asm, reg):
@@ -228,7 +270,7 @@ def _setup_relative_load_memory(memory, asm, words):
         memory[(target + 2) & 0xFFFF] = 0x0604
 
 
-def _instantiate(syntax, segmented=False):
+def _instantiate(syntax, segmented=False, mode=None):
     parts = syntax.split(" ", 1)
     mnemonic = parts[0]
     operands = parts[1] if len(parts) > 1 else ""
@@ -256,17 +298,26 @@ def _instantiate(syntax, segmented=False):
         ("cc", "f"),
         ("flags", "c"),
         ("int", "vi"),
-        ("port", "0x0002"),
         ("address", "0x0400"),
         ("addr", "0x0010"),
         ("#data", "#0x0001"),
-        ("#disp", "0x0010"),
+        ("#disp", "#0x0010"),
         ("#src", "#0"),
         ("#n", "#1"),
         ("#b", "#1"),
     ]
     for src, dst in replacements:
         operands = operands.replace(src, dst)
+    operands = operands.replace("port", f"#{_io_port_for(mnemonic):#06x}")
+
+    if segmented and mode in {"BA", "BX"} and mnemonic == "LDA":
+        operands = re.sub(r"^r8(?=,|$)", "rr8", operands)
+
+    if segmented and mode in {"BA", "BX"}:
+        operands = _segmented_pair_base_operands(operands)
+
+    if segmented and mode == "IR":
+        operands = _segmented_indirect_operands(mnemonic, operands)
 
     src_reg = "r5" if segmented else "r1"
 
@@ -306,6 +357,31 @@ def _instantiate(syntax, segmented=False):
     return (mnemonic + (f" {operands}" if operands else "")).lower()
 
 
+def _segmented_pair_base_operands(operands):
+    """Use Z8001 register-pair syntax for BA/BX memory base operands."""
+    operands = re.sub(r"\br5(?=\(#)", "rr4", operands)
+    operands = re.sub(r"\br5(?=\(r)", "rr4", operands)
+    operands = re.sub(r"\br8(?=\(#)", "rr8", operands)
+    operands = re.sub(r"\br8(?=\(r)", "rr8", operands)
+    return operands
+
+
+def _segmented_indirect_operands(mnemonic, operands):
+    """Use Z8001 pair syntax only for operands that address memory."""
+    if mnemonic in BLOCK_INPUT_MNEMONICS:
+        operands = re.sub(r"@r8\b", "@rr8", operands)
+    elif mnemonic in BLOCK_OUTPUT_MNEMONICS:
+        operands = re.sub(r"@r5\b", "@rr4", operands)
+    elif mnemonic in TRANSLATE_MNEMONICS | TRANSLATE_TEST_MNEMONICS:
+        operands = re.sub(r"@r9\b", "@rr8", operands)
+        operands = re.sub(r"@r8\b", "@rr8", operands)
+        operands = re.sub(r"@r5\b", "@rr4", operands)
+    else:
+        operands = re.sub(r"@r5\b", "@rr4", operands)
+        operands = re.sub(r"@r8\b", "@rr8", operands)
+    return operands
+
+
 def _segmented_replacements():
     return [
         ("Rs1", "r9"),
@@ -329,11 +405,10 @@ def _segmented_replacements():
         ("cc", "f"),
         ("flags", "c"),
         ("int", "vi"),
-        ("port", "0x0002"),
         ("address", "0x0400"),
         ("addr", "0x0010"),
         ("#data", "#0x0001"),
-        ("#disp", "0x0010"),
+        ("#disp", "#0x0010"),
         ("#src", "#0"),
         ("#n", "#1"),
         ("#b", "#1"),
@@ -341,15 +416,16 @@ def _segmented_replacements():
 
 
 @lru_cache(maxsize=None)
-def _assemble(asm):
+def _assemble(asm, z8001=False):
     with tempfile.TemporaryDirectory() as td:
         src = os.path.join(td, "test.s")
         obj = os.path.join(td, "test.o")
         with open(src, "w") as f:
             f.write(f"    {asm}\n")
 
+        cpu = "-z8001" if z8001 else "-z8002"
         result = subprocess.run(
-            ["z8k-coff-as", "-z8002", src, "-o", obj],
+            ["z8k-coff-as", cpu, src, "-o", obj],
             capture_output=True,
             text=True,
         )
