@@ -349,6 +349,166 @@ def generate_segmented_tests():
         regs={0: 0x0000},
     ))
 
+    # ---- Test 17b: PUSHL @RR4, RR6 (long push via segmented register-PAIR pointer) ----
+    # Mirrors PCOS calluser.s `pushl @rr4, rr6`: the stack pointer is an arbitrary
+    # register pair (not RR14/RR15) and the pushed value is a 32-bit seg:offset.
+    # RR4 = seg0:0xF00 (pointer), RR6 = seg0:0x430 (value). PUSHL predecrements RR4
+    # by 4 then stores RR6 at the new RR4. Observe the two pushed words.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 7604 8000 0f00    lda   rr4,0xf00
+    #   206: 7606 8000 0430    lda   rr6,0x430
+    #   20c: 9146              pushl @rr4,rr6
+    tests.append(_tc(
+        name='seg_pushl_ir_rr_seg0',
+        mnemonic='PUSHL',
+        desc='PUSHL @RR4, RR6 (long push via segmented register-pair pointer)',
+        tags=['segmented', 'seg0', 'pushl', 'stack', 'ir_pair'],
+        code=[0x7604, 0x8000, 0x0F00,
+              0x7606, 0x8000, 0x0430,
+              0x9146],
+        regs={4: 0x0000, 5: 0x0000, 6: 0x0000, 7: 0x0000},
+    ))
+    tests[-1].observe_memory = [0x0EFC, 0x0EFE]
+
+    # ---- Test 17c: PUSHL then POPL round-trip via segmented register-PAIR pointer ----
+    # Exercises both PUSHL @RR4,RR6 and POPL RR8,@RR4. After the round-trip RR8
+    # should equal RR6 and RR4 should return to seg0:0xF00.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 7604 8000 0f00    lda   rr4,0xf00
+    #   206: 7606 8000 0430    lda   rr6,0x430
+    #   20c: 9146              pushl @rr4,rr6
+    #   20e: 9548              popl  rr8,@rr4
+    tests.append(_tc(
+        name='seg_pushl_popl_ir_rr_seg0',
+        mnemonic='PUSHL',
+        desc='PUSHL @RR4,RR6 then POPL RR8,@RR4 (segmented pair pointer round-trip)',
+        tags=['segmented', 'seg0', 'pushl', 'popl', 'stack', 'ir_pair'],
+        code=[0x7604, 0x8000, 0x0F00,
+              0x7606, 0x8000, 0x0430,
+              0x9146, 0x9548],
+        regs={4: 0x0000, 5: 0x0000, 6: 0x0000, 7: 0x0000,
+              8: 0x0000, 9: 0x0000},
+    ))
+    tests[-1].observe_memory = [0x0EFC, 0x0EFE]
+
+    # ---- Test 17d: LD word via BX (segmented register-PAIR base + index) ----
+    # Mirrors PCOS reloc_type4_word `ld rr2(r7), r6` (STORE) / `ld r6, rr2(r7)`.
+    # Base RR2 = seg0:0x400, index R7 = 0x10 -> effective offset 0x410. Store R6
+    # (0xBEEF) there, then load it back into R8. NOTE: the segmented assembler
+    # requires a register-PAIR base here; the existing seg_cov_161/166 BX tests use
+    # a word-register base (-z8002 encoding) and do NOT exercise this form.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 7602 8000 0400    lda  rr2,0x400
+    #   206: 2107 0010         ld   r7,#0x10
+    #   20a: 2106 beef         ld   r6,#0xbeef
+    #   20e: 7326 0700         ld   rr2(r7),r6
+    #   212: 7128 0700         ld   r8,rr2(r7)
+    tests.append(_tc(
+        name='seg_ld_bx_store_rr_seg0',
+        mnemonic='LD',
+        desc='LD rr2(r7),r6 then LD r8,rr2(r7) (segmented pair-base indexed word store/load)',
+        tags=['segmented', 'seg0', 'ld', 'bx_pair', 'indexed', 'store'],
+        code=[0x7602, 0x8000, 0x0400,
+              0x2107, 0x0010,
+              0x2106, 0xBEEF,
+              0x7326, 0x0700,
+              0x7128, 0x0700],
+        regs={2: 0x0000, 3: 0x0000, 6: 0x0000, 7: 0x0000, 8: 0x0000},
+        memory={SEG0_LONG_ADDR + 0x10: 0x0000},
+    ))
+    tests[-1].observe_memory = [SEG0_LONG_ADDR + 0x10]
+
+    # ---- Test 17e: LDB byte via BX (segmented register-PAIR base + index) ----
+    # Mirrors PCOS reloc_type5_seg `ldb rr2(r7), rh6` (STORE) / `ldb rh6, rr2(r7)`.
+    # Base RR2 = seg0:0x400, index R7 = 0x11 (odd lane) -> offset 0x411. Store byte
+    # 0xA5 there, then load it back into RH0. mem[0x410] is preloaded so the
+    # unaffected (high) byte is observable.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 7602 8000 0400    lda  rr2,0x400
+    #   206: 2107 0011         ld   r7,#0x11
+    #   20a: c6a5              ldb  rh6,#0xa5
+    #   20c: 7226 0700         ldb  rr2(r7),rh6
+    #   210: 7020 0700         ldb  rh0,rr2(r7)
+    tests.append(_tc(
+        name='seg_ldb_bx_store_rr_seg0',
+        mnemonic='LDB',
+        desc='LDB rr2(r7),rh6 then LDB rh0,rr2(r7) (segmented pair-base indexed byte store/load)',
+        tags=['segmented', 'seg0', 'ldb', 'bx_pair', 'indexed', 'store', 'byte'],
+        code=[0x7602, 0x8000, 0x0400,
+              0x2107, 0x0011,
+              0xC6A5,
+              0x7226, 0x0700,
+              0x7020, 0x0700],
+        regs={0: 0x0000, 2: 0x0000, 3: 0x0000, 6: 0x0000, 7: 0x0000},
+        memory={SEG0_LONG_ADDR + 0x10: 0x1234},
+    ))
+    tests[-1].observe_memory = [SEG0_LONG_ADDR + 0x10]
+
+    # ---- Test 17f: LDL via BA (segmented register-PAIR base + immediate disp) ----
+    # Mirrors PCOS `ldl rr10, rr2(#4)` (opcode 0x35, LDL base+disp). Base RR2 =
+    # seg0:0x400, disp #4 -> load the 32-bit value at seg0:0x404 into RR10.
+    # NOTE: the only existing 0x35 seg test (seg_cov_239) is LDRL (PC-relative,
+    # rs=0); the base-register form (rs!=0) is otherwise uncovered. The
+    # seg_cov_218 "ldl_ba" test actually encodes X-mode (0x54) with an odd base.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 7602 8000 0400    lda  rr2,0x400
+    #   206: 352a 0004         ldl  rr10,rr2(#0x4)
+    tests.append(_tc(
+        name='seg_ldl_ba_rr_seg0',
+        mnemonic='LDL',
+        desc='LDL RR10, RR2(#4) (segmented pair-base + immediate displacement)',
+        tags=['segmented', 'seg0', 'ldl', 'ba_pair', 'based'],
+        code=[0x7602, 0x8000, 0x0400,
+              0x352A, 0x0004],
+        regs={2: 0x0000, 3: 0x0000, 10: 0x0000, 11: 0x0000},
+        memory={SEG0_LONG_ADDR + 4: 0x1234, SEG0_LONG_ADDR + 6: 0x5678},
+    ))
+
+    # ---- Test 17g: LDA via BA (segmented register-PAIR base + immediate disp) ----
+    # `lda rr8, rr2(#4)` (opcode 0x34, LDA base+disp). Base RR2 = seg0:0x400,
+    # disp #4 -> RR8 receives the effective segmented address seg0:0x404 (no
+    # memory read). dest(RR8) != base(RR2). NOTE: the only existing 0x34 seg test
+    # (seg_cov_175) is LDAR (PC-relative, rs=0); the cov_173 "lda_ba" test is
+    # actually opcode 0x76 (indexed). The base-register form is otherwise uncovered.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 7602 8000 0400    lda  rr2,0x400
+    #   206: 3428 0004         lda  rr8,rr2(#0x4)
+    tests.append(_tc(
+        name='seg_lda_ba_rr_seg0',
+        mnemonic='LDA',
+        desc='LDA RR8, RR2(#4) (segmented pair-base + immediate displacement)',
+        tags=['segmented', 'seg0', 'lda', 'ba_pair', 'based'],
+        code=[0x7602, 0x8000, 0x0400,
+              0x3428, 0x0004],
+        regs={2: 0x0000, 3: 0x0000, 8: 0x0000, 9: 0x0000},
+    ))
+
+    # ---- Test 17h: LDA BA cross-segment (catches stale-segment hazard) ----
+    # `lda rr8, rr4(#4)` must take its SEGMENT from the base RR4, not from
+    # whatever segment was last touched. Prime a different segment first with a
+    # seg1 indirect read, then LDA a seg0 base: the result must be seg0:0x404.
+    #   RR2 = seg1:0x200 (preset), RR4 = seg0:0x400 (preset)
+    #   ld  r0,@rr2       -> reads seg1:0x200 (0xCAFE), sets the data segment to 1
+    #   lda rr8,rr4(#4)   -> RR8 = seg0:0x404   (NOT seg1:0x404)
+    # A soft core that carries the previous segment into the LDA result yields
+    # 8100:0404 here instead of 8000:0404; the hard-CPU golden is 8000:0404.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2120              ld   r0,@rr2
+    #   202: 3448 0004         lda  rr8,rr4(#0x4)
+    tests.append(_tc(
+        name='seg_lda_ba_xseg',
+        mnemonic='LDA',
+        desc='LDA RR8, RR4(#4) after a seg1 read (segment must come from base, not prior access)',
+        tags=['segmented', 'cross_segment', 'lda', 'ba_pair', 'based'],
+        code=[0x2120,
+              0x3448, 0x0004],
+        regs={0: 0x0000,
+              2: 0x8100, 3: 0x0200,   # RR2 = seg1:0x200
+              4: 0x8000, 5: 0x0400,   # RR4 = seg0:0x400
+              8: 0x0000, 9: 0x0000},
+        memory={SEG1_Z80_ADDR: 0xCAFE},
+    ))
+
     # ---- Test 18: LDL RR0 from segment 1 (32-bit load) ----
     # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200, .s1data=seg1:0x200)
     #   200: 5400 8100 0200    ldl  rr0,0x1000200
