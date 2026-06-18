@@ -494,7 +494,9 @@ module z8001_ext_test_top (
         .z8k_rdata     (z8k_io_rdata),
         .z8k_wr        (z8k_io_wr),
         .z8k_rd        (z8k_io_rd),
-        .z8k_bw_n      (z8k_bw_n_sync),
+        // z8001_bus_external exposes 1=word/0=byte for BRAM write enables;
+        // z8k_io_ports expects the CPU B/W_n polarity: 0=word/1=byte.
+        .z8k_bw_n      (~z8k_bw_n_sync),
         .z8k_addr_lsb  (z8k_addr[0]),
         // Z80 side
         .z80_reg_sel   (z80_io_reg_sel),
