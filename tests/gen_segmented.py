@@ -331,6 +331,47 @@ def generate_segmented_tests():
         },
     ))
 
+    # ---- Test 16b: CALL @RR4 (segment 0) ----
+    # Based on z8000_micro/tests/asm/test_z8001_seg.s TEST 31, minimized.
+    #   200: 7604 8000 0216    lda  rr4,0x216
+    #   206: 2100 0000         ld   r0,#0x0
+    #   20a: 1f40              call @rr4
+    #   20c: 2100 aaaa         ld   r0,#0xaaaa        (return path)
+    #   210: 5e08 8000 021c    jp   t,0x21c
+    #   216: 2101 1234         ld   r1,#0x1234        (subroutine)
+    #   21a: 9e08              ret
+    tests.append(_tc(
+        name='seg_call_ir_ret_seg0',
+        mnemonic='CALL',
+        desc='CALL @RR4; RET (segmented indirect call/return)',
+        tags=['segmented', 'seg0', 'call', 'ret', 'IR_mode'],
+        code=[0x7604, 0x8000, 0x0216, 0x2100, 0x0000, 0x1F40,
+              0x2100, 0xAAAA, 0x5E08, 0x8000, 0x021C,
+              0x2101, 0x1234, 0x9E08],
+        regs={0: 0x0000, 1: 0x0000},
+        expected_regs={0: 0xAAAA, 1: 0x1234},
+    ))
+
+    # ---- Test 16c: CALL address(R5) (segment 0) ----
+    #   200: 2105 0018         ld   r5,#0x18
+    #   204: 2100 0000         ld   r0,#0x0
+    #   208: 5f50 8000 0200    call 0x200(r5)
+    #   20e: 2100 aaaa         ld   r0,#0xaaaa        (return path)
+    #   212: 5e08 8000 021e    jp   t,0x21e
+    #   218: 2101 5678         ld   r1,#0x5678        (subroutine)
+    #   21c: 9e08              ret
+    tests.append(_tc(
+        name='seg_call_x_ret_seg0',
+        mnemonic='CALL',
+        desc='CALL 0x0200(R5); RET (segmented indexed call/return)',
+        tags=['segmented', 'seg0', 'call', 'ret', 'X_mode'],
+        code=[0x2105, 0x0018, 0x2100, 0x0000, 0x5F50, 0x8000, 0x0200,
+              0x2100, 0xAAAA, 0x5E08, 0x8000, 0x021E,
+              0x2101, 0x5678, 0x9E08],
+        regs={0: 0x0000, 1: 0x0000, 5: 0x0000},
+        expected_regs={0: 0xAAAA, 1: 0x5678},
+    ))
+
     # ---- Test 17: PUSH/POP @RR14 (segmented stack) ----
     # RR14 stack pointer set up by LDA — never hand-code segmented pointers
     # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200, .s0stk=0xF00)
@@ -507,6 +548,31 @@ def generate_segmented_tests():
         memory={SEG1_Z80_ADDR: 0xCAFE},
     ))
 
+    # ---- Test 17i: LDCTL PSAPOFF reserved-low-byte round-trip ----
+    # Resolves whether the real Z8001 preserves the reserved low byte of PSAPOFF.
+    # Per z8000.md the load takes only PSAPOFF(8:15) and the readback leaves
+    # Rd(0:7) UNDEFINED, so the low byte is architecturally undefined -- but the
+    # hard-CPU golden reveals the chip's ACTUAL behavior (what the BIOS observes):
+    #   R2 = 0x08FF -> chip preserves & returns the low byte (soft core must keep it)
+    #   R2 = 0x08xx (low != FF, e.g. 0x0800) -> chip drops it (masking is fine)
+    # R1 stays 0x08FF (the written value) as a control.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 08ff         ld    r1,#0x8ff
+    #   204: 7d1d              ldctl psapoff,r1
+    #   206: 2102 0000         ld    r2,#0x0
+    #   20a: 7d25              ldctl r2,psapoff
+    tests.append(_tc(
+        name='seg_ldctl_psapoff_lowbyte',
+        mnemonic='LDCTL',
+        desc='LDCTL PSAPOFF,R1(0x08FF) then LDCTL R2,PSAPOFF (reserved low-byte round-trip)',
+        tags=['segmented', 'control', 'ldctl', 'psap', 'reserved_low_byte'],
+        code=[0x2101, 0x08FF,
+              0x7D1D,
+              0x2102, 0x0000,
+              0x7D25],
+        regs={1: 0x0000, 2: 0x0000},
+    ))
+
     # ---- Test 18: LDL RR0 from segment 1 (32-bit load) ----
     # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200, .s1data=seg1:0x200)
     #   200: 5400 8100 0200    ldl  rr0,0x1000200
@@ -545,7 +611,98 @@ def generate_segmented_tests():
         memory={SEG0_LONG_ADDR: 0x0234},
     ))
 
-    # ---- Test 21: SC #0 (System Call trap, segmented) ----
+    # ---- Test 21: IRET (segmented) ----
+    # Stack frame consumed by IRET: identifier, FCW, PCSEG, PC offset.
+    #   200: 7b00                iret
+    #   202: 2100 dead           ld   r0,#0xdead     (failure path)
+    #   206: 5e08 8000 00c0      jp   t,0xc0
+    #   20c: 2100 55aa           ld   r0,#0x55aa     (return target)
+    tests.append(_tc(
+        name='seg_iret_basic',
+        mnemonic='IRET',
+        desc='IRET: restore FCW/PCSEG/PC from segmented system stack',
+        tags=['segmented', 'control', 'iret', 'stack'],
+        code=[0x7B00, 0x2100, 0xDEAD, 0x5E08, 0x8000, 0x00C0,
+              0x2100, 0x55AA],
+        regs={0: 0x0000, 14: 0x8000, 15: STACK_BASE},
+        memory={
+            STACK_BASE: 0x0000,          # Identifier/reserved word
+            STACK_BASE + 2: FCW_SEG,     # Restored FCW
+            STACK_BASE + 4: 0x8000,      # Return PCSEG: segment 0
+            STACK_BASE + 6: 0x020C,      # Return PC offset: success label
+        },
+        expected_regs={0: 0x55AA, 14: 0x8000, 15: STACK_BASE + 8},
+    ))
+
+    # ---- Test 22: LDPS @RRs (segmented) ----
+    # Segmented PS block: reserved, FCW, PCSEG, PC offset.
+    # Based on z8000_micro/tests/asm/test_z8001_seg.s LDPS @RR4 pattern.
+    #   200: 3940                ldps @rr4
+    #   202: 2100 dead           ld   r0,#0xdead     (failure path)
+    #   206: 5e08 8000 00c0      jp   t,0xc0
+    #   20c: 2100 55aa           ld   r0,#0x55aa     (return target)
+    tests.append(_tc(
+        name='seg_ldps_ir_basic',
+        mnemonic='LDPS',
+        desc='LDPS @RR4: load FCW/PCSEG/PC from segmented program status block',
+        tags=['segmented', 'control', 'ldps', 'IR_mode'],
+        code=[0x3940, 0x2100, 0xDEAD, 0x5E08, 0x8000, 0x00C0,
+              0x2100, 0x55AA],
+        regs={0: 0x0000, 4: 0x8000, 5: SEG0_LONG_ADDR},
+        memory={
+            SEG0_LONG_ADDR: 0x0000,
+            SEG0_LONG_ADDR + 2: FCW_SEG,
+            SEG0_LONG_ADDR + 4: 0x8000,
+            SEG0_LONG_ADDR + 6: 0x020C,
+        },
+        expected_regs={0: 0x55AA},
+    ))
+
+    # ---- Test 23: LDPS DA (segmented) ----
+    #   200: 7900 8000 0400      ldps 0x400
+    #   206: 2100 dead           ld   r0,#0xdead     (failure path)
+    #   20a: 5e08 8000 00c0      jp   t,0xc0
+    #   210: 2100 55aa           ld   r0,#0x55aa     (return target)
+    tests.append(_tc(
+        name='seg_ldps_da_basic',
+        mnemonic='LDPS',
+        desc='LDPS seg0:0x400: load FCW/PCSEG/PC from direct program status block',
+        tags=['segmented', 'control', 'ldps', 'DA_mode'],
+        code=[0x7900, 0x8000, SEG0_LONG_ADDR, 0x2100, 0xDEAD,
+              0x5E08, 0x8000, 0x00C0, 0x2100, 0x55AA],
+        regs={0: 0x0000},
+        memory={
+            SEG0_LONG_ADDR: 0x0000,
+            SEG0_LONG_ADDR + 2: FCW_SEG,
+            SEG0_LONG_ADDR + 4: 0x8000,
+            SEG0_LONG_ADDR + 6: 0x0210,
+        },
+        expected_regs={0: 0x55AA},
+    ))
+
+    # ---- Test 24: LDPS X (segmented) ----
+    #   200: 7930 8000 0400      ldps 0x400(r3)
+    #   206: 2100 dead           ld   r0,#0xdead     (failure path)
+    #   20a: 5e08 8000 00c0      jp   t,0xc0
+    #   210: 2100 55aa           ld   r0,#0x55aa     (return target)
+    tests.append(_tc(
+        name='seg_ldps_x_basic',
+        mnemonic='LDPS',
+        desc='LDPS seg0:0x400(R3): load FCW/PCSEG/PC from indexed program status block',
+        tags=['segmented', 'control', 'ldps', 'X_mode'],
+        code=[0x7930, 0x8000, SEG0_LONG_ADDR, 0x2100, 0xDEAD,
+              0x5E08, 0x8000, 0x00C0, 0x2100, 0x55AA],
+        regs={0: 0x0000, 3: 0x0008},
+        memory={
+            SEG0_LONG_ADDR + 8: 0x0000,
+            SEG0_LONG_ADDR + 10: FCW_SEG,
+            SEG0_LONG_ADDR + 12: 0x8000,
+            SEG0_LONG_ADDR + 14: 0x0210,
+        },
+        expected_regs={0: 0x55AA},
+    ))
+
+    # ---- Test 25: SC #0 (System Call trap, segmented) ----
     # Sets up PSAP and system stack, executes SC, handler loads R0 marker.
     # Stack frame (4 words pushed): identifier, old FCW, PCSEG, PC offset
     # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)

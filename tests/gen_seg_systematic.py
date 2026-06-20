@@ -22,6 +22,10 @@ _SKIP_TESTS = {
     'sys_lda_r_da_operand',   # LDA semantics change in segmented mode
     'sys_lda_r_da_src',       # LDA semantics change in segmented mode
     'sys_ldctl_write_fcw',    # Would clear SEG bit, breaking dump routine
+    'sys_iret_basic',         # Hand-written segmented IRET setup in gen_segmented.py
+    'sys_ldps_ir_basic',      # Hand-written segmented LDPS setup in gen_segmented.py
+    'sys_ldps_da_basic',
+    'sys_ldps_x_basic',
 }
 
 _PORT_INDIRECT_MNEMONICS = {'IN', 'INB', 'OUT', 'OUTB'}

@@ -127,6 +127,44 @@ def _div_overflow_rule(test, golden):
     return _div_dest_register_fields(test) | {"flag_S"}
 
 
+_SHIFT_MNEMONICS = {
+    "SDA", "SDAB", "SDAL", "SDL", "SDLB", "SDLL",
+    "SLA", "SLAB", "SLAL", "SLL", "SLLB", "SLLL",
+    "SRA", "SRAB", "SRAL", "SRL", "SRLB", "SRLL",
+}
+
+
+def _shift_zero_carry_rule(test, golden):
+    """Shift by zero positions: the C flag is architecturally undefined.
+
+    Per z8000.md (SDA/SDL/SLL families): "A shift of zero positions does not
+    affect the destination; however, the flags are set according to the
+    destination value.  The setting of the carry bit is undefined for zero
+    shift."  Z and S remain defined (set from the destination), so only C is
+    masked.  The 'zero_shift' tag marks the count-0 test variants.
+    """
+    if test.mnemonic not in _SHIFT_MNEMONICS:
+        return None
+    if "zero_shift" not in getattr(test, "tags", ()):
+        return None
+    return {"flag_C"}
+
+
+_TRANSLATE_MNEMONICS = {"TRDB", "TRDRB", "TRIB", "TRIRB"}
+
+
+def _translate_zero_flag_rule(test, golden):
+    """Translate instructions leave the Z flag architecturally undefined.
+
+    Per z8000.md (TRDB/TRDRB/TRIB/TRIRB): only V is defined (set if the counter
+    decrements to zero); C/S/D/H are unaffected and Z is listed as Undefined.
+    So Z is masked; everything else is still compared.
+    """
+    if test.mnemonic not in _TRANSLATE_MNEMONICS:
+        return None
+    return {"flag_Z"}
+
+
 BUILTIN_RULES = [
     MaskRule(
         name="div_overflow_case3",
@@ -134,6 +172,18 @@ BUILTIN_RULES = [
                 "destination register and S flag are architecturally undefined "
                 "(z8000.md DIV)."),
         fn=_div_overflow_rule,
+    ),
+    MaskRule(
+        name="shift_zero_carry",
+        reason=("Shift by zero positions: the C flag is architecturally "
+                "undefined (z8000.md SDA/SDL/SLL: \"undefined for zero shift\")."),
+        fn=_shift_zero_carry_rule,
+    ),
+    MaskRule(
+        name="translate_zero_flag",
+        reason=("Translate instructions (TRDB/TRDRB/TRIB/TRIRB): the Z flag is "
+                "architecturally undefined (z8000.md); only V is defined."),
+        fn=_translate_zero_flag_rule,
     ),
 ]
 

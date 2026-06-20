@@ -20,7 +20,7 @@ from .observability import add_observations
 
 
 def _tc(name, mnemonic, desc, tags, code, regs=None, fcw=FCW_SYS,
-        memory=None):
+        memory=None, expected_regs=None):
     """Shorthand TestCase constructor for systematic tests."""
     return TestCase(
         name=name,
@@ -31,6 +31,7 @@ def _tc(name, mnemonic, desc, tags, code, regs=None, fcw=FCW_SYS,
         regs=regs or {},
         fcw=fcw,
         memory=memory or {},
+        expected_regs=expected_regs or {},
     )
 
 
@@ -10900,6 +10901,89 @@ def generate_all_tests():
             tags=['control', 'ldctl', 'byte'],
             code=[0x8C09],
             regs={0: 0xF000},
+        ),
+
+        # ---- IRET / LDPS targeted control-flow tests ----
+        # These opcodes are intentionally not one-instruction opcode-smoke
+        # tests because they load PC/FCW and do not naturally fall through.
+
+        # IRET stack frame (non-segmented): identifier, FCW, PC.
+        #   0200: 7b00                iret
+        #   0202: 2100 dead           ld r0,#0xdead      (failure path)
+        #   0206: 5e08 00c0           jp t,0x00c0
+        #   020a: 2100 55aa           ld r0,#0x55aa      (return target)
+        _tc(
+            name='sys_iret_basic',
+            mnemonic='IRET',
+            desc='IRET: restore FCW/PC from system stack',
+            tags=['control', 'iret', 'stack'],
+            code=[0x7B00, 0x2100, 0xDEAD, 0x5E08, 0x00C0, 0x2100, 0x55AA],
+            regs={0: 0x0000, 15: STACK_BASE},
+            memory={
+                STACK_BASE: 0x0000,          # Identifier/reserved word
+                STACK_BASE + 2: FCW_SYS,     # Restored FCW
+                STACK_BASE + 4: CODE_BASE + 10,  # Return PC: success label
+            },
+            expected_regs={0: 0x55AA, 15: STACK_BASE + 6},
+        ),
+
+        # LDPS @Rs, non-segmented PS block: FCW, PC.
+        #   0200: 3930                ldps @r3
+        #   0202: 2100 dead           ld r0,#0xdead      (failure path)
+        #   0206: 5e08 00c0           jp t,0x00c0
+        #   020a: 2100 55aa           ld r0,#0x55aa      (return target)
+        _tc(
+            name='sys_ldps_ir_basic',
+            mnemonic='LDPS',
+            desc='LDPS @R3: load FCW/PC from program status block',
+            tags=['control', 'ldps', 'IR_mode'],
+            code=[0x3930, 0x2100, 0xDEAD, 0x5E08, 0x00C0, 0x2100, 0x55AA],
+            regs={0: 0x0000, 3: OPERAND_BASE},
+            memory={
+                OPERAND_BASE: FCW_SYS,
+                OPERAND_BASE + 2: CODE_BASE + 10,
+            },
+            expected_regs={0: 0x55AA},
+        ),
+
+        # LDPS DA, non-segmented PS block: FCW, PC.
+        #   0200: 7900 0400           ldps 0x0400
+        #   0204: 2100 dead           ld r0,#0xdead      (failure path)
+        #   0208: 5e08 00c0           jp t,0x00c0
+        #   020c: 2100 55aa           ld r0,#0x55aa      (return target)
+        _tc(
+            name='sys_ldps_da_basic',
+            mnemonic='LDPS',
+            desc='LDPS 0x0400: load FCW/PC from direct program status block',
+            tags=['control', 'ldps', 'DA_mode'],
+            code=[0x7900, OPERAND_BASE, 0x2100, 0xDEAD,
+                  0x5E08, 0x00C0, 0x2100, 0x55AA],
+            regs={0: 0x0000},
+            memory={
+                OPERAND_BASE: FCW_SYS,
+                OPERAND_BASE + 2: CODE_BASE + 12,
+            },
+            expected_regs={0: 0x55AA},
+        ),
+
+        # LDPS X, non-segmented PS block: FCW, PC.
+        #   0200: 7930 0400           ldps 0x0400(r3)
+        #   0204: 2100 dead           ld r0,#0xdead      (failure path)
+        #   0208: 5e08 00c0           jp t,0x00c0
+        #   020c: 2100 55aa           ld r0,#0x55aa      (return target)
+        _tc(
+            name='sys_ldps_x_basic',
+            mnemonic='LDPS',
+            desc='LDPS 0x0400(R3): load FCW/PC from indexed program status block',
+            tags=['control', 'ldps', 'X_mode'],
+            code=[0x7930, OPERAND_BASE, 0x2100, 0xDEAD,
+                  0x5E08, 0x00C0, 0x2100, 0x55AA],
+            regs={0: 0x0000, 3: 0x0004},
+            memory={
+                OPERAND_BASE + 4: FCW_SYS,
+                OPERAND_BASE + 6: CODE_BASE + 12,
+            },
+            expected_regs={0: 0x55AA},
         ),
 
         # ================================================================
