@@ -6216,6 +6216,21 @@ def generate_all_tests():
             regs={0: 0x0000, 1: 0x0000, 2: 0xFFFF, 3: 0xFFFE, 4: 0x0000, 5: 0xFFFF},
         ),
 
+        # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_divl_rq_rr_case4
+        #   0000: 9a40                divl	rq0,rr4
+        # CASE 4 (partial result): quotient 0xC0000000 is outside +/-2^31 but
+        # inside +/-2^32, so V=1 and C=1.  It is positive as a 33-bit value
+        # (bit 32 = 0), so S must be 0 -- even though the truncated low 32 bits
+        # (0xC0000000) have bit 31 set.  Exercises the DIVL CASE-4 sign flag.
+        _tc(
+            name='sys_divl_rq_rr_case4',
+            mnemonic='DIVL',
+            desc='DIVL RQ0, RR4: 0x0000000180000000 / 0x00000002 (CASE 4, quotient 0xC0000000)',
+            tags=['mult_div', 'long'],
+            code=[0x9A40],
+            regs={0: 0x0000, 1: 0x0001, 2: 0x8000, 3: 0x0000, 4: 0x0000, 5: 0x0002},
+        ),
+
         # ASSEMBLER-VERIFIED LISTING — DO NOT MODIFY:sys_dab_add_no_adj
         #   21b00: b000                dab	rh0
         _tc(
