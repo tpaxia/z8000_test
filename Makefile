@@ -113,6 +113,18 @@ for i in range(0, len(data), 8): \
     print(line.rstrip()); \
 "
 
+# Microcode ROM block-RAM init images (for BRAM_UCODE builds: Gowin + sim).
+# Generates microcode_rom_z8001.mem / _z8002.mem at the repo root from the
+# committed microcode source. Re-run after regenerating the microcode (the
+# submodule's `make -C z8000_micro/uasm`).
+.PHONY: ucode-mem
+ucode-mem: microcode_rom_z8001.mem microcode_rom_z8002.mem
+
+microcode_rom_z8001.mem microcode_rom_z8002.mem: \
+		z8000_micro/rtl/microcode_rom_z8001.v z8000_micro/rtl/microcode_rom_z8002.v \
+		scripts/gen_ucode_mem.py
+	python3 scripts/gen_ucode_mem.py
+
 #
 # Z80 Harness Simulation (without Z8000 - tests harness only)
 #
