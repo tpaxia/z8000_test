@@ -729,6 +729,22 @@ do_init:
         xor a
         out (0x14), a
 
+        ; Clear the 8KB Z8000 data RAM (0x0000-0x1FFE, 4096 words) so memory
+        ; the test does not explicitly write is deterministic (zero), matching
+        ; the zero-initialized sim/emu.  Runs with reset asserted, before the
+        ; bootstrap copy and the per-test WM setup, which land on top of it.
+        ld de, 0x0000               ; address
+        ld hl, 0x0000               ; fill value
+        ld bc, 0x1000               ; 4096 words
+init_clear_loop:
+        call z8kw
+        inc de
+        inc de
+        dec bc
+        ld a, b
+        or c
+        jp nz, init_clear_loop
+
         ; Read bootstrap word count from BRAM 0x3FFE
         ld de, 0x3FFE
         call z8kr                   ; HL = word count
