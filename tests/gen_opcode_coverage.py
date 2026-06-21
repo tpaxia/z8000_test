@@ -62,6 +62,18 @@ BLOCK_OUTPUT_MNEMONICS = {
     "OUTD", "OUTDB", "OUTI", "OUTIB", "OTDR", "OTDRB", "OTIR", "OTIRB",
     "SOUTD", "SOUTDB", "SOUTI", "SOUTIB", "SOTDR", "SOTDRB", "SOTIR", "SOTIRB",
 }
+# Block instructions that WRITE memory at @Rdest (transfer, translate, input).
+# Their opcode-coverage destination pointer is relocated to a safe scratch
+# offset so the write can never land on the bootstrap dump routine.  This
+# mirrors the segmented side (gen_seg_systematic._SEG_BLOCK_DST_OFFSET); using
+# the same offset keeps the two modes consistent.
+BLOCK_WRITE_MNEMONICS = (
+    {"LDD", "LDDB", "LDDR", "LDDRB", "LDI", "LDIB", "LDIR", "LDIRB"}
+    | {"TRDB", "TRDRB", "TRIB", "TRIRB", "TRTDB", "TRTDRB", "TRTIB", "TRTIRB"}
+    | {"IND", "INDB", "INDR", "INDRB", "INI", "INIB", "INIR", "INIRB",
+       "SIND", "SINDB", "SINDR", "SINDRB", "SINI", "SINIB", "SINIR", "SINIRB"}
+)
+BLOCK_WRITE_DST_OFFSET = 0x0800
 OUTPUT_MNEMONICS = {
     "OUT", "OUTB", "OUTD", "OUTDB", "OUTI", "OUTIB", "OTDR", "OTDRB",
     "OTIR", "OTIRB", "SOUTD", "SOUTDB", "SOUTI", "SOUTIB", "SOTDR",
@@ -129,6 +141,21 @@ def _make_test(index, row, segmented=False):
         memory[OPERAND_BASE - 2] = 0x0000
         memory[0x0500] = 0x0000
 
+    regs = _base_regs(mnemonic, asm)
+    if mnemonic in BLOCK_WRITE_MNEMONICS:
+        # Define the relocated destination word.  The translate ops (TR*/TRT*)
+        # read this byte as the table index, so leaving it uninitialized makes
+        # the result depend on RAM contents (sim reads 0, hardware reads
+        # garbage).  Harmless for the write-only ops, which overwrite it.  Set
+        # for both modes so the segmented clone inherits it.
+        memory[BLOCK_WRITE_DST_OFFSET] = 0x0000
+        # Non-segmented block writes: relocate @Rdest off the dump routine.  The
+        # segmented path relocates its own pointers in gen_seg_systematic.
+        if not segmented:
+            m = re.search(r"@rr?(\d+)", asm)
+            if m:
+                regs[int(m.group(1))] = BLOCK_WRITE_DST_OFFSET
+
     tc = TestCase(
         name=name,
         mnemonic=mnemonic,
@@ -136,7 +163,7 @@ def _make_test(index, row, segmented=False):
         tags=tags,
         instruction=asm,
         code=words,
-        regs=_base_regs(mnemonic, asm),
+        regs=regs,
         fcw=FCW_SYS,
         memory=memory,
         io_preloads={

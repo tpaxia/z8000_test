@@ -58,6 +58,30 @@ _SEG_BLOCK_SRC_REG = 8
 _SEG_BLOCK_DST_REG = 10
 _SEG_BLOCK_COUNT_REG = 4
 _SEG_BLOCK_CMP_REG = 0
+
+# Physical RAM is mapped {sn[0], addr[11:0]} (4 KB per segment bank), so any
+# pointer offset >= 0x1000 wraps onto low memory.  Opcode-coverage block tests
+# inherit a generic 0x1111 destination pointer, which wraps to physical 0x0111
+# -- on top of the bootstrap dump routine (0x00C0-0x0134) -- so a block *write*
+# corrupts the very code that saves the registers (e.g. it turns the dump's
+# "ld 0x158,r12" into "ld 0x158,r0", storing the FCW into R12's slot).  Relocate
+# opcode-coverage block writes to a safe scratch offset in the free window
+# between the operand area (0x0400-0x05FF) and the stack (0x0F00); 0x0800 is
+# < 0x1000 so it maps to the same physical address on every platform.
+_SEG_BLOCK_DST_OFFSET = 0x0800
+
+
+def _relocated_block_observe():
+    """Observed memory for a relocated opcode-coverage block destination.
+
+    ``add_observations`` runs in gen_opcode_coverage before this segmented
+    pointer rewrite, so it records the *original* destination address.  After
+    relocating the write to ``_SEG_BLOCK_DST_OFFSET`` the observation must move
+    too, otherwise the segmented goldens verify the wrong (untouched) word.
+    Coverage block ops use count=1, so only the destination word is touched;
+    word-align it the same way observability._observe_range does.
+    """
+    return [_SEG_BLOCK_DST_OFFSET & 0xFFFE]
 _ALL_BLOCK_MNEMONICS = (
     _BLOCK_TRANSFER_MNEMONICS | _BLOCK_COMPARE_MNEMONICS |
     _BLOCK_STRING_MNEMONICS | _TRANSLATE_MNEMONICS |
@@ -312,9 +336,13 @@ def _make_block_transfer_seg(t, fcw):
     """LDI/LDD family: @RRsrc, @RRdst, and count must not overlap."""
     src_old, count_old, dst_old = _block_fields(t)
     regs = _block_regs(t, src_old, count_old, dst_old)
+    extra = {}
+    if _is_opcode_coverage(t):
+        _put_seg_ptr(regs, _SEG_BLOCK_DST_REG, _SEG_BLOCK_DST_OFFSET)
+        extra["observe_memory"] = _relocated_block_observe()
     code = _block_code(t, _SEG_BLOCK_SRC_REG, _SEG_BLOCK_COUNT_REG,
                        _SEG_BLOCK_DST_REG)
-    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs, **extra)
 
 
 def _make_block_compare_seg(t, fcw):
@@ -354,6 +382,10 @@ def _make_translate_seg(t, fcw):
     count = 1 if _is_opcode_coverage(t) else t.regs.get(count_old, 0)
     for old in (dst_old, count_old, table_old):
         regs.pop(old, None)
+    extra = {}
+    if _is_opcode_coverage(t):
+        dst_offset = _SEG_BLOCK_DST_OFFSET
+        extra["observe_memory"] = _relocated_block_observe()
     _put_seg_ptr(regs, _SEG_BLOCK_DST_REG, dst_offset)
     _put_seg_ptr(regs, _SEG_BLOCK_SRC_REG, table_offset)
     regs[_SEG_BLOCK_COUNT_REG] = count
@@ -362,7 +394,7 @@ def _make_translate_seg(t, fcw):
     code[1] = ((code[1] & 0xF00F) |
                (_SEG_BLOCK_COUNT_REG << 8) |
                (_SEG_BLOCK_SRC_REG << 4))
-    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs, **extra)
 
 
 def _make_block_input_seg(t, fcw):
@@ -375,11 +407,15 @@ def _make_block_input_seg(t, fcw):
     for old in (src_old, count_old, dst_old):
         regs.pop(old, None)
     regs[_SEG_BLOCK_SRC_REG] = port
+    extra = {}
+    if _is_opcode_coverage(t):
+        dst_offset = _SEG_BLOCK_DST_OFFSET
+        extra["observe_memory"] = _relocated_block_observe()
     _put_seg_ptr(regs, _SEG_BLOCK_DST_REG, dst_offset)
     regs[_SEG_BLOCK_COUNT_REG] = count
     code = _block_code(t, _SEG_BLOCK_SRC_REG, _SEG_BLOCK_COUNT_REG,
                        _SEG_BLOCK_DST_REG)
-    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs)
+    return _clone(t, f"seg_{t.name}", fcw, code=code, regs=regs, **extra)
 
 
 def _make_block_output_seg(t, fcw):
