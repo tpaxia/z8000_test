@@ -46,3 +46,7 @@ __pycache__/
 
 # Embedded repos
 doc/Z8000-Disassembler/
+
+# Derived microcode ROM images (regenerated from private z8000_micro via `make ucode-mem`)
+microcode_rom_z8001.mem
+microcode_rom_z8002.mem
