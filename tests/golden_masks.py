@@ -165,6 +165,29 @@ def _translate_zero_flag_rule(test, golden):
     return {"flag_Z"}
 
 
+def _translate_rh1_rule(test, golden):
+    """TRDB/TRDRB/TRIB/TRIRB leave RH1 architecturally undefined.
+
+    Per z8000.md (TRDB/TRDRB/TRIB/TRIRB): "The original contents of register
+    RH1 are lost and are replaced by an undefined value."  This holds in
+    legal use -- it is not about the prohibited R1-as-pointer captures -- so
+    the value silicon happens to leave there (the translated byte) must not
+    be treated as required behaviour.
+
+    The translate-and-test forms are deliberately excluded: TRTDB/TRTDRB/
+    TRTIB/TRTIRB *define* RH1 as the table lookup result (RH1 <- src2[src1])
+    and set Z from it, so their R1 stays compared.
+
+    Masking is per-register, so this hides all of R1 while only its high
+    byte is undefined.  For a legal translate the low byte belongs to a
+    register the instruction does not touch, so nothing meaningful is lost;
+    expressing it exactly would need sub-register masks in golden.py.
+    """
+    if test.mnemonic not in _TRANSLATE_MNEMONICS:
+        return None
+    return {"R1"}
+
+
 BUILTIN_RULES = [
     MaskRule(
         name="div_overflow_case3",
@@ -184,6 +207,15 @@ BUILTIN_RULES = [
         reason=("Translate instructions (TRDB/TRDRB/TRIB/TRIRB): the Z flag is "
                 "architecturally undefined (z8000.md); only V is defined."),
         fn=_translate_zero_flag_rule,
+    ),
+    MaskRule(
+        name="translate_rh1_undefined",
+        reason=("Translate instructions (TRDB/TRDRB/TRIB/TRIRB): RH1 is "
+                "architecturally undefined - z8000.md, \"The original "
+                "contents of register RH1 are lost and are replaced by an "
+                "undefined value\".  TRT* forms define RH1 and are not "
+                "masked."),
+        fn=_translate_rh1_rule,
     ),
 ]
 

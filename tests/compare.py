@@ -32,6 +32,8 @@ import json
 from .gen_systematic import generate_all_tests
 from .gen_segmented import generate_segmented_tests
 from .gen_seg_systematic import generate_seg_systematic_tests
+from .gen_mame_fixes import generate_mame_fix_tests
+from .gen_dab_sweep import generate_dab_sweep_tests
 from .gen_opcode_coverage import (
     generate_opcode_coverage_tests,
     generate_segmented_opcode_coverage_tests,
@@ -105,6 +107,8 @@ def main():
     # Generate tests
     all_tests = list(generate_all_tests())
     all_tests.extend(test_io.TESTS)
+    all_tests.extend(generate_mame_fix_tests())
+    all_tests.extend(generate_dab_sweep_tests())
     if args.opcode_coverage and args.target != "z8001-seg":
         all_tests.extend(generate_opcode_coverage_tests())
 
