@@ -55,6 +55,10 @@ def main():
                         help='Baud rate (default: 115200)')
     parser.add_argument('--sim', action='store_true',
                         help='Run DUT in simulation mode')
+    parser.add_argument('--mame', action='store_true',
+                        help='run against MAME\'s Z8000 core (z8ktest machine)')
+    parser.add_argument('--mame-dir', default=None,
+                        help='MAME build directory (default: $Z8K_MAME_DIR)')
     parser.add_argument('--emu', action='store_true',
                         help='Run DUT via emulator')
     parser.add_argument('--recompile', action='store_true',
@@ -93,15 +97,16 @@ def main():
 
     args = parser.parse_args()
 
-    if args.sim and args.emu:
-        parser.error("--sim and --emu are mutually exclusive")
+    backends = [b for b in ('sim', 'emu', 'mame') if getattr(args, b)]
+    if len(backends) > 1:
+        parser.error("--sim, --emu and --mame are mutually exclusive")
 
     # Default target
     if args.target is None:
-        args.target = "z8002" if (args.sim or args.emu) else "common"
+        args.target = "z8002" if (args.sim or args.emu or args.mame) else "common"
 
     # Default port
-    if not args.sim and not args.emu and args.port is None:
+    if not args.sim and not args.emu and not args.mame and args.port is None:
         args.port = "/dev/ttyUSB0"
 
     # Generate tests
@@ -335,6 +340,13 @@ def _make_runner(args, all_tests):
         runner = SimRunner(target=args.target, verbose=args.verbose)
         print("Compiling simulation...", end=" ", flush=True)
         runner.compile(force=args.recompile)
+        print("done")
+        return runner
+    elif args.mame:
+        from .mame_runner import MameRunner
+        print("Starting MAME...", end=" ", flush=True)
+        runner = MameRunner(target=args.target, verbose=args.verbose,
+                            mame_dir=args.mame_dir)
         print("done")
         return runner
     elif args.emu:
