@@ -1,0 +1,244 @@
+{
+  "test": "seg_mset_trap",
+  "mnemonic": "MSET",
+  "exec_result": "HALT",
+  "cycle_count": 767,
+  "fetch_count": 51,
+  "instr_cycle_count": 121,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 2048,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 516,
+      "data": 32029,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 518,
+      "data": 8449,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 520,
+      "data": 32768,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 522,
+      "data": 32028,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 524,
+      "data": 30222,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 526,
+      "data": 32768,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 528,
+      "data": 3840,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 530,
+      "data": 8448,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 532,
+      "data": 0,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 534,
+      "data": 8449,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 536,
+      "data": 32768,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 538,
+      "data": 32026,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 540,
+      "data": 31496,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 3838,
+      "data": 542,
+      "rw": "W",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 11
+    },
+    {
+      "addr": 3836,
+      "data": 32768,
+      "rw": "W",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 11
+    },
+    {
+      "addr": 3834,
+      "data": 32768,
+      "rw": "W",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 11
+    },
+    {
+      "addr": 3832,
+      "data": 31496,
+      "rw": "W",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 11
+    },
+    {
+      "addr": 2058,
+      "data": 49152,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 8
+    },
+    {
+      "addr": 2060,
+      "data": 32768,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 8
+    },
+    {
+      "addr": 2062,
+      "data": 768,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 8
+    },
+    {
+      "addr": 768,
+      "data": 8448,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 770,
+      "data": 57568,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 772,
+      "data": 24072,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 774,
+      "data": 192,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    }
+  ]
+}

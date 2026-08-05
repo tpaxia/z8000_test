@@ -745,4 +745,119 @@ def generate_segmented_tests():
         },
     ))
 
+    # ---- Tests 26/27: which PSA entry does each internal trap use? ----
+    # Both tests install the SAME two program status blocks and differ only in
+    # the instruction that traps, so the marker left in R0 names the entry the
+    # part vectored through.  No trace reading required.
+    #
+    #   PSAP+0x08  (0x808)  -> handler at 0x300, R0 = 0xE0E0
+    #   PSAP+0x10  (0x810)  -> handler at 0x320, R0 = 0xB0B0
+    #
+    # z8000.md Figure 7-2 (Z8001/Z8003) gives 0x08 = EXTENDED INSTRUCTION TRAP
+    # and 0x10 = PRIVILEGED INSTRUCTION TRAP, so the manual predicts 0xE0E0 for
+    # ext8e and 0xB0B0 for MSET.  Filling both blocks means a wrong vector
+    # lands on the other handler instead of on zeros, and 0xDEAD still means
+    # no trap at all - the three outcomes are distinguishable.
+    #
+    # The PSA blocks also carry the trace evidence for which address space the
+    # fetch uses; seg_sc_basic already pinned that as data space for SC.
+    PSA_BOTH = {
+        # handler A - reached via PSAP+0x08
+        0x0300: 0x2100, 0x0302: 0xE0E0, 0x0304: 0x5E08, 0x0306: 0x00C0,
+        # handler B - reached via PSAP+0x10
+        0x0320: 0x2100, 0x0322: 0xB0B0, 0x0324: 0x5E08, 0x0326: 0x00C0,
+        # PSA block at PSAP+0x08: reserved, FCW, PCSEG, PC offset
+        0x0808: 0x0000, 0x080A: 0xC000, 0x080C: 0x8000, 0x080E: 0x0300,
+        # PSA block at PSAP+0x10
+        0x0810: 0x0000, 0x0812: 0xC000, 0x0814: 0x8000, 0x0816: 0x0320,
+    }
+
+    # ---- Test 26: extended-instruction trap ----
+    # ext8e with EPA clear traps rather than handing the instruction to an EPU.
+    # Executed in system mode, so privilege is not in question.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 2100 0000           ld   r0,#0x0
+    #   216: 8e11                ext8e #0x11
+    #   218: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   21c: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_epu_trap',
+        mnemonic='EXT8E',
+        desc='ext8e with EPA clear: which PSA entry does the extended-instruction trap use?',
+        tags=['segmented', 'seg0', 'trap', 'epu', 'psa'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000, 0x8E11,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000},
+        memory=dict(PSA_BOTH),
+        # manual: R0=0xE0E0 (via PSAP+0x08)
+    ))
+
+    # ---- Test 27: privileged-instruction trap ----
+    # LDCTL FCW drops S/N to enter normal mode, where DI - listed among the
+    # privileged instructions in z8000.md 6.2 - traps.  The handler runs in
+    # system mode from the PSA FCW, so the dump routine still works.
+    #
+    # DI rather than MSET: MSET is privileged too, but on the part it vectors
+    # through PSAP+0x08 instead of PSAP+0x10, so it does not represent the
+    # class.  DI, IRET and LDCTL all agree on PSAP+0x10.  seg_mset_trap below
+    # keeps the odd case.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 2100 0000           ld   r0,#0x0
+    #   216: 2101 8000           ld   r1,#0x8000
+    #   21a: 7d1a                ldctl fcw,r1             (normal mode)
+    #   21c: 7c00                di   vi,nvi              (privileged -> trap)
+    #   21e: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   222: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_priv_trap',
+        mnemonic='DI',
+        desc='DI in normal mode: which PSA entry does the privileged-instruction trap use?',
+        tags=['segmented', 'seg0', 'trap', 'privileged', 'psa'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000,
+              0x2101, 0x8000, 0x7D1A, 0x7C00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000},
+        memory=dict(PSA_BOTH),
+        # manual: R0=0xB0B0 (via PSAP+0x10)
+    ))
+
+    # ---- Test 28: MSET is the exception ----
+    # MSET is privileged (z8000.md 6.2) but does not vector like the other
+    # privileged instructions: DI, IRET and LDCTL all take PSAP+0x10 while
+    # MSET takes PSAP+0x08, the extended-instruction entry.  MSET drives the
+    # multi-micro MI/MO pins, which this harness leaves unterminated, so the
+    # part may not be reaching the privilege check at all and may be trapping
+    # the opcode as unimplemented instead.  Captured so the behaviour is
+    # recorded rather than mistaken for the general case.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   ... identical to seg_priv_trap through 0x21a ...
+    #   21c: 7b08                mset                     (privileged -> trap)
+    #   21e: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   222: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_mset_trap',
+        mnemonic='MSET',
+        desc='MSET in normal mode: vectors through PSAP+0x08, unlike other privileged instructions',
+        tags=['segmented', 'seg0', 'trap', 'privileged', 'psa', 'mset_anomaly'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000,
+              0x2101, 0x8000, 0x7D1A, 0x7B08,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000},
+        memory=dict(PSA_BOTH),
+        # part: R0=0xE0E0 (via PSAP+0x08), not 0xB0B0
+    ))
+
     return tests
