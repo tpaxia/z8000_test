@@ -1,6 +1,6 @@
 // Z8000 Full System Testbench - Direct BRAM test (no UART)
 // Writes test data directly to BRAM, releases Z8000, checks bus trace.
-// Uses z8000_bus_fpga wrapper (same as FPGA and Python --sim).
+// Uses z8001_bus_fpga wrapper (same as FPGA and Python --sim).
 
 `timescale 1ns / 1ps
 
@@ -33,7 +33,7 @@ module z8000_full_tb;
     // ==========================================
     // Z8000 Bus Interface (same wrapper as FPGA and Python --sim)
     // ==========================================
-    z8000_bus_fpga bus_if (
+    z8001_bus_fpga bus_if (
         .clk        (clk),
         .rst_n      (rst_n),
         .z8k_rst_n  (z8k_rst_n),
@@ -159,7 +159,7 @@ module z8000_full_tb;
 
         $display("");
         $display("========================================");
-        $display("Z8000 Full System Test (via z8000_bus_fpga)");
+        $display("Z8000 Full System Test (via z8001_bus_fpga)");
         $display("========================================");
 
         // Write reset vectors and test code directly into BRAM.

@@ -18,8 +18,8 @@ TV80_SRCS = \
 Z80_HARNESS_SRCS = \
 	$(SRC_DIR)/z80_harness.v \
 	$(SRC_DIR)/z80_fw_ram_generic.v \
-	$(SRC_DIR)/z8000_test_harness_top.v \
-	$(SRC_DIR)/z8000_bus_fpga.v \
+	$(SRC_DIR)/z8001_test_harness_top.v \
+	$(SRC_DIR)/z8001_bus_fpga.v \
 	$(SRC_DIR)/uart_tx.v \
 	$(SRC_DIR)/uart_rx.v \
 	$(SRC_DIR)/ram16.v \
@@ -144,7 +144,7 @@ sim: firmware $(SRC_DIR)/z8000_test_harness_tb.v $(SRC_DIR)/z80_harness.v $(SRC_
 sim-full: $(SRC_DIR)/z8000_full_tb.v $(Z8K_SRCS)
 	iverilog -g2012 -DSIMULATION $(VERILOG_INCS) -o z8000_full_tb.vvp \
 		$(SRC_DIR)/z8000_full_tb.v \
-		$(SRC_DIR)/z8000_bus_fpga.v \
+		$(SRC_DIR)/z8001_bus_fpga.v \
 		$(SRC_DIR)/ram16.v \
 		$(Z8K_SRCS)
 	vvp z8000_full_tb.vvp
@@ -154,7 +154,7 @@ sim-full: $(SRC_DIR)/z8000_full_tb.v $(Z8K_SRCS)
 sim-compile: $(SRC_DIR)/z8000_sim_tb.v $(Z8K_SRCS)
 	iverilog -g2012 -DSIMULATION $(VERILOG_INCS) -o z8000_sim_tb.vvp \
 		$(SRC_DIR)/z8000_sim_tb.v \
-		$(SRC_DIR)/z8000_bus_fpga.v \
+		$(SRC_DIR)/z8001_bus_fpga.v \
 		$(SRC_DIR)/ram16.v \
 		$(SRC_DIR)/z8k_io_ports.v \
 		$(SRC_DIR)/trace_buffer.v \
