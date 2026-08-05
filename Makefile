@@ -3,6 +3,7 @@
 
 # Paths
 SRC_DIR = src
+QUARTUS_DIR = quartus
 TV80_DIR = tv80_official/rtl/core
 Z8K_RTL_DIR = z8000_micro/rtl
 
@@ -40,13 +41,16 @@ VERILOG_INCS = -I$(Z8K_RTL_DIR) -I$(TV80_DIR)
 # Firmware
 ifeq ($(OS),Windows_NT)
 Z88DK ?= C:/Program Files (x86)/z88dk
+PYTHON ?= python
 else
 Z88DK ?= $(HOME)/z88dk
+PYTHON ?= python3
 endif
 Z80ASM = "$(Z88DK)/bin/z88dk-z80asm"
 Z80_FW_SRC = $(SRC_DIR)/z80_fw.asm
 Z80_FW_BIN = $(SRC_DIR)/z80_fw.bin
 Z80_FW_HEX = $(SRC_DIR)/z80_fw.hex
+Z80_FW_MIF = $(QUARTUS_DIR)/z80_fw.mif
 BOOTSTRAP_BIN = $(SRC_DIR)/bootstrap.bin
 
 # Default target
@@ -58,7 +62,7 @@ help:
 	@echo "Z8000 Instruction Test Harness"
 	@echo ""
 	@echo "Firmware:"
-	@echo "  firmware   - Assemble Z80 firmware (z80_fw.asm -> z80_fw.bin/hex)"
+	@echo "  firmware   - Assemble Z80 firmware (z80_fw.asm -> z80_fw.bin/hex/mif)"
 	@echo "  fw-verilog - Print Verilog RAM init code (for manual inclusion)"
 	@echo ""
 	@echo "Simulation:"
@@ -83,7 +87,7 @@ help:
 # Z80 Firmware
 #
 .PHONY: firmware
-firmware: $(Z80_FW_BIN) $(Z80_FW_HEX)
+firmware: $(Z80_FW_BIN) $(Z80_FW_HEX) $(Z80_FW_MIF)
 
 $(Z80_FW_BIN): $(Z80_FW_SRC)
 	@echo "Assembling Z80 firmware..."
@@ -92,8 +96,15 @@ $(Z80_FW_BIN): $(Z80_FW_SRC)
 
 $(Z80_FW_HEX): $(Z80_FW_BIN)
 	@echo "Generating hex file for RAM init..."
-	python3 scripts/gen_fw_hex.py $(Z80_FW_BIN) $(Z80_FW_HEX)
+	$(PYTHON) scripts/gen_fw_hex.py $(Z80_FW_BIN) $(Z80_FW_HEX)
 	cp $(Z80_FW_HEX) z80_fw.hex
+
+# Quartus block RAM init: z80_fw_ram_altera.v loads this via .init_file().
+# Without it a Quartus build silently keeps whatever firmware was current
+# when the .mif was last written.
+$(Z80_FW_MIF): $(Z80_FW_HEX)
+	@echo "Generating MIF file for Quartus RAM init..."
+	$(PYTHON) $(QUARTUS_DIR)/gen_mif.py $(Z80_FW_HEX) $(Z80_FW_MIF)
 
 # Generate Verilog RAM initialization (for manual inclusion)
 .PHONY: fw-verilog
