@@ -115,7 +115,11 @@ class Z8000TestHarness:
         return [self.read_trace_entry(i) for i in range(count)]
 
     def _parse_trace_line(self, line):
-        """Parse a trace entry line like '000: 0040 4100 R W M 0'"""
+        """Parse a trace entry line like '000: 0040 4100 R W M 0 d'
+
+        The segment bank bit and the status type are both optional tail
+        tokens, so traces captured by older firmware still parse.
+        """
         line = line.strip()
         if not line or ':' not in line:
             return None
@@ -134,6 +138,11 @@ class Z8000TestHarness:
                 # Segment bank bit (sn[0]): optional 6th token from newer firmware
                 if len(parts) >= 6:
                     entry['seg'] = int(parts[5], 16)
+                # Status type: optional 7th token.  Distinguishes an
+                # instruction fetch from a data or stack cycle, which the
+                # memory/IO flag alone cannot.
+                if len(parts) >= 7:
+                    entry['st'] = int(parts[6], 16)
                 return entry
         except (ValueError, IndexError):
             pass

@@ -2,7 +2,7 @@
 ; I/O: 0=UART_DATA, 1=UART_STAT, 0x10-0x15=Z8K control
 ;      0x16-0x19=cycle count, 0x1A-0x1B=fetch count
 ;      0x1C-0x1F=cycle limit (write)
-;      0x20-0x21=trace read addr, 0x22-0x26=trace data (36-bit)
+;      0x20-0x21=trace read addr, 0x22-0x26=trace data (40-bit)
 ;      0x27-0x28=trace write count, 0x29=Z8000 ST (4-bit)
 ;      0x2A-0x2D=instr cycle count (address-gated)
 ;
@@ -960,10 +960,12 @@ do_tr_one:
         jp main
 
 ; Print trace entry from ports 0x22-0x26
-; Format: aaaa dddd R W M s
+; Format: aaaa dddd R W M s t
 ; addr = bytes 0-1, data = bytes 2-3, flags = byte 4
 ; flags[0] = R/W (1=read), flags[1] = B/W (1=word), flags[2] = I/O (1=I/O cycle)
 ; flags[3] = segment bank bit sn[0] (s: 0=segment-0 bank, 1=segment-1 bank)
+; flags[7:4] = status type (t): the ST code the CPU drove for this cycle, so a
+;              program-space fetch can be told from a data or stack access
 print_trace_entry:
         ; Read and print address (bytes 0-1, little endian)
         in a, (0x23)            ; Addr high
@@ -1024,6 +1026,15 @@ pte_seg0:
         ld a, '0'
 pte_seg_out:
         call put_char
+        ld a, ' '
+        call put_char
+        ; Status type (byte 4, bits 7-4) as one hex digit
+        ld a, b
+        rrca
+        rrca
+        rrca
+        rrca
+        call phex1
         call put_crlf
         ret
 

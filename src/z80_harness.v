@@ -61,7 +61,7 @@ module z80_harness (
 
     // Trace buffer interface
     output reg [9:0]  trace_rd_addr,    // Read address (0-1023)
-    input      [35:0] trace_rd_data,    // Read data (36 bits)
+    input      [39:0] trace_rd_data,    // Read data (40 bits)
     input      [9:0]  trace_wr_count,   // Number of entries captured
 
     // I/O port registers interface
@@ -192,7 +192,7 @@ always @(*) begin
         8'h23: io_dout = trace_rd_data[15:8];             // Trace data byte 1
         8'h24: io_dout = trace_rd_data[23:16];            // Trace data byte 2
         8'h25: io_dout = trace_rd_data[31:24];            // Trace data byte 3
-        8'h26: io_dout = {4'b0, trace_rd_data[35:32]};    // Trace data byte 4 (4 bits)
+        8'h26: io_dout = trace_rd_data[39:32];            // Trace data byte 4: ST[3:0], sn, io, bw, rw
         8'h27: io_dout = trace_wr_count[7:0];             // Trace write count low
         8'h28: io_dout = {6'b0, trace_wr_count[9:8]};     // Trace write count high
         8'h29: io_dout = {4'b0, z8k_st};                  // Z8000 ST (status type)

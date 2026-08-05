@@ -315,7 +315,7 @@ module z8001_int_test_top (
     // Trace Buffer
     //------------------------------------------------------------------------
     wire [9:0]  trace_rd_addr;
-    wire [35:0] trace_rd_data;
+    wire [39:0] trace_rd_data;
     wire [9:0]  trace_wr_count;
     wire        trace_active;
 

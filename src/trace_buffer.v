@@ -4,13 +4,16 @@
 // Write port: Captures on DS_n rising edge (end of bus cycle, data valid)
 // Read port: Z80 access via I/O ports
 //
-// Entry format (36 bits):
+// Entry format (40 bits):
 //   [15:0]  - Address (16 bits)
 //   [31:16] - Data (16 bits)
 //   [32]    - R/W (1=read, 0=write)
 //   [33]    - B/W (0=byte, 1=word)
-//   [34]    - MEM/IO (0=memory, 1=I/O)
+//   [34]    - MEM/IO (0=memory, 1=I/O) - derived from ST, kept for readers
 //   [35]    - Segment bank bit (sn[0]): 0=segment-0 bank, 1=segment-1 bank
+//   [39:36] - Status type (ST) latched at AS_n.  MEM/IO only says "not I/O";
+//             ST distinguishes the spaces the CPU actually drove, so a PSA
+//             fetch during a trap can be told from a data or stack access.
 
 module trace_buffer (
     input         clk,            // System clock
@@ -30,7 +33,7 @@ module trace_buffer (
 
     // Z80 read interface
     input  [9:0]  rd_addr,        // Read address (0-1023)
-    output [35:0] rd_data,        // Read data (36 bits)
+    output [39:0] rd_data,        // Read data (40 bits)
     output [9:0]  wr_count,       // Number of entries captured
 
     // Address-gated trace active indicator
@@ -133,7 +136,8 @@ module trace_buffer (
     end
 
     // Build trace entry from latched values (valid at DS_n rising)
-    wire [35:0] trace_entry = {
+    wire [39:0] trace_entry = {
+        latched_st,     // [39:36] status type as driven on the bus
         latched_sn,     // [35] segment bank bit (sn[0])
         latched_io,     // [34] MEM/IO (1=I/O)
         latched_bw_n,   // [33] B/W (1=byte)
@@ -165,8 +169,8 @@ module trace_buffer (
 
 `ifdef SIMULATION
     // Behavioral model for simulation
-    reg [35:0] mem [0:1023];
-    reg [35:0] rd_data_reg;
+    reg [39:0] mem [0:1023];
+    reg [39:0] rd_data_reg;
 
     always @(posedge clk) begin
         if (capture_en)
@@ -186,7 +190,7 @@ module trace_buffer (
         .cea    (capture_en),
         .reseta (1'b0),
         .ada    (wr_ptr),
-        .din    (trace_entry),
+        .din    (trace_entry[35:0]),
 
         // Read port (Z80 access)
         .clkb   (clk),
@@ -197,7 +201,20 @@ module trace_buffer (
         .oce    (1'b1)
     );
 
-    assign rd_data = sdp_dout;
+    // The generated SDPB is 36 bits wide (two 18-bit SDPX9B halves) and the
+    // ST nibble does not fit.  Rather than regenerate the IP, hold it in a
+    // small inferred array clocked the same way, so the read data lines up
+    // with the SDPB output on the same cycle.
+    reg [3:0] st_mem [0:1023];
+    reg [3:0] st_dout;
+
+    always @(posedge clk) begin
+        if (capture_en)
+            st_mem[wr_ptr] <= trace_entry[39:36];
+        st_dout <= st_mem[rd_addr];
+    end
+
+    assign rd_data = {st_dout, sdp_dout};
 
 `endif
 

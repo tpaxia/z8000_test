@@ -35,7 +35,7 @@ module z8000_sim_tb;
 
     // Trace buffer signals
     reg  [9:0]  trace_rd_addr;
-    wire [35:0] trace_rd_data;
+    wire [39:0] trace_rd_data;
     wire [9:0]  trace_wr_count;
     wire        trace_active;
 
@@ -247,6 +247,7 @@ module z8000_sim_tb;
     reg        t_rw;
     reg        t_bw;
     reg        t_io;
+    reg [3:0]  t_st;
 
     initial begin
         rst_n = 0;
@@ -389,11 +390,13 @@ module z8000_sim_tb;
             t_rw   = trace_rd_data[32];
             t_bw   = trace_rd_data[33];
             t_io   = trace_rd_data[34];
-            $display("TRACE:%03x:%04x:%04x:%s:%s:%s",
+            t_st   = trace_rd_data[39:36];
+            $display("TRACE:%03x:%04x:%04x:%s:%s:%s:%1x",
                 i, t_addr, t_data,
                 t_rw ? "R" : "W",
                 t_bw ? "B" : "W",
-                t_io ? "I" : "M");
+                t_io ? "I" : "M",
+                t_st);
         end
 
         $display("DONE");
