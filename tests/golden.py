@@ -96,6 +96,24 @@ def load_golden(golden_dir):
     return golden
 
 
+# FCW bits 7..2 are C/Z/S/V/DA/H and are compared individually above; this
+# is everything else in the word.
+FCW_CTL_MASK = 0xFF03
+
+_FCW_BIT_NAMES = {
+    15: "SEG", 14: "S/N", 13: "EPA", 12: "VIE", 11: "NVIE",
+    10: "res10", 9: "res9", 8: "res8", 1: "res1", 0: "res0",
+}
+
+
+def _describe_fcw_bits(mask):
+    """Name the differing FCW control bits for the diff description."""
+    if not mask:
+        return "no bits"
+    return " ".join(_FCW_BIT_NAMES.get(b, f"bit{b}")
+                    for b in range(15, -1, -1) if mask & (1 << b))
+
+
 def compare_golden(results, golden, masks=None):
     """Compare test results against golden reference data.
 
@@ -171,6 +189,22 @@ def compare_golden(results, golden, masks=None):
                         description=(f"{flag_name}: ref={ref_flag}, "
                                      f"dut={dut_flag}"),
                     ))
+
+            # The six arithmetic flags above are bits 7..2.  Everything else
+            # in the FCW - SEG, S/N, EPA, VIE, NVIE and the reserved bits -
+            # is control state that LDCTL can read and write, so compare it
+            # too; leaving it out hides masking differences entirely.
+            ref_ctl = ref_fcw & FCW_CTL_MASK
+            dut_ctl = dut_fcw & FCW_CTL_MASK
+            if ref_ctl != dut_ctl:
+                diffs.append(ComparisonDiff(
+                    field="fcw_ctl",
+                    ref_value=ref_ctl,
+                    dut_value=dut_ctl,
+                    description=(f"FCW control bits: ref=0x{ref_ctl:04X}, "
+                                 f"dut=0x{dut_ctl:04X} "
+                                 f"({_describe_fcw_bits(ref_ctl ^ dut_ctl)})"),
+                ))
 
         # Compare requested memory readbacks.
         ref_mem = {int(k): v for k, v in ref.get("memory", {}).items()}
