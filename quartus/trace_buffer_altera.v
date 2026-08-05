@@ -104,6 +104,7 @@ module trace_buffer_altera (
     reg        latched_bw_n;
     reg        latched_io;
     reg        latched_sn;
+    reg [3:0]  latched_st;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -113,6 +114,7 @@ module trace_buffer_altera (
             latched_bw_n <= 1'b1;
             latched_io   <= 1'b0;
             latched_sn   <= 1'b0;
+            latched_st   <= 4'd0;
         end else if (~z8k_ds_n) begin
             // Continuously update while DS_n is active
             latched_addr <= z8k_addr;
@@ -121,6 +123,7 @@ module trace_buffer_altera (
             latched_bw_n <= z8k_bw_n;
             latched_io   <= io_cycle;
             latched_sn   <= z8k_sn;
+            latched_st   <= z8k_st;
         end
     end
 
