@@ -411,6 +411,59 @@ def generate_mame_fix_tests():
     ))
 
     # ---------------------------------------------------------------------
+    # Translate-and-test: RH1 ordering, second shape.
+    #
+    # The captures above put TRTDB and TRTDRB on identical state and got
+    # different answers: TRTDB returned R1=0x42FF (pointer stepped, THEN RH1
+    # loaded) and TRTDRB returned 0x41FF (RH1 loaded, THEN pointer stepped).
+    # TRTIB and TRTIRB both agree with TRTDRB, which leaves TRTDB as the lone
+    # exception - three instructions one way, one the other.
+    #
+    # That rests on a single capture per D-form, so this pair repeats the
+    # comparison with a different translated value.  xlt=0x00 instead of 0x42
+    # moves the answers to 0x00FF (step first) and 0xFFFF (RH1 first), which
+    # are far apart and share no bytes with the 0x42 pair - a mis-decode or a
+    # stale register would not land on either.
+    #
+    # Note the decrement must borrow for this to discriminate at all: with a
+    # pointer whose low byte is not 0x00 the two orderings coincide, which is
+    # why mame_trtdrb_dst_rh1_overlap (pointer 0x04FF) says nothing.
+    #
+    # Count is 1, not 2: TRTDRB repeats while the translated value is zero, so
+    # at any higher count an xlt of 0x00 would run a second iteration from a
+    # pointer that has already moved.  At 1 the counter reaches zero and the
+    # instruction retires after exactly one pass, matching TRTDB.
+    # ---------------------------------------------------------------------
+
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8002, .text=0x200)
+    #   200: b81e 032e       trtdrb  @r1,@r2,r3
+    tests.append(_tc(
+        name='mame_trtdrb_dst_rh1_overlap_borrow_zero',
+        mnemonic='TRTDRB',
+        desc='TRTDRB @R1, @R2, R3: RH1 overlap, borrowing decrement, xlt=0x00',
+        tags=['translate', 'byte', 'rh1_overlap', 'mame_1dfab273'],
+        code=[0xB81E, 0x032E],
+        regs={1: TR_PTR_BORROW, 2: TR_TABLE, 3: 0x0001},
+        memory={TR_PTR_BORROW: 0x0300, TR_TABLE + 2: 0xAA00},
+        observe_memory=[TR_PTR_BORROW],
+        # RH1 first: R1=0xFFFF    pointer first: R1=0x00FF
+    ))
+
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8002, .text=0x200)
+    #   200: b81a 0320       trtdb   @r1,@r2,r3
+    tests.append(_tc(
+        name='mame_trtdb_dst_rh1_overlap_borrow_zero',
+        mnemonic='TRTDB',
+        desc='TRTDB @R1, @R2, R3: RH1 overlap, borrowing decrement, xlt=0x00',
+        tags=['translate', 'byte', 'rh1_overlap', 'mame_1dfab273'],
+        code=[0xB81A, 0x0320],
+        regs={1: TR_PTR_BORROW, 2: TR_TABLE, 3: 0x0001},
+        memory={TR_PTR_BORROW: 0x0300, TR_TABLE + 2: 0xAA00},
+        observe_memory=[TR_PTR_BORROW],
+        # RH1 first: R1=0xFFFF    pointer first: R1=0x00FF
+    ))
+
+    # ---------------------------------------------------------------------
     # Translate family: count of 0 on entry.
     #
     # This is the ONLY additional shape the architecture permits.  z8000.md
