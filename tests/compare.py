@@ -88,8 +88,10 @@ def main():
     parser.add_argument('--target', default=None,
                         choices=['common', 'z8001', 'z8002', 'z8001-seg'],
                         help='Target CPU type')
-    parser.add_argument('--opcode-coverage', action='store_true',
-                        help='Add assembler-generated opcode variant coverage tests')
+    parser.add_argument('--no-opcode-coverage', dest='opcode_coverage',
+                        action='store_false', default=True,
+                        help='Skip the assembler-generated opcode variant tests '
+                             '(they are included by default)')
     parser.add_argument('--list', '-l', action='store_true',
                         help='List tests without running')
     parser.add_argument('--verbose', '-v', action='store_true',

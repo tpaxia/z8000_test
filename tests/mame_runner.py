@@ -121,7 +121,14 @@ class MameHarness(Z8000TestHarness):
         # The machine connects out at machine_start, so listen first.
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        srv.bind(("127.0.0.1", port))
+        try:
+            srv.bind(("127.0.0.1", port))
+        except OSError as exc:
+            srv.close()
+            raise RuntimeError(
+                f"port {port} is not free ({exc}). A MAME from an interrupted "
+                f"run is probably still holding it: pkill -f 'mame z8ktest'"
+            ) from None
         srv.listen(1)
         srv.settimeout(30)
 
@@ -135,19 +142,36 @@ class MameHarness(Z8000TestHarness):
         try:
             conn, _ = srv.accept()
         except socket.timeout:
+            rc = self.proc.poll()
             self.close()
+            died = f"MAME exited with code {rc}" if rc is not None \
+                else "MAME is running but never connected"
             raise RuntimeError(
-                f"MAME never connected to the link on port {port}. "
-                f"See {self._log_path}")
+                f"{died} on port {port}. See {self._log_path}") from None
         finally:
             srv.close()
 
         self.ser = _SocketSerial(conn)
 
+    def _check_alive(self, cmd):
+        """Turn 'the emulator went away' into a diagnosis, not a broken pipe."""
+        rc = self.proc.poll()
+        if rc is not None:
+            raise RuntimeError(
+                f"MAME exited with code {rc} partway through the run, while "
+                f"sending {cmd!r}. The last lines of {self._log_path} say what "
+                f"it did; a clean 'Average speed' line means it shut down of "
+                f"its own accord rather than crashing.")
+
     def send_command(self, cmd, multiline=False):
         """Socket transport: no pacing delays, read until the line lands."""
-        self.ser.reset_input_buffer()
-        self.ser.write((cmd + "\r").encode())
+        self._check_alive(cmd)
+        try:
+            self.ser.reset_input_buffer()
+            self.ser.write((cmd + "\r").encode())
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            self._check_alive(cmd)
+            raise
 
         if multiline or cmd.strip().upper() in ("DA", "DP"):
             data = b""
