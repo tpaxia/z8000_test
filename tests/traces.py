@@ -90,6 +90,11 @@ def _normalize_trace(trace):
         # Segment bank bit (sn[0]) only present with newer firmware.
         if "seg" in entry:
             norm["seg"] = entry["seg"]
+        # Bus status type, likewise.  This is what tells a program-space
+        # fetch from a data or stack cycle, so it is the field that says
+        # which space the PSA is read from during a trap.
+        if "st" in entry:
+            norm["st"] = entry["st"]
         normalized.append(norm)
     return normalized
 
