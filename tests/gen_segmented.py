@@ -1133,4 +1133,67 @@ def generate_segmented_tests():
         },
     ))
 
+    # ---- Test 35: does a Normal-mode push realign an odd NSP? ----
+    # mame_push_odd_sp settled this for the system stack: from 0x0F01 a PUSH
+    # leaves 0x0EFF, so the pointer moves by exactly the operand size and is
+    # not folded back to even.  NSP is a separate register reached a separate
+    # way, so it is assumed to match rather than known to.
+    #
+    # Set NSP odd at 0x0E01 while the system stack stays at 0x0F00, drop S/N,
+    # and push from Normal mode where RR14 names the normal pointer.  Then
+    # take a system call to get back - LDCTL is privileged, so a trap is the
+    # only way - and read NSP back in the handler.
+    #
+    #   R2 = 0x0DFF  moved by exactly 2, as the system stack does
+    #   R2 = 0x0DFE  realigned to even first
+    #
+    # The pushed word is observed too: at 0x0DFF if the pointer was used as
+    # given, at 0x0DFE if it was aligned.  Note the bus masks the low address
+    # bit on a word access, so the two land in the same word of memory - the
+    # pointer left in NSP is what discriminates, and the memory readback is
+    # only a cross-check that the push happened at all.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00        (system stack, even)
+    #   212: 2101 0e01           ld   r1,#0xe01
+    #   216: 7d1f                ldctl nspoff,r1        (normal stack, ODD)
+    #   218: 2101 8000           ld   r1,#0x8000
+    #   21c: 7d1e                ldctl nspseg,r1
+    #   21e: 2100 c3c3           ld   r0,#0xc3c3
+    #   222: 2101 8000           ld   r1,#0x8000
+    #   226: 7d1a                ldctl fcw,r1           (Normal mode)
+    #   228: 93e0                push @rr14,r0          (pushes on NSP)
+    #   22a: 7f00                sc   #0x0              (back to System mode)
+    #   22c: 2100 dead           ld   r0,#0xdead        (only if no trap)
+    #   230: 5e08 00c0           jp   t,0xc0
+    # Handler at 0x300:
+    #   300: 7d27                ldctl r2,nspoff
+    #   302: 7d36                ldctl r3,nspseg
+    #   304: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_nsp_odd_push',
+        mnemonic='PUSH',
+        desc='PUSH in Normal mode with NSP odd (0x0E01): does the pointer realign?',
+        tags=['segmented', 'seg0', 'push', 'stack', 'nsp', 'alignment', 'trap'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00,
+              0x2101, 0x0E01, 0x7D1F, 0x2101, 0x8000, 0x7D1E,
+              0x2100, 0xC3C3, 0x2101, 0x8000, 0x7D1A,
+              0x93E0, 0x7F00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000, 2: 0x0000, 3: 0x0000},
+        memory={
+            # handler reads NSP back before returning to the dump routine
+            0x0300: 0x7D27, 0x0302: 0x7D36, 0x0304: 0x5E08, 0x0306: 0x00C0,
+            # SC entry
+            0x0818: 0x0000, 0x081A: 0xC000, 0x081C: 0x8000, 0x081E: 0x0300,
+            # normal stack landing area, preloaded so a push is visible
+            0x0DFE: 0x0000,
+        },
+    ))
+    tests[-1].observe_memory = [0x0DFE]
+
     return tests
