@@ -65,8 +65,10 @@ def main():
                         help='Force recompile sim/emu')
     parser.add_argument('--capture', action='store_true',
                         help='Capture golden results from reference CPU')
-    parser.add_argument('--golden-dir', default='golden/z8001',
-                        help='Directory for golden result files')
+    parser.add_argument('--golden-dir', default=None,
+                        help='Directory for golden result files '
+                             '(default: golden/z8001, or golden/z8001-seg '
+                             'when --target is z8001-seg)')
     parser.add_argument('--masks', default=DEFAULT_MASKS_PATH,
                         help='Sidecar JSON of per-test undefined-field masks')
     parser.add_argument('--no-masks', action='store_true',
@@ -106,6 +108,14 @@ def main():
     # Default target
     if args.target is None:
         args.target = "z8002" if (args.sim or args.emu or args.mame) else "common"
+
+    # Default golden directory.  The segmented captures live in their own
+    # tree, and pairing --target z8001-seg with golden/z8001 is never right -
+    # every test reports "no golden reference" rather than saying the
+    # directory is wrong.
+    if args.golden_dir is None:
+        args.golden_dir = ('golden/z8001-seg' if args.target == 'z8001-seg'
+                           else 'golden/z8001')
 
     # Default port
     if not args.sim and not args.emu and not args.mame and args.port is None:
