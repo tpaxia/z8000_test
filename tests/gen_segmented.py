@@ -1049,4 +1049,88 @@ def generate_segmented_tests():
     # trusting the register dump alone
     tests[-1].observe_memory = [0x0EF8, 0x0EFA, 0x0EFC, 0x0EFE]
 
+    # ---- Test 33: does anything mask NSPOFF / NSPSEG? ----
+    # The normal stack pointer is only reachable from System mode, through
+    # LDCTL (z8000.md 4.3.3), so unlike R15 it has no direct path.  PSAPOFF
+    # turned out to be the one control register either emulator masks; this
+    # asks the same of NSP, which neither masks today.
+    #
+    # Write 0xFFFF and 0xAA55 and read both halves straight back.  A value
+    # that returns unchanged means nothing is dropped on the way in or out.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 ffff           ld   r1,#0xffff
+    #   204: 7d1f                ldctl nspoff,r1
+    #   206: 2101 aa55           ld   r1,#0xaa55
+    #   20a: 7d1e                ldctl nspseg,r1
+    #   20c: 2102 0000           ld   r2,#0x0
+    #   210: 7d27                ldctl r2,nspoff
+    #   212: 2103 0000           ld   r3,#0x0
+    #   216: 7d36                ldctl r3,nspseg
+    #   218: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldctl_nsp_roundtrip',
+        mnemonic='LDCTL',
+        desc='LDCTL NSPOFF/NSPSEG write then read: is either half masked?',
+        tags=['segmented', 'control', 'ldctl', 'nsp'],
+        code=[0x2101, 0xFFFF, 0x7D1F,
+              0x2101, 0xAA55, 0x7D1E,
+              0x2102, 0x0000, 0x7D27,
+              0x2103, 0x0000, 0x7D36,
+              0x5E08, 0x00C0],
+        regs={1: 0x0000, 2: 0x0000, 3: 0x0000},
+        # unmasked: R2=0xFFFF R3=0xAA55
+    ))
+
+    # ---- Test 34: is NSP the same register R15 names in Normal mode? ----
+    # z8000.md 4.3.3: "When in Normal mode, a reference by an instruction to
+    # the Stack Pointer register will access the Normal mode Stack Pointer",
+    # and 2.6: "In System-mode operation, the system stack pointer is directly
+    # accessed as a general-purpose register.  The normal stack pointer can be
+    # accessed as a special control register."  So NSPOFF written through
+    # LDCTL and R15 read in Normal mode should be one register.
+    #
+    # Set NSP to 0x0E00 in System mode, drop S/N, read R15 into R0, then take
+    # a system call to get back to System mode so the dump routine can run -
+    # LDCTL is privileged, so there is no way back without a trap.  R0 carries
+    # the answer across.
+    #
+    #   R0 = 0x0E00  -> R15 in Normal mode is the normal stack pointer
+    #   R0 = 0x0F00  -> R15 still reads the system stack pointer
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00        (system stack)
+    #   212: 2101 0e00           ld   r1,#0xe00
+    #   216: 7d1f                ldctl nspoff,r1        (normal stack)
+    #   218: 2101 8000           ld   r1,#0x8000
+    #   21c: 7d1e                ldctl nspseg,r1
+    #   21e: 2100 0000           ld   r0,#0x0
+    #   222: 2101 8000           ld   r1,#0x8000
+    #   226: 7d1a                ldctl fcw,r1           (Normal mode)
+    #   228: a1f0                ld   r0,r15            (which SP is this?)
+    #   22a: 7f00                sc   #0x0              (back to System mode)
+    #   22c: 2100 dead           ld   r0,#0xdead        (only if no trap)
+    #   230: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_nsp_is_normal_r15',
+        mnemonic='LDCTL',
+        desc='R15 read in Normal mode: is it the NSP set through LDCTL?',
+        tags=['segmented', 'control', 'ldctl', 'nsp', 'trap'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00,
+              0x2101, 0x0E00, 0x7D1F, 0x2101, 0x8000, 0x7D1E,
+              0x2100, 0x0000, 0x2101, 0x8000, 0x7D1A,
+              0xA1F0, 0x7F00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000},
+        memory={
+            # handler just returns to the dump routine
+            0x0300: 0x5E08, 0x0302: 0x00C0,
+            # SC entry
+            0x0818: 0x0000, 0x081A: 0xC000, 0x081C: 0x8000, 0x081E: 0x0300,
+        },
+    ))
+
     return tests

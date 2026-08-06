@@ -1,0 +1,136 @@
+{
+  "test": "seg_ldctl_nsp_roundtrip",
+  "mnemonic": "LDCTL",
+  "exec_result": "HALT",
+  "cycle_count": 716,
+  "fetch_count": 49,
+  "instr_cycle_count": 70,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 65535,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 516,
+      "data": 32031,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 518,
+      "data": 8449,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 520,
+      "data": 43605,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 522,
+      "data": 32030,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 524,
+      "data": 8450,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 526,
+      "data": 0,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 528,
+      "data": 32039,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 530,
+      "data": 8451,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 532,
+      "data": 0,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 534,
+      "data": 32054,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 536,
+      "data": 24072,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 538,
+      "data": 192,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "B",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    }
+  ]
+}
