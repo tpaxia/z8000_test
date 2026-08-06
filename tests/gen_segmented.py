@@ -860,4 +860,193 @@ def generate_segmented_tests():
         # part: R0=0xE0E0 (via PSAP+0x08), not 0xB0B0
     ))
 
+    # ---- Test 29: no unaligned PSA address is ever formed ----
+    # z8000.md 7.7.3 says the PSAP low byte "is assumed to contain zeros; thus
+    # the Program Status Area must start on a 256-byte address boundary".
+    #
+    # What this test settles is narrow and worth stating exactly: the low byte
+    # never reaches the address the part fetches a program status block from.
+    # It does NOT settle where the byte is dropped.  Two implementations are
+    # observationally identical from software:
+    #
+    #   masked on the write   - the register holds 0x0800 and there is nothing
+    #                           left to align by the time the PSA is addressed
+    #   kept, masked at use   - the register holds 0x0880 and the address
+    #                           computation drops the byte
+    #
+    # LDCTL is the only way to write PSAP, so if the write masks then a
+    # non-zero low byte cannot exist in the register and "alignment at use"
+    # has nothing to act on.  The distinction is unobservable through the
+    # instruction set, not merely untested - seg_ldctl_psapoff_lowbyte already
+    # shows a write of 0x08FF reading back as 0x0800, and both models predict
+    # that too.  MAME and z8000_emu take opposite routes and agree here.
+    #
+    # Write 0x0880 - a low byte that is non-zero but still word aligned - and
+    # take a system call with both candidate entries populated:
+    #
+    #   low byte not in the address -> base 0x0800 -> entry 0x0818 -> R0=0xA11D
+    #   low byte in the address     -> base 0x0880 -> entry 0x0898 -> R0=0x0FF5
+    #
+    # The captured trace records the address actually read, so the marker and
+    # the trace agree or the test is wrong.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0880           ld   r1,#0x880
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 2100 0000           ld   r0,#0x0
+    #   216: 7f00                sc   #0x0
+    #   218: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   21c: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_psap_no_unaligned_psa',
+        mnemonic='SC',
+        desc='SC with PSAPOFF=0x0880: the reserved low byte never reaches the PSA address',
+        tags=['segmented', 'seg0', 'sc', 'trap', 'psa', 'psap', 'alignment'],
+        code=[0x2101, 0x0880, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000, 0x7F00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000},
+        memory={
+            # handler A - reached if the low byte is dropped (base 0x0800)
+            0x0300: 0x2100, 0x0302: 0xA11D, 0x0304: 0x5E08, 0x0306: 0x00C0,
+            # handler B - reached if the full offset is used (base 0x0880)
+            0x0320: 0x2100, 0x0322: 0x0FF5, 0x0324: 0x5E08, 0x0326: 0x00C0,
+            # SC entry for the aligned base: 0x0800 + 0x18
+            0x0818: 0x0000, 0x081A: 0xC000, 0x081C: 0x8000, 0x081E: 0x0300,
+            # SC entry for the unaligned base: 0x0880 + 0x18
+            0x0898: 0x0000, 0x089A: 0xC000, 0x089C: 0x8000, 0x089E: 0x0320,
+        },
+    ))
+    tests[-1].observe_memory = [0x0818, 0x0898]
+
+    # ---- Tests 30/31: does PSAPSEG reach the PSA address? ----
+    # seg_mame_ldctl_psapseg_mask shows the register reads back whatever was
+    # written - 0xFFFF in, 0xFFFF out - so nothing is masked on the way in or
+    # out.  That says nothing about the address the part forms when it fetches
+    # a program status block, which is the question that matters.
+    #
+    # The harness banks BRAM as {sn[0], addr[11:0]}, so segment 0 and segment 1
+    # are distinguishable and everything above bit 8 of the segment number
+    # aliases away.  That is enough to see whether the segment is honoured:
+    # put the SC entry in segment 1 and a decoy at the same offset in segment
+    # 0, and let the marker say which one was read.
+    #
+    #   PSAPSEG=0x8100 -> segment 1 -> BRAM 0x1818 -> handler 0x300 -> 0xACE1
+    #   segment ignored -> segment 0 -> BRAM 0x0818 -> handler 0x320 -> 0xACE0
+    #
+    # Both PSA entries name a handler in segment 0, so only the PSA fetch
+    # differs.  The trace's segment bit records the bank actually read.
+    PSAPSEG_BOTH = {
+        # handler reached when the PSA is read from segment 1
+        0x0300: 0x2100, 0x0302: 0xACE1, 0x0304: 0x5E08, 0x0306: 0x00C0,
+        # handler reached when the segment is dropped and segment 0 is used
+        0x0320: 0x2100, 0x0322: 0xACE0, 0x0324: 0x5E08, 0x0326: 0x00C0,
+        # SC entry in segment 1 (flat BRAM 0x1800 + 0x18)
+        0x1818: 0x0000, 0x181A: 0xC000, 0x181C: 0x8000, 0x181E: 0x0300,
+        # SC entry in segment 0, same offset - the decoy
+        0x0818: 0x0000, 0x081A: 0xC000, 0x081C: 0x8000, 0x081E: 0x0320,
+    }
+
+    # ---- Test 30: segment honoured, bit 15 set (the form every other test uses) ----
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8100           ld   r1,#0x8100
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 2100 0000           ld   r0,#0x0
+    #   216: 7f00                sc   #0x0
+    #   218: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   21c: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_psapseg_segment_used',
+        mnemonic='SC',
+        desc='SC with PSAPSEG=0x8100: is the PSA fetched from segment 1?',
+        tags=['segmented', 'seg1', 'sc', 'trap', 'psa', 'psapseg'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8100, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000, 0x7F00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000},
+        memory=dict(PSAPSEG_BOTH),
+    ))
+
+    # ---- Test 31: same, with bit 15 clear ----
+    # Every segmented pointer this suite builds carries bit 15, because that is
+    # what LDA emits for the long form.  PSAPSEG is written by hand, so whether
+    # the part needs the bit is a separate question: if it is part of the
+    # decode, clearing it should change where the PSA is read from.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   206: 2101 0100           ld   r1,#0x100      (bit 15 clear)
+    tests.append(_tc(
+        name='seg_psapseg_bit15_clear',
+        mnemonic='SC',
+        desc='SC with PSAPSEG=0x0100: is bit 15 needed for the segment to decode?',
+        tags=['segmented', 'seg1', 'sc', 'trap', 'psa', 'psapseg'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x0100, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000, 0x7F00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000},
+        memory=dict(PSAPSEG_BOTH),
+    ))
+
+    # ---- Test 32: what segment word does a trap push for a PC in segment 1? ----
+    # Every trap capture so far runs in segment 0 and pushes 0x8000, which
+    # shows bit 15 is set but cannot show whether the segment field is filled
+    # in beside it - segment 0 is all zeros either way.
+    #
+    # This one jumps into segment 1 and takes the system call there, so the
+    # pushed PC segment discriminates:
+    #
+    #   0x8100  bit 15 set and the segment present - what addr_to_reg does
+    #   0x0100  segment present, bit 15 only appears for segment 0
+    #   0x8000  segment dropped from the pushed value entirely
+    #
+    # Note the asymmetry this probes.  seg_psapseg_bit15_clear shows the part
+    # does NOT require bit 15 on input - PSAPSEG 0x0100 decodes to segment 1
+    # exactly as 0x8100 does - so what it emits is a separate question from
+    # what it accepts.  This also covers PUSH_PC on the segmented path, which
+    # nothing else reaches.
+    #
+    # The handler and the PSA stay in segment 0; only the trapping instruction
+    # moves.  The pushed frame is read back rather than inferred.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 2100 0000           ld   r0,#0x0
+    #   216: 5e08 8100 0200      jp   t,0x1000200   (segment 1, offset 0x200)
+    # seg1:0200: 7f00            sc   #0x0
+    # seg1:0202: 2100 dead       ld   r0,#0xdead          (only if no trap)
+    # seg1:0206: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_push_pcseg_from_seg1',
+        mnemonic='SC',
+        desc='SC taken in segment 1: what PC-segment word does the trap push?',
+        tags=['segmented', 'seg1', 'sc', 'trap', 'psa', 'push_pc'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000,
+              0x5E08, 0x8100, 0x0200],
+        regs={0: 0x0000, 1: 0x0000},
+        memory={
+            # trapping code in segment 1.  The assembler writes this address
+            # 0x1000200; the harness addresses BRAM flat as {sn[0], addr[11:0]}
+            # so the preload goes at 0x1200.
+            0x1200: 0x7F00,
+            0x1202: 0x2100, 0x1204: 0xDEAD,
+            0x1206: 0x5E08, 0x1208: 0x00C0,
+            # handler in segment 0
+            0x0300: 0x2100, 0x0302: 0xBEE1,
+            0x0304: 0x5E08, 0x0306: 0x00C0,
+            # SC entry in segment 0
+            0x0818: 0x0000, 0x081A: 0xC000, 0x081C: 0x8000, 0x081E: 0x0300,
+        },
+    ))
+    # the pushed frame is the point of the test - read it back rather than
+    # trusting the register dump alone
+    tests[-1].observe_memory = [0x0EF8, 0x0EFA, 0x0EFC, 0x0EFE]
+
     return tests
