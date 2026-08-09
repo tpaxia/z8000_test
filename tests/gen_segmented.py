@@ -1144,6 +1144,10 @@ def generate_segmented_tests():
     # take a system call to get back - LDCTL is privileged, so a trap is the
     # only way - and read NSP back in the handler.
     #
+    # The pushed value has distinguishable bytes: the high and low register
+    # halves are wired to the high and low byte lanes of RAM, so a palindrome
+    # could not tell a correct write from a swapped or duplicated one.
+    #
     #   R2 = 0x0DFF  moved by exactly 2, as the system stack does
     #   R2 = 0x0DFE  realigned to even first
     #
@@ -1162,7 +1166,7 @@ def generate_segmented_tests():
     #   216: 7d1f                ldctl nspoff,r1        (normal stack, ODD)
     #   218: 2101 8000           ld   r1,#0x8000
     #   21c: 7d1e                ldctl nspseg,r1
-    #   21e: 2100 c3c3           ld   r0,#0xc3c3
+    #   21e: 2100 1234           ld   r0,#0x1234
     #   222: 2101 8000           ld   r1,#0x8000
     #   226: 7d1a                ldctl fcw,r1           (Normal mode)
     #   228: 93e0                push @rr14,r0          (pushes on NSP)
@@ -1181,7 +1185,7 @@ def generate_segmented_tests():
         code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
               0x760E, 0x8000, 0x0F00,
               0x2101, 0x0E01, 0x7D1F, 0x2101, 0x8000, 0x7D1E,
-              0x2100, 0xC3C3, 0x2101, 0x8000, 0x7D1A,
+              0x2100, 0x1234, 0x2101, 0x8000, 0x7D1A,
               0x93E0, 0x7F00,
               0x2100, 0xDEAD, 0x5E08, 0x00C0],
         regs={0: 0x0000, 1: 0x0000, 2: 0x0000, 3: 0x0000},
@@ -1195,5 +1199,127 @@ def generate_segmented_tests():
         },
     ))
     tests[-1].observe_memory = [0x0DFE]
+
+    # ---- Test 36: segmented System-mode push through RR14 with an odd offset ----
+    # This is the shape the S8000 monitor uses and the one no capture covered.
+    # mame_push_odd_sp pushes through @R15 in NONSEGMENTED mode; seg_nsp_odd_push
+    # pushes through @RR14 but in Normal mode against the NSP.  The monitor does
+    # neither - it runs System mode, segmented, and deliberately lands the system
+    # stack on an odd offset:
+    #
+    #     0023A8: add   r15,#%0009      -> R15 = 0x408D
+    #     0023AC: push  @r15,r2         -> R15 = 0x408A  (moves by THREE)
+    #
+    # Moving by three is a realignment to even.  MAME did that through
+    # ADD_ALIGNED16 and the monitor boots; with the macro removed it moves by
+    # two, the stack stays odd, and every later trap frame is a byte out.
+    #
+    # The offset is built with LDA and then incremented rather than written as a
+    # literal, so no segmented pointer is hand-coded.
+    #
+    #   R4 = 0x0EFF  moved by exactly 2, pointer left odd
+    #   R4 = 0x0EFE  realigned to even
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 760e 8000 0f00      lda  rr14,0xf00
+    #   206: a9f0                inc  r15,#0x1          (system stack -> odd)
+    #   208: 2102 1234           ld   r2,#0x1234
+    #   20c: 93e2                push @rr14,r2
+    #   20e: a1f4                ld   r4,r15            (capture the pointer)
+    #   210: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_push_odd_sp_sys',
+        mnemonic='PUSH',
+        desc='PUSH @RR14 in System mode with an odd stack offset: does the pointer realign?',
+        tags=['segmented', 'seg0', 'push', 'stack', 'alignment'],
+        code=[0x760E, 0x8000, 0x0F00,
+              0xA9F0,
+              0x2102, 0x1234,
+              0x93E2,
+              0xA1F4,
+              0x5E08, 0x00C0],
+        regs={2: 0x0000, 4: 0x0000, 14: 0x0000, 15: 0x0000},
+        memory={0x0EFE: 0x0000},
+    ))
+    tests[-1].observe_memory = [0x0EFE]
+
+    # ---- Test 37: trap taken with the stack ALREADY odd ----
+    # The PUSH instruction is now pinned in three shapes and never realigns -
+    # mame_push_odd_sp, seg_nsp_odd_push, seg_push_odd_sp_sys all move the
+    # pointer by exactly the operand size and land the word, lanes intact, at
+    # the masked even address.  The trap sequence is a different mechanism and
+    # every trap capture so far starts from an EVEN stack, so nothing says
+    # whether a trap frame aligns itself.
+    #
+    # This matters for the S8000 monitor.  It reaches an odd system stack
+    # deliberately - "add r15,#9" after an interrupt frame - and then takes
+    # traps against it.  If the trap sequence aligns the frame, the handler's
+    # "cpb %0001(r15),#..." reads the identifier byte it expects; if it does
+    # not, every field of the frame is a byte out.
+    #
+    # Set the stack odd with LDA + INC (no hand-coded segmented pointer), take
+    # SC #0, and have the handler report the stack pointer it was given.
+    #
+    #   R4 = 0x0EF9  frame pushed from the odd pointer, not aligned
+    #                (0x0F01 - 8)
+    #   R4 = 0x0EF8  the trap sequence aligned first, as the monitor needs
+    #                (0x0F00 - 8)
+    #
+    # R5 carries the segment half as a control; the frame words are read back
+    # so the identifier can be located whichever way it fell.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: a9f0                inc  r15,#0x1          (system stack -> ODD)
+    #   214: 2100 0000           ld   r0,#0x0
+    #   218: 7f00                sc   #0x0
+    #   21a: 2100 dead           ld   r0,#0xdead        (only if no trap)
+    #   21e: 5e08 00c0           jp   t,0xc0
+    # Handler at 0x300:
+    #   300: a1f4                ld   r4,r15            (stack the trap gave us)
+    #   302: a1e5                ld   r5,r14
+    #   304: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_trap_push_odd_sp',
+        mnemonic='SC',
+        desc='SC with the system stack already odd: does the trap frame align itself?',
+        tags=['segmented', 'seg0', 'sc', 'trap', 'stack', 'alignment'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00,
+              0xA9F0,
+              0x2100, 0x0000,
+              0x7F00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000, 4: 0x0000, 5: 0x0000},
+        memory={
+            # handler reports the stack pointer the trap handed it
+            0x0300: 0xA1F4, 0x0302: 0xA1E5, 0x0304: 0x5E08, 0x0306: 0x00C0,
+            # SC entry
+            0x0818: 0x0000, 0x081A: 0xC000, 0x081C: 0x8000, 0x081E: 0x0300,
+        },
+    ))
+    # read back both candidate frame positions so the identifier can be found
+    tests[-1].observe_memory = [0x0EF6, 0x0EF8, 0x0EFA, 0x0EFC, 0x0EFE, 0x0F00]
+
+    # =====================================================================
+    # DISABLED: odd-stack-pointer tests.  UNRESOLVED CONFLICT -- see the
+    # long note in gen_mame_fixes.py before acting on these.
+    #
+    # The rig measured symmetric SP arithmetic from an odd SP (the pointer
+    # keeps bit 0; only the bus address is even), but the S8000 monitor's
+    # segment-trap handler only balances if a push from an odd SP realigns,
+    # and the boot demonstrably breaks without that.  Which part behaves
+    # which way is NOT established -- the mask-revision explanation is a
+    # hypothesis awaiting a capture on an early-date-code Z8001.
+    # Excluded, never deleted: these are valid silicon measurements.
+    # =====================================================================
+    _DISABLED_ODD_SP = {
+        'seg_nsp_odd_push',
+        'seg_push_odd_sp_sys',
+        'seg_trap_push_odd_sp',
+    }
+    tests = [t for t in tests if t.name not in _DISABLED_ODD_SP]
 
     return tests

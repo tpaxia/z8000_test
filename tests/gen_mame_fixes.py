@@ -892,6 +892,33 @@ def generate_mame_fix_tests():
         # manual/z8000_emu: R15=0x0F05    MAME s8000: R15=0x0F04
     ))
 
+    # Stack-relevant sequence from the S8000 monitor segment-trap handler at
+    # 0x23A8..0x23CA.  Starting with an even SP, ADD makes it odd.  This also
+    # includes the handler's FCW change before POP, to test whether changing
+    # the Z8001 from FCW 0x4000 to 0x5000 affects the invalid odd stack.
+    # The captured Z8001 PUSH/POP pair preserves parity and leaves SP at S+9;
+    # MAME's former ADD_ALIGNED16 behaviour instead rounded it back to S+8.
+    # The manual requires an even stack pointer, so it does not define this
+    # odd-address case.
+    #
+    # ASSEMBLER-VERIFIED LISTING (monitor30.s)
+    #   200: 010f 0009       add     r15,#9
+    #   204: 93f2            push    @r15,r2
+    #   206: 2102 5000       ld      r2,#0x5000
+    #   20a: 7d2a            ldctl   fcw,r2
+    #   20c: 97f2            pop     r2,@r15
+    tests.append(_tc(
+        name='mame_monitor_add9_push_pop',
+        mnemonic='ADD/PUSH/POP',
+        desc='S8000 handler: ADD #9, odd PUSH, FCW=0x5000, then odd POP',
+        tags=['stack', 'word', 'mame_s8000_align', 's8000_monitor'],
+        code=[0x010F, 0x0009, 0x93F2, 0x2102, 0x5000, 0x7D2A, 0x97F2],
+        regs={2: 0x1234, 15: STACK_BASE},
+        observe_memory=[STACK_BASE + 6],
+        # captured Z8001/z8000_emu: R15=0x0F09
+        # MAME with ADD_ALIGNED16:   R15=0x0F08
+    ))
+
     # =====================================================================
     # LDCTL FCW - which bits are writable
     #
@@ -1183,6 +1210,46 @@ def generate_mame_fix_tests():
         # manual/MAME s8000: R2=0x7F00    z8000_emu: R2=0xFFFF
         # R1 stays 0xFFFF either way (control).
     ))
+
+    # =====================================================================
+    # DISABLED: odd-stack-pointer tests.  UNRESOLVED CONFLICT -- do not
+    # delete these captures, and do not "fix" the emulators to match them
+    # without reading the note below.
+    #
+    # What the rig measured (real Z8001, four independent captures, all
+    # from SP=0x0F01):  PUSH -> 0x0EFF, POP -> 0x0F03, PUSHL -> 0x0EFD,
+    # POPL -> 0x0F05.  The SP moves by exactly the operand size and keeps
+    # bit 0; only the bus address is even.  seg_trap_push_odd_sp shows the
+    # same for a trap frame (SP 0x0F01 -> 0x0EF9, frame at 0x0EF8..0x0EFE).
+    #
+    # What the S8000 firmware needs:  the segment-trap handler at 0x23A0
+    # discards its 8-byte frame with `add r15,#9` followed by a push/pop
+    # pair, which only restores the entry SP if a push from an odd SP moves
+    # by 3.  Removing MAME's ADD_ALIGNED16 (i.e. matching the captures
+    # above) breaks the boot at the SC #2 dispatch -- verified by
+    # instruction trace -- so MAME keeps the realigning behaviour.
+    #
+    # These two cannot both describe one part, and WHY is not established.
+    # A mask-revision difference was hypothesised (`add r15,#9` appears in
+    # all three dumped monitor releases and runs during SPUD on every
+    # boot), but it is UNPROVEN: no early-date-code part has been measured.
+    # The discriminating experiment is to run mame_push_odd_sp on an
+    # early-1980s Z8001 -- 0x0EFE means the early mask realigns, 0x0EFF
+    # means it does not and the conflict lies elsewhere.
+    #
+    # Note the ZEUS `sld` kernel panic is NOT evidence here: it reproduces
+    # identically on every build, including the known-good release fork,
+    # and traces to the board's MMU selection path (SBR/NBR), not to stack
+    # alignment.
+    # =====================================================================
+    _DISABLED_ODD_SP = {
+        'mame_push_odd_sp',
+        'mame_pop_odd_sp',
+        'mame_pushl_odd_sp',
+        'mame_popl_odd_sp',
+        'mame_monitor_add9_push_pop',
+    }
+    tests = [t for t in tests if t.name not in _DISABLED_ODD_SP]
 
     return tests
 
