@@ -1303,6 +1303,213 @@ def generate_segmented_tests():
     # read back both candidate frame positions so the identifier can be found
     tests[-1].observe_memory = [0x0EF6, 0x0EF8, 0x0EFA, 0x0EFC, 0x0EFE, 0x0F00]
 
+    # ---- Tests 38-44: does bit 15 of the PC segment word follow the PC load? ----
+    # Every capture so far reaches its code through a segment word with bit 15
+    # set: the bootstrap's `jp test_code` (5e08 8000 0200), long-form JP/CALL,
+    # and PSA entries written 0x8000.  With that entry the part emits bit 15
+    # set wherever it writes the PC segment back out:
+    #
+    #   seg_mame_ldar_ra_hiword_poison   LDAR -> R2 = 0x8000 (manual: "all
+    #                                    'reserved' bits (bits 16-23 and bit
+    #                                    31) cleared to zero", z8000.md LDAR)
+    #   seg_push_pcseg_from_seg1         SC in segment 1 pushes 0x8100
+    #
+    # Those captures cannot tell a constant 1 from a bit that the PC segment
+    # register simply keeps from whatever was loaded into it.  The Olivetti
+    # L1 M40 OS (OSLEM 7.0+, KIO0 MX82) depends on the difference: its
+    # start-up task enters the module with
+    #
+    #   xor r0,r0 / ldb rh0,rl1 / ld r8,r0   (r8 = 0x0300, bit 15 CLEAR)
+    #   jp  @rr8
+    #   ldar rr4,...  / ldb <<0>>0x016c,rh4  (stored byte must be 0x03)
+    #   ldar rr6,...  / ld r12,r6 / set r12,#15
+    #
+    # and only works if that LDAR returns 0x0300.  A model that always emits
+    # bit 15 (MAME, z8000_emu) stores 0x83 and the OS fails.
+    #
+    # So these tests load the PC from a segment word with bit 15 CLEAR - by
+    # register-indirect JP and by the short-offset direct form - and then read
+    # the PC segment back three ways: LDAR, a trap push, and a CALR push.
+    # Each bit-15-clear case has a bit-15-set control with the same shape.
+    #
+    # The 0x0000/0x0100 pointer words are written by hand ON PURPOSE (as in
+    # seg_psapseg_bit15_clear): LDA always emits bit 15, and the clear bit is
+    # the object of the test.  The control cases use LDA as usual.
+    #
+    # Candidate readings of the result (R4, or the pushed segment word):
+    #   bit 15 clear  the part keeps bit 15 of the PC segment as loaded
+    #   bit 15 set    the bit is emitted unconditionally
+
+    # ---- Test 38: LDAR after JP @RR2, pointer bit 15 clear, segment 0 ----
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 1402 0000 0210      ldl  rr2,#0x210     (seg 0, bit 15 clear)
+    #   206: 1e28                jp   t,@rr2
+    #   208: 8d07                nop
+    #   20a: 8d07                nop
+    #   20c: 8d07                nop
+    #   20e: 8d07                nop
+    #   210: 3404 0004           ldar rr4,0x218
+    #   214: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_ir_b15clr_seg0',
+        mnemonic='LDAR',
+        desc='LDAR RR4 after JP @RR2 with RR2=0x0000:0210 (PC loaded, bit 15 clear)',
+        tags=['segmented', 'seg0', 'ldar', 'ra_mode', 'reserved_bits', 'pcseg_bit15'],
+        code=[0x1402, 0x0000, 0x0210, 0x1E28,
+              0x8D07, 0x8D07, 0x8D07, 0x8D07,
+              0x3404, 0x0004, 0x5E08, 0x00C0],
+        regs={4: 0xA5AA, 5: 0x1234},
+    ))
+
+    # ---- Test 39: control for 38 - same shape, pointer built by LDA ----
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 7602 8000 0210      lda  rr2,0x210      (seg 0, bit 15 set)
+    #   206: 1e28                jp   t,@rr2
+    #   208: 8d07                nop
+    #   20a: 8d07                nop
+    #   20c: 8d07                nop
+    #   20e: 8d07                nop
+    #   210: 3404 0004           ldar rr4,0x218
+    #   214: 5e08 00c0           jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_ir_b15set_seg0',
+        mnemonic='LDAR',
+        desc='LDAR RR4 after JP @RR2 with RR2=0x8000:0210 (control, bit 15 set)',
+        tags=['segmented', 'seg0', 'ldar', 'ra_mode', 'reserved_bits', 'pcseg_bit15'],
+        code=[0x7602, 0x8000, 0x0210, 0x1E28,
+              0x8D07, 0x8D07, 0x8D07, 0x8D07,
+              0x3404, 0x0004, 0x5E08, 0x00C0],
+        regs={4: 0xA5AA, 5: 0x1234},
+    ))
+
+    # ---- Test 40: LDAR after JP @RR2 into segment 1, pointer bit 15 clear ----
+    # Segment 0 is all zeros beside the bit, so segment 1 shows whether the
+    # segment field is filled in next to it (0x0100 / 0x8100 / 0x8000).
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 1402 0100 0200      ldl  rr2,#0x1000200 (seg 1, bit 15 clear)
+    #   206: 1e28                jp   t,@rr2
+    # seg1:0200: 3404 0004       ldar rr4,0x1000208
+    # seg1:0204: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_ir_b15clr_seg1',
+        mnemonic='LDAR',
+        desc='LDAR RR4 in segment 1 after JP @RR2 with RR2=0x0100:0200 (bit 15 clear)',
+        tags=['segmented', 'seg1', 'ldar', 'ra_mode', 'reserved_bits', 'pcseg_bit15'],
+        code=[0x1402, 0x0100, 0x0200, 0x1E28],
+        regs={4: 0xA5AA, 5: 0x1234},
+        memory={
+            # code in segment 1 (BRAM flat {sn[0], addr[11:0]} -> 0x1200)
+            SEG1_Z80_ADDR: 0x3404, SEG1_Z80_ADDR + 2: 0x0004,
+            SEG1_Z80_ADDR + 4: 0x5E08, SEG1_Z80_ADDR + 6: 0x00C0,
+        },
+    ))
+
+    # ---- Test 41: control for 40 - pointer built by LDA ----
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 7602 8100 0200      lda  rr2,0x1000200  (seg 1, bit 15 set)
+    #   206: 1e28                jp   t,@rr2
+    # seg1:0200: 3404 0004       ldar rr4,0x1000208
+    # seg1:0204: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_ir_b15set_seg1',
+        mnemonic='LDAR',
+        desc='LDAR RR4 in segment 1 after JP @RR2 with RR2=0x8100:0200 (control)',
+        tags=['segmented', 'seg1', 'ldar', 'ra_mode', 'reserved_bits', 'pcseg_bit15'],
+        code=[0x7602, 0x8100, 0x0200, 0x1E28],
+        regs={4: 0xA5AA, 5: 0x1234},
+        memory={
+            SEG1_Z80_ADDR: 0x3404, SEG1_Z80_ADDR + 2: 0x0004,
+            SEG1_Z80_ADDR + 4: 0x5E08, SEG1_Z80_ADDR + 6: 0x00C0,
+        },
+    ))
+
+    # ---- Test 42: LDAR after a short-offset direct JP into segment 1 ----
+    # The short-offset address word (0x0120 = segment 1, offset 0x20) has
+    # bit 15 clear by encoding, so this is the direct-address counterpart of
+    # test 40 and needs no hand-made pointer.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1short=seg1:0x20)
+    #   200: 5e08 0120           jp   t,0x1000020    (short-offset form)
+    # seg1:0020: 3404 0004       ldar rr4,0x1000028
+    # seg1:0024: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_da_short_seg1',
+        mnemonic='LDAR',
+        desc='LDAR RR4 in segment 1 after short-offset JP <<1>>0x20 (address word 0x0120)',
+        tags=['segmented', 'seg1', 'ldar', 'ra_mode', 'short_da', 'reserved_bits',
+              'pcseg_bit15'],
+        code=[0x5E08, 0x0120],
+        regs={4: 0xA5AA, 5: 0x1234},
+        memory={
+            # code at segment 1, offset 0x20 (BRAM flat -> 0x1020)
+            0x1020: 0x3404, 0x1022: 0x0004,
+            0x1024: 0x5E08, 0x1026: 0x00C0,
+        },
+    ))
+
+    # ---- Test 43: trap push after JP @RR2 into segment 1, bit 15 clear ----
+    # seg_push_pcseg_from_seg1 with the entry changed from the long-form JP
+    # (5e08 8100 0200, pushed 0x8100) to a bit-15-clear pointer.  The pushed
+    # PC segment word at 0x0EFC is the result.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 2100 0000           ld   r0,#0x0
+    #   216: 1402 0100 0200      ldl  rr2,#0x1000200 (seg 1, bit 15 clear)
+    #   21c: 1e28                jp   t,@rr2
+    # seg1:0200: 7f00            sc   #0x0
+    # seg1:0202: 2100 dead       ld   r0,#0xdead          (only if no trap)
+    # seg1:0206: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_push_pcseg_ir_b15clr_seg1',
+        mnemonic='SC',
+        desc='SC in segment 1 after JP @RR2 with RR2=0x0100:0200: pushed PC-segment word',
+        tags=['segmented', 'seg1', 'sc', 'trap', 'psa', 'push_pc', 'pcseg_bit15'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x2100, 0x0000,
+              0x1402, 0x0100, 0x0200, 0x1E28],
+        regs={0: 0x0000, 1: 0x0000},
+        memory={
+            # trapping code in segment 1 (BRAM flat -> 0x1200)
+            0x1200: 0x7F00,
+            0x1202: 0x2100, 0x1204: 0xDEAD,
+            0x1206: 0x5E08, 0x1208: 0x00C0,
+            # handler in segment 0
+            0x0300: 0x2100, 0x0302: 0xBEE1,
+            0x0304: 0x5E08, 0x0306: 0x00C0,
+            # SC entry in segment 0
+            0x0818: 0x0000, 0x081A: 0xC000, 0x081C: 0x8000, 0x081E: 0x0300,
+        },
+    ))
+    tests[-1].observe_memory = [0x0EF8, 0x0EFA, 0x0EFC, 0x0EFE]
+
+    # ---- Test 44: CALR push after JP @RR2 into segment 1, bit 15 clear ----
+    # The return address a call pushes is the third way the PC segment gets
+    # written out.  CALR pushes the segment word at 0x0EFC and the offset
+    # (0x0202) at 0x0EFE.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 760e 8000 0f00      lda  rr14,0xf00
+    #   206: 1402 0100 0200      ldl  rr2,#0x1000200 (seg 1, bit 15 clear)
+    #   20c: 1e28                jp   t,@rr2
+    # seg1:0200: dfff            calr 0x1000204
+    # seg1:0202: 8d07            nop
+    # seg1:0204: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_calr_push_ir_b15clr_seg1',
+        mnemonic='CALR',
+        desc='CALR in segment 1 after JP @RR2 with RR2=0x0100:0200: pushed PC-segment word',
+        tags=['segmented', 'seg1', 'calr', 'push_pc', 'pcseg_bit15'],
+        code=[0x760E, 0x8000, 0x0F00, 0x1402, 0x0100, 0x0200, 0x1E28],
+        memory={
+            # code in segment 1 (BRAM flat -> 0x1200)
+            0x1200: 0xDFFF, 0x1202: 0x8D07,
+            0x1204: 0x5E08, 0x1206: 0x00C0,
+        },
+    ))
+    tests[-1].observe_memory = [0x0EFC, 0x0EFE]
+
     # =====================================================================
     # DISABLED: odd-stack-pointer tests.  UNRESOLVED CONFLICT -- see the
     # long note in gen_mame_fixes.py before acting on these.
