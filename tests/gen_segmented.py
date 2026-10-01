@@ -1510,6 +1510,114 @@ def generate_segmented_tests():
     ))
     tests[-1].observe_memory = [0x0EFC, 0x0EFE]
 
+    # ---- Tests 45-48: the other ways a PC segment word is loaded ----
+    # Tests 38-44 showed the part keeps bit 15 of the PC segment as loaded by
+    # JP (register-indirect and short-offset direct) and writes it back out.
+    # These repeat the bit-15-clear case for the remaining load paths - RET,
+    # IRET, LDPS and a trap vector fetched from the PSA - each landing on the
+    # same segment-1 LDAR, so R4 names the bit the PC took from that path.
+    _SEG1_LDAR = {
+        # seg1:0200: 3404 0004   ldar rr4,0x1000208
+        # seg1:0204: 5e08 00c0   jp   t,0xc0
+        SEG1_Z80_ADDR: 0x3404, SEG1_Z80_ADDR + 2: 0x0004,
+        SEG1_Z80_ADDR + 4: 0x5E08, SEG1_Z80_ADDR + 6: 0x00C0,
+    }
+
+    # ---- Test 45: RET to a pushed address with bit 15 clear ----
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 760e 8000 0f00      lda  rr14,0xf00
+    #   206: 1402 0100 0200      ldl  rr2,#0x1000200 (seg 1, bit 15 clear)
+    #   20c: 91e2                pushl @rr14,rr2
+    #   20e: 9e08                ret  t
+    # seg1:0200: 3404 0004       ldar rr4,0x1000208
+    # seg1:0204: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_ret_b15clr_seg1',
+        mnemonic='LDAR',
+        desc='LDAR RR4 in segment 1 after RET to pushed 0x0100:0200 (bit 15 clear)',
+        tags=['segmented', 'seg1', 'ldar', 'ret', 'reserved_bits', 'pcseg_bit15'],
+        code=[0x760E, 0x8000, 0x0F00, 0x1402, 0x0100, 0x0200, 0x91E2, 0x9E08],
+        regs={4: 0xA5AA, 5: 0x1234},
+        memory=dict(_SEG1_LDAR),
+    ))
+
+    # ---- Test 46: IRET to a frame whose PC segment word has bit 15 clear ----
+    # seg_iret_basic with the frame's PCSEG changed from 0x8000 to 0x0100.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 7b00                iret
+    # seg1:0200: 3404 0004       ldar rr4,0x1000208
+    # seg1:0204: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_iret_b15clr_seg1',
+        mnemonic='LDAR',
+        desc='LDAR RR4 in segment 1 after IRET with frame PCSEG=0x0100 (bit 15 clear)',
+        tags=['segmented', 'seg1', 'ldar', 'iret', 'stack', 'reserved_bits',
+              'pcseg_bit15'],
+        code=[0x7B00],
+        regs={4: 0xA5AA, 5: 0x1234, 14: 0x8000, 15: STACK_BASE},
+        memory={
+            STACK_BASE: 0x0000,          # Identifier/reserved word
+            STACK_BASE + 2: FCW_SEG,     # Restored FCW
+            STACK_BASE + 4: 0x0100,      # Return PCSEG: segment 1, bit 15 clear
+            STACK_BASE + 6: 0x0200,      # Return PC offset
+            **_SEG1_LDAR,
+        },
+    ))
+
+    # ---- Test 47: LDPS from a block whose PC segment word has bit 15 clear ----
+    # seg_ldps_ir_basic through RR6 (RR4 is the result pair) with PCSEG 0x0100.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 3960                ldps @rr6
+    # seg1:0200: 3404 0004       ldar rr4,0x1000208
+    # seg1:0204: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_ldps_b15clr_seg1',
+        mnemonic='LDAR',
+        desc='LDAR RR4 in segment 1 after LDPS @RR6 with block PCSEG=0x0100 (bit 15 clear)',
+        tags=['segmented', 'seg1', 'ldar', 'ldps', 'IR_mode', 'reserved_bits',
+              'pcseg_bit15'],
+        code=[0x3960],
+        regs={4: 0xA5AA, 5: 0x1234, 6: 0x8000, 7: SEG0_LONG_ADDR},
+        memory={
+            SEG0_LONG_ADDR: 0x0000,
+            SEG0_LONG_ADDR + 2: FCW_SEG,
+            SEG0_LONG_ADDR + 4: 0x0100,  # PCSEG: segment 1, bit 15 clear
+            SEG0_LONG_ADDR + 6: 0x0200,
+            **_SEG1_LDAR,
+        },
+    ))
+
+    # ---- Test 48: trap vector whose PC segment word has bit 15 clear ----
+    # seg_sc_basic with the SC entry's PCSEG changed from 0x8000 to 0x0100, so
+    # the handler is the segment-1 LDAR.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, .text=0x200, .s1=seg1:0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 7f00                sc   #0x0
+    #   214: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   218: 5e08 00c0           jp   t,0xc0
+    # seg1:0200: 3404 0004       ldar rr4,0x1000208
+    # seg1:0204: 5e08 00c0       jp   t,0xc0
+    tests.append(_tc(
+        name='seg_ldar_pc_trap_b15clr_seg1',
+        mnemonic='LDAR',
+        desc='LDAR RR4 in a segment-1 SC handler entered through PSA PCSEG=0x0100',
+        tags=['segmented', 'seg1', 'ldar', 'sc', 'trap', 'psa', 'reserved_bits',
+              'pcseg_bit15'],
+        code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+              0x760E, 0x8000, 0x0F00, 0x7F00,
+              0x2100, 0xDEAD, 0x5E08, 0x00C0],
+        regs={0: 0x0000, 1: 0x0000, 4: 0xA5AA, 5: 0x1234},
+        memory={
+            # SC entry: reserved(+0), FCW(+2), PCSEG(+4), PC_off(+6)
+            0x0818: 0x0000, 0x081A: 0xC000, 0x081C: 0x0100, 0x081E: 0x0200,
+            **_SEG1_LDAR,
+        },
+    ))
+
     # =====================================================================
     # DISABLED: odd-stack-pointer tests.  UNRESOLVED CONFLICT -- see the
     # long note in gen_mame_fixes.py before acting on these.

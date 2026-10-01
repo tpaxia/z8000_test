@@ -193,6 +193,11 @@ int main(int argc, char* argv[]) {
 
     // Initialize state: FCW, PC=CODE_BASE, no PSAP/NSP needed
     cpu->init_state(spec.fcw, code_base, 0, 0, 0, 0);
+    // On the hardware targets the bootstrap enters the test with the long-form
+    // `jp test_code` (5e08 8000 0200), which loads the PC segment with bit 15
+    // set; the part then emits that bit from LDAR and in pushed return
+    // addresses.  init_state() stands in for that jump, so carry the bit over.
+    cpu->set_pc_seg_bit15(true);
 
     // Set registers (after init_state so R14/R15 override works)
     for (auto& [reg, val] : spec.regs) {
