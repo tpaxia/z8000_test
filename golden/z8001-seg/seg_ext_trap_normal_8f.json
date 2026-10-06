@@ -1,9 +1,9 @@
 {
-  "test": "seg_mset_trap",
-  "mnemonic": "MSET",
+  "test": "seg_ext_trap_normal_8f",
+  "mnemonic": "EXT8F",
   "exec_result": "HALT",
   "regs": {
-    "0": 45232,
+    "0": 57568,
     "1": 32768,
     "2": 0,
     "3": 0,
@@ -21,6 +21,11 @@
     "15": 3832
   },
   "fcw": 49152,
-  "memory": {},
+  "memory": {
+    "3832": 36609,
+    "3834": 32768,
+    "3836": 32768,
+    "3838": 542
+  },
   "io": {}
 }

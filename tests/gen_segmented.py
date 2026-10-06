@@ -803,10 +803,8 @@ def generate_segmented_tests():
     # privileged instructions in z8000.md 6.2 - traps.  The handler runs in
     # system mode from the PSA FCW, so the dump routine still works.
     #
-    # DI rather than MSET: MSET is privileged too, but on the part it vectors
-    # through PSAP+0x08 instead of PSAP+0x10, so it does not represent the
-    # class.  DI, IRET and LDCTL all agree on PSAP+0x10.  seg_mset_trap below
-    # keeps the odd case.
+    # DI, IRET, LDCTL and MSET all agree on PSAP+0x10.  seg_mset_trap below
+    # keeps MSET separately because an earlier capture of it disagreed.
     # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
     #   200: 2101 0800           ld   r1,#0x800
     #   204: 7d1d                ldctl psapoff,r1
@@ -833,14 +831,15 @@ def generate_segmented_tests():
         # manual: R0=0xB0B0 (via PSAP+0x10)
     ))
 
-    # ---- Test 28: MSET is the exception ----
-    # MSET is privileged (z8000.md 6.2) but does not vector like the other
-    # privileged instructions: DI, IRET and LDCTL all take PSAP+0x10 while
-    # MSET takes PSAP+0x08, the extended-instruction entry.  MSET drives the
-    # multi-micro MI/MO pins, which this harness leaves unterminated, so the
-    # part may not be reaching the privilege check at all and may be trapping
-    # the opcode as unimplemented instead.  Captured so the behaviour is
-    # recorded rather than mistaken for the general case.
+    # ---- Test 28: MSET traps like the other privileged instructions ----
+    # MSET is privileged (z8000.md 6.2) and in normal mode vectors through
+    # PSAP+0x10, the same entry as DI, IRET and LDCTL.
+    #
+    # The first capture of this test (2026-08-05) recorded R0=0xE0E0, i.e.
+    # PSAP+0x08, the extended-instruction entry, and MSET was written up as
+    # an exception.  A recapture on the z8001_ext_test rig on 2026-10-06 gave
+    # 0xB0B0 on every run and is the golden now.  Why the first capture
+    # differed is not established; its bus trace is no longer kept.
     # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
     #   ... identical to seg_priv_trap through 0x21a ...
     #   21c: 7b08                mset                     (privileged -> trap)
@@ -849,15 +848,15 @@ def generate_segmented_tests():
     tests.append(_tc(
         name='seg_mset_trap',
         mnemonic='MSET',
-        desc='MSET in normal mode: vectors through PSAP+0x08, unlike other privileged instructions',
-        tags=['segmented', 'seg0', 'trap', 'privileged', 'psa', 'mset_anomaly'],
+        desc='MSET in normal mode: which PSA entry does the privileged-instruction trap use?',
+        tags=['segmented', 'seg0', 'trap', 'privileged', 'psa'],
         code=[0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
               0x760E, 0x8000, 0x0F00, 0x2100, 0x0000,
               0x2101, 0x8000, 0x7D1A, 0x7B08,
               0x2100, 0xDEAD, 0x5E08, 0x00C0],
         regs={0: 0x0000, 1: 0x0000},
         memory=dict(PSA_BOTH),
-        # part: R0=0xE0E0 (via PSAP+0x08), not 0xB0B0
+        # manual and part: R0=0xB0B0 (via PSAP+0x10)
     ))
 
     # ---- Test 29: no unaligned PSA address is ever formed ----
@@ -1617,6 +1616,140 @@ def generate_segmented_tests():
             **_SEG1_LDAR,
         },
     ))
+
+    # ---- Tests 49-60: extended-instruction trap, every group and form ----
+    # seg_epu_trap pins the vector for one single-word ext8e.  CP/M-8000's
+    # fp_epu needs more: every extended group (0E, 0F, 4E, 4F, 8E, 8F) must
+    # trap with EPA clear in every addressing form, the identifier must be the
+    # first instruction word, and the saved PC must point at the second word
+    # with no trailing words consumed (z8000.md Table 7-1).
+    #
+    # Same two program status blocks as seg_epu_trap (PSA_BOTH), so R0 names
+    # the entry used: 0xE0E0 = PSAP+0x08, 0xB0B0 = PSAP+0x10, 0xDEAD = no trap.
+    # The whole pushed frame at 0x0EF8..0x0EFE is observed.
+    #
+    # The second word of every instruction is a NOP (8d07), so a model that
+    # treats the first word as a one-word no-op falls through to the 0xDEAD
+    # marker rather than running data.  0E, 0F, 8E and 8F first words come
+    # from the assembler's extNN mnemonics.  The assembler has no mnemonic for
+    # 4E/4F, so those first words are .word data built from the templates in
+    # z8000.md 6.2.10 (01 00111x | Rd | 01xx / 11xx); their address words are
+    # the ones the assembler emits for LD R3 with the same operand:
+    #   6103 00b4        ld r3,0xb4          6123 00b4        ld r3,0xb4(r2)
+    #   6103 8000 0400   ld r3,0x400         6123 8000 0400   ld r3,0x400(r2)
+    #
+    # MAME and z8000_emu decode 4E as LDB addr(Rd),Rbs, so the four operand
+    # locations are preloaded and observed: a stray byte write shows up.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 2100 0000           ld   r0,#0x0
+    # IR forms (0e_ir, 0f_ir):
+    #   216: 7602 8000 0400      lda  rr2,0x400
+    #   21c: 0e25                ext0e #0x25              (0f_ir: 0f2d ext0f #0x2d)
+    #   21e: 8d07                nop                      (second word)
+    #   220: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   224: 5e08 00c0           jp   t,0xc0
+    # R forms (8e_r, 8f_r):
+    #   216: 8e09                ext8e #0x9               (8f_r: 8f01 ext8f #0x1)
+    #   218: 8d07                nop                      (second word)
+    #   21a: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   21e: 5e08 00c0           jp   t,0xc0
+    # DA and X forms (4e_*, 4f_*), short address:
+    #   216: 4e05                .word 0x4e05             (da; x: 4e25, 4f: 4f0d/4f2d)
+    #   218: 8d07                nop                      (second word)
+    #   21a: 00b4                .word 0x00b4             (short address)
+    #   21c: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   220: 5e08 00c0           jp   t,0xc0
+    # DA and X forms, long address:
+    #   216: 4e05                .word 0x4e05             (da; x: 4e25, 4f: 4f0d/4f2d)
+    #   218: 8d07                nop                      (second word)
+    #   21a: 8000 0400           .word 0x8000, 0x0400     (long address)
+    #   21e: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   222: 5e08 00c0           jp   t,0xc0
+    _EXT_PRE = [0x2101, 0x0800, 0x7D1D, 0x2101, 0x8000, 0x7D1C,
+                0x760E, 0x8000, 0x0F00, 0x2100, 0x0000]
+    _EXT_POST = [0x2100, 0xDEAD, 0x5E08, 0x00C0]
+    _EXT_LDA_RR2 = [0x7602, 0x8000, 0x0400]
+    _EXT_SHORT = [0x00B4]
+    _EXT_LONG = [0x8000, 0x0400]
+    _EXT_DATA = {
+        SEG0_SHORT_ADDR: 0x5A5A, SEG0_SHORT_ADDR + 2: 0x5A5A,
+        SEG0_LONG_ADDR: 0x5A5A, SEG0_LONG_ADDR + 2: 0x5A5A,
+    }
+    # (suffix, mnemonic, form, setup words, first word, address words, R2)
+    _EXT_CASES = [
+        ('0e_ir', 'EXT0E', 'IR @RR2', _EXT_LDA_RR2, 0x0E25, [], None),
+        ('0f_ir', 'EXT0F', 'IR @RR2', _EXT_LDA_RR2, 0x0F2D, [], None),
+        ('4e_da_short', 'EXT4E', 'DA short', [], 0x4E05, _EXT_SHORT, None),
+        ('4e_da_long', 'EXT4E', 'DA long', [], 0x4E05, _EXT_LONG, None),
+        ('4e_x_short', 'EXT4E', 'X short, R2', [], 0x4E25, _EXT_SHORT, 0x0002),
+        ('4e_x_long', 'EXT4E', 'X long, R2', [], 0x4E25, _EXT_LONG, 0x0002),
+        ('4f_da_short', 'EXT4F', 'DA short', [], 0x4F0D, _EXT_SHORT, None),
+        ('4f_da_long', 'EXT4F', 'DA long', [], 0x4F0D, _EXT_LONG, None),
+        ('4f_x_short', 'EXT4F', 'X short, R2', [], 0x4F2D, _EXT_SHORT, 0x0002),
+        ('4f_x_long', 'EXT4F', 'X long, R2', [], 0x4F2D, _EXT_LONG, 0x0002),
+        ('8e_r', 'EXT8E', 'R', [], 0x8E09, [], None),
+        ('8f_r', 'EXT8F', 'R', [], 0x8F01, [], None),
+    ]
+    for suffix, mnem, form, setup, first, addr, r2 in _EXT_CASES:
+        regs = {0: 0x0000, 1: 0x0000}
+        if r2 is not None:
+            regs[2] = r2
+        tests.append(_tc(
+            name='seg_ext_trap_' + suffix,
+            mnemonic=mnem,
+            desc=f'{first:04X} ({form}) with EPA clear: vector, identifier '
+                 'and saved PC of the extended-instruction trap',
+            tags=['segmented', 'seg0', 'trap', 'epu', 'psa', 'ext_trap'],
+            code=_EXT_PRE + setup + [first, 0x8D07] + addr + _EXT_POST,
+            regs=regs,
+            memory={**PSA_BOTH, **_EXT_DATA},
+            # manual: R0=0xE0E0, frame = first word, 0xC000, 0x8000,
+            # address of the second word
+        ))
+        tests[-1].observe_memory = [0x0EF8, 0x0EFA, 0x0EFC, 0x0EFE,
+                                    *sorted(_EXT_DATA)]
+
+    # ---- Tests 61-66: extended instruction in normal mode ----
+    # The same question with S/N clear: does an extended instruction take the
+    # extended-instruction trap (PSAP+0x08, R0=0xE0E0) or the privileged one
+    # (PSAP+0x10, R0=0xB0B0)?  LDCTL FCW drops to normal mode exactly as in
+    # seg_priv_trap; one witness per group.  The frame is still pushed on the
+    # system stack and the saved FCW is the normal-mode value.
+    # ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+    #   200: 2101 0800           ld   r1,#0x800
+    #   204: 7d1d                ldctl psapoff,r1
+    #   206: 2101 8000           ld   r1,#0x8000
+    #   20a: 7d1c                ldctl psapseg,r1
+    #   20c: 760e 8000 0f00      lda  rr14,0xf00
+    #   212: 2100 0000           ld   r0,#0x0
+    #   216: 2101 8000           ld   r1,#0x8000
+    #   21a: 7d1a                ldctl fcw,r1             (normal mode)
+    #   21c: 0e25                ext0e #0x25              (0f2d ext0f #0x2d,
+    #                                                      8e09 ext8e #0x9,
+    #                                                      8f01 ext8f #0x1,
+    #                                                      .word 0x4e05, 0x4f0d)
+    #   21e: 8d07                nop                      (second word)
+    #   220: 2100 dead           ld   r0,#0xdead          (only if no trap)
+    #   224: 5e08 00c0           jp   t,0xc0
+    for first in (0x0E25, 0x0F2D, 0x4E05, 0x4F0D, 0x8E09, 0x8F01):
+        tests.append(_tc(
+            name=f'seg_ext_trap_normal_{first >> 8:02x}',
+            mnemonic=f'EXT{first >> 8:02X}',
+            desc=f'{first:04X} in normal mode with EPA clear: extended or '
+                 'privileged trap?',
+            tags=['segmented', 'seg0', 'trap', 'epu', 'psa', 'ext_trap',
+                  'normal_mode'],
+            code=_EXT_PRE + [0x2101, 0x8000, 0x7D1A, first, 0x8D07] + _EXT_POST,
+            regs={0: 0x0000, 1: 0x0000},
+            memory=dict(PSA_BOTH),
+            # manual: R0=0xE0E0, frame = first word, 0x8000, 0x8000, 0x021E
+        ))
+        tests[-1].observe_memory = [0x0EF8, 0x0EFA, 0x0EFC, 0x0EFE]
 
     # =====================================================================
     # DISABLED: odd-stack-pointer tests.  UNRESOLVED CONFLICT -- see the
