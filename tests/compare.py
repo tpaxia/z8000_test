@@ -61,6 +61,10 @@ def main():
                         help='MAME build directory (default: $Z8K_MAME_DIR)')
     parser.add_argument('--emu', action='store_true',
                         help='Run DUT via emulator')
+    parser.add_argument('--qemu', action='store_true',
+                        help='run against qemu-system-z8000 (z8000-test machine)')
+    parser.add_argument('--qemu-bin', default=None,
+                        help='qemu-system-z8000 binary (default: $Z8K_QEMU)')
     parser.add_argument('--recompile', action='store_true',
                         help='Force recompile sim/emu')
     parser.add_argument('--capture', action='store_true',
@@ -101,13 +105,13 @@ def main():
 
     args = parser.parse_args()
 
-    backends = [b for b in ('sim', 'emu', 'mame') if getattr(args, b)]
+    backends = [b for b in ('sim', 'emu', 'mame', 'qemu') if getattr(args, b)]
     if len(backends) > 1:
-        parser.error("--sim, --emu and --mame are mutually exclusive")
+        parser.error("--sim, --emu, --mame and --qemu are mutually exclusive")
 
     # Default target
     if args.target is None:
-        args.target = "z8002" if (args.sim or args.emu or args.mame) else "common"
+        args.target = "z8002" if backends else "common"
 
     # Default golden directory.  The segmented captures live in their own
     # tree, and pairing --target z8001-seg with golden/z8001 is never right -
@@ -118,7 +122,7 @@ def main():
                            else 'golden/z8001')
 
     # Default port
-    if not args.sim and not args.emu and not args.mame and args.port is None:
+    if not backends and args.port is None:
         args.port = "/dev/ttyUSB0"
 
     # Generate tests
@@ -367,6 +371,13 @@ def _make_runner(args, all_tests):
         print("Building emulator driver...", end=" ", flush=True)
         runner.compile(force=args.recompile)
         print("done")
+        return runner
+    elif args.qemu:
+        from .qemu_runner import QemuRunner
+        runner = QemuRunner(target=args.target, verbose=args.verbose,
+                            qemu_bin=args.qemu_bin)
+        runner.compile()
+        print(f"Using {runner.qemu_bin}")
         return runner
     else:
         from .harness import Z8000TestHarness

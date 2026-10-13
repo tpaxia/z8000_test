@@ -5,8 +5,9 @@ implementations:
 
 - a physical Z8001 connected to a Quartus FPGA bus harness;
 - the `z8000_micro` Verilog core, in simulation or on a Gowin/Quartus FPGA;
-- the standalone `z8000_emu` C++ model; and
-- MAME's Z8000 core through the `z8ktest01` and `z8ktest02` test machines.
+- the standalone `z8000_emu` C++ model;
+- MAME's Z8000 core through the `z8ktest01` and `z8ktest02` test machines; and
+- QEMU's Z8000 target through its `z8000-test` machine.
 
 Captures from the physical Z8001 are stored under `golden/` and are the reference
 for the other backends.  The test definitions, bootstrap, memory observations,
@@ -204,6 +205,26 @@ python3 -m tests.compare --mame --target z8001-seg
 Alternatively pass `--mame-dir /path/to/mame`.  The runner starts MAME itself,
 uses a localhost socket for the emulated UART, and selects the appropriate test
 machine from `--target`.
+
+## QEMU backend
+
+The QEMU runner drives `qemu-system-z8000`, the Z8000 target in the
+[`zeus` branch of tpaxia/qemu](https://github.com/tpaxia/qemu/tree/zeus).
+Its `z8000-test` machine starts from the test's FCW, PC and registers, runs
+to HALT and writes the final state to a file; `io-model=z8ktest` gives it
+this harness's port registers.  Point the runner at a built binary:
+
+```sh
+export Z8K_QEMU=/path/to/qemu/build/qemu-system-z8000
+
+python3 -m tests.compare --qemu --target z8002
+python3 -m tests.compare --qemu --target z8001-seg
+```
+
+Alternatively pass `--qemu-bin /path/to/qemu-system-z8000`.  Each test is a
+separate QEMU process, so a full run takes a few minutes.  The backend
+reports registers, FCW, memory and I/O observations; it has no cycle counts
+or bus traces.
 
 ## Comparing two backends directly
 
