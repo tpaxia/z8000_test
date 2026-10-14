@@ -20,8 +20,7 @@ from .helpers import CODE_BASE, OPERAND_BASE, STACK_BASE
 from .observability import add_observations
 
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OPCODES_CSV = os.path.join(PROJECT_ROOT, "z8000_micro", "z8000_opcodes.csv")
+OPCODES_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "z8000_opcodes.csv")
 
 # Forms that do not naturally fall through to the dump routine, alter machine
 # control state too aggressively for a smoke test, or are already covered by
