@@ -1,0 +1,55 @@
+{
+  "test": "io_odd_in_word_da",
+  "mnemonic": "IN",
+  "exec_result": "HALT",
+  "cycle_count": 414,
+  "fetch_count": 41,
+  "instr_cycle_count": 19,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 267,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 267,
+      "data": 50132,
+      "rw": "R",
+      "bw": "W",
+      "io": "I",
+      "seg": 0,
+      "st": 2
+    },
+    {
+      "addr": 516,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 518,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    }
+  ]
+}

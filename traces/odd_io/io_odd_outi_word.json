@@ -1,0 +1,64 @@
+{
+  "test": "io_odd_outi_word",
+  "mnemonic": "OUTI",
+  "exec_result": "HALT",
+  "cycle_count": 423,
+  "fetch_count": 41,
+  "instr_cycle_count": 28,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 792,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 3840,
+      "data": 41394,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 8
+    },
+    {
+      "addr": 263,
+      "data": 41394,
+      "rw": "W",
+      "bw": "W",
+      "io": "I",
+      "seg": 0,
+      "st": 2
+    },
+    {
+      "addr": 516,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 518,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    }
+  ]
+}

@@ -456,3 +456,295 @@ TESTS = [
         expected_regs={0: 0xAAAA, 2: 0xBBBB, 3: 0xCCCC},
     ),
 ]
+
+# =============================================================================
+# Word I/O at odd port addresses
+# =============================================================================
+# Discovery tests: what the CPU does with A0 and the data lanes when a word
+# I/O instruction addresses an odd port.  The harness decodes the register
+# from addr[3:1], so 0x0107 reaches reg 3 like 0x0106 and 0x010B reaches
+# reg 5 like 0x010A.  Word writes store all 16 driven bits and word reads
+# return the whole register, so the readback shows any lane swap.  The bus
+# trace (--save-traces) shows whether A0 is driven.  No expected values for
+# the odd-port cases: the physical Z8001 capture is the reference.
+#
+# ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8002)
+#   3b06 0106    out  #0x106,r0
+#   3b06 0107    out  #0x107,r0
+#   3f10         out  @r1,r0
+#   3b04 010a    in   r0,#0x10a
+#   3b04 010b    in   r0,#0x10b
+#   3d10         in   r0,@r1
+#   3b17 0107    sout #0x107,r1
+#   3b15 010b    sin  r1,#0x10b
+#   3b22 0318    outi @r1,@r2,r3
+#   3b10 0328    ini  @r2,@r1,r3
+#   3a86 0107    outb #0x107,rl0
+#   3a06 0106    outb #0x106,rh0
+#
+# ASSEMBLER-VERIFIED LISTING (z8k-coff-as -z8001, linked at .text=0x200)
+#   7608 8000 0800    lda  rr8,0x800
+#   3b82 0318         outi @r1,@rr8,r3
+#   3b10 0388         ini  @rr8,@r1,r3
+
+TESTS += [
+    TestCase(
+        name="io_odd_out_word_even",
+        mnemonic="OUT",
+        instruction="OUT #0x0106, R0",
+        description="Odd-port baseline: word OUT to even port 0x0106",
+        tags=["io", "word", "odd_port", "DA_mode"],
+        code=[0x3B06, 0x0106],
+        regs={0: 0xA1B2},
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+
+    TestCase(
+        name="io_odd_out_word_da",
+        mnemonic="OUT",
+        instruction="OUT #0x0107, R0",
+        description="Word OUT to odd port 0x0107: A0 on the bus and lane order",
+        tags=["io", "word", "odd_port", "DA_mode"],
+        code=[0x3B06, 0x0107],
+        regs={0: 0xA1B2},
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+
+    TestCase(
+        name="io_odd_out_word_ir",
+        mnemonic="OUT",
+        instruction="OUT @R1, R0",
+        description="Word OUT @R1 with R1=0x0107: indirect odd port",
+        tags=["io", "word", "odd_port", "IR_mode"],
+        code=[0x3F10],
+        regs={0: 0xA1B2, 1: 0x0107},
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+
+    TestCase(
+        name="io_odd_in_word_even",
+        mnemonic="IN",
+        instruction="IN R0, #0x010A",
+        description="Odd-port baseline: word IN from even port 0x010A",
+        tags=["io", "word", "odd_port", "DA_mode"],
+        code=[0x3B04, 0x010A],
+        regs={0: 0x0000},
+        io_preloads={5: 0xC3D4},
+    ),
+
+    TestCase(
+        name="io_odd_in_word_da",
+        mnemonic="IN",
+        instruction="IN R0, #0x010B",
+        description="Word IN from odd port 0x010B: A0 on the bus and lane order",
+        tags=["io", "word", "odd_port", "DA_mode"],
+        code=[0x3B04, 0x010B],
+        regs={0: 0x0000},
+        io_preloads={5: 0xC3D4},
+    ),
+
+    TestCase(
+        name="io_odd_in_word_ir",
+        mnemonic="IN",
+        instruction="IN R0, @R1",
+        description="Word IN R0, @R1 with R1=0x010B: indirect odd port",
+        tags=["io", "word", "odd_port", "IR_mode"],
+        code=[0x3D10],
+        regs={0: 0x0000, 1: 0x010B},
+        io_preloads={5: 0xC3D4},
+    ),
+
+    TestCase(
+        name="io_odd_sout_sin_word",
+        mnemonic="SOUT",
+        instruction="SOUT #0x0107, R1; SIN R1, #0x010B",
+        description="Special word OUT to 0x0107 and IN from 0x010B",
+        tags=["io", "word", "odd_port", "special_io"],
+        code=[0x3B17, 0x0107, 0x3B15, 0x010B],
+        regs={1: 0xA1B2},
+        io_preloads={9: 0x5555, 11: 0xC3D4},
+        observe_io=[9, 11],
+    ),
+
+    TestCase(
+        name="io_odd_outi_word",
+        mnemonic="OUTI",
+        instruction="OUTI @R1, @R2, R3",
+        description="Block word OUTI to odd port 0x0107 from memory 0x0F00",
+        tags=["io", "word", "odd_port", "block"],
+        code=[0x3B22, 0x0318],
+        regs={1: 0x0107, 2: 0x0F00, 3: 0x0001},
+        memory={0x0F00: 0xA1B2},
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+
+    TestCase(
+        name="io_odd_ini_word",
+        mnemonic="INI",
+        instruction="INI @R2, @R1, R3",
+        description="Block word INI from odd port 0x010B to memory 0x0F00",
+        tags=["io", "word", "odd_port", "block"],
+        code=[0x3B10, 0x0328],
+        regs={1: 0x010B, 2: 0x0F00, 3: 0x0001},
+        memory={0x0F00: 0x5555},
+        io_preloads={5: 0xC3D4},
+        observe_memory=[0x0F00],
+    ),
+
+    TestCase(
+        name="io_odd_outb_lanes",
+        mnemonic="OUTB",
+        instruction="OUTB #0x0107, RL0; OUTB #0x0106, RH0",
+        description="Byte OUT to odd and even ports: trace shows lane duplication",
+        tags=["io", "byte", "odd_port"],
+        code=[0x3A86, 0x0107, 0x3A06, 0x0106],
+        regs={0: 0xA1B2},
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+]
+
+TESTS += [
+    TestCase(
+        name="seg_io_odd_out_word_even",
+        mnemonic="OUT",
+        target="z8001-seg",
+        instruction="OUT #0x0106, R0",
+        description="Segmented odd-port baseline: word OUT to even port 0x0106",
+        tags=["io", "word", "odd_port", "DA_mode"],
+        code=[0x3B06, 0x0106],
+        regs={0: 0xA1B2},
+        fcw=FCW_SEG_SYS,
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+
+    TestCase(
+        name="seg_io_odd_out_word_da",
+        mnemonic="OUT",
+        target="z8001-seg",
+        instruction="OUT #0x0107, R0",
+        description="Segmented word OUT to odd port 0x0107",
+        tags=["io", "word", "odd_port", "DA_mode"],
+        code=[0x3B06, 0x0107],
+        regs={0: 0xA1B2},
+        fcw=FCW_SEG_SYS,
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+
+    TestCase(
+        name="seg_io_odd_out_word_ir",
+        mnemonic="OUT",
+        target="z8001-seg",
+        instruction="OUT @R1, R0",
+        description="Segmented word OUT @R1 with R1=0x0107",
+        tags=["io", "word", "odd_port", "IR_mode"],
+        code=[0x3F10],
+        regs={0: 0xA1B2, 1: 0x0107},
+        fcw=FCW_SEG_SYS,
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+
+    TestCase(
+        name="seg_io_odd_in_word_even",
+        mnemonic="IN",
+        target="z8001-seg",
+        instruction="IN R0, #0x010A",
+        description="Segmented odd-port baseline: word IN from even port 0x010A",
+        tags=["io", "word", "odd_port", "DA_mode"],
+        code=[0x3B04, 0x010A],
+        regs={0: 0x0000},
+        fcw=FCW_SEG_SYS,
+        io_preloads={5: 0xC3D4},
+    ),
+
+    TestCase(
+        name="seg_io_odd_in_word_da",
+        mnemonic="IN",
+        target="z8001-seg",
+        instruction="IN R0, #0x010B",
+        description="Segmented word IN from odd port 0x010B",
+        tags=["io", "word", "odd_port", "DA_mode"],
+        code=[0x3B04, 0x010B],
+        regs={0: 0x0000},
+        fcw=FCW_SEG_SYS,
+        io_preloads={5: 0xC3D4},
+    ),
+
+    TestCase(
+        name="seg_io_odd_in_word_ir",
+        mnemonic="IN",
+        target="z8001-seg",
+        instruction="IN R0, @R1",
+        description="Segmented word IN R0, @R1 with R1=0x010B",
+        tags=["io", "word", "odd_port", "IR_mode"],
+        code=[0x3D10],
+        regs={0: 0x0000, 1: 0x010B},
+        fcw=FCW_SEG_SYS,
+        io_preloads={5: 0xC3D4},
+    ),
+
+    TestCase(
+        name="seg_io_odd_sout_sin_word",
+        mnemonic="SOUT",
+        target="z8001-seg",
+        instruction="SOUT #0x0107, R1; SIN R1, #0x010B",
+        description="Segmented special word OUT to 0x0107 and IN from 0x010B",
+        tags=["io", "word", "odd_port", "special_io"],
+        code=[0x3B17, 0x0107, 0x3B15, 0x010B],
+        regs={1: 0xA1B2},
+        fcw=FCW_SEG_SYS,
+        io_preloads={9: 0x5555, 11: 0xC3D4},
+        observe_io=[9, 11],
+    ),
+
+    TestCase(
+        name="seg_io_odd_outi_word",
+        mnemonic="OUTI",
+        target="z8001-seg",
+        instruction="LDA RR8, 0x800; OUTI @R1, @RR8, R3",
+        description="Segmented block word OUTI to odd port 0x0107 from seg 0 offset 0x0800",
+        tags=["io", "word", "odd_port", "block"],
+        code=[0x7608, 0x8000, 0x0800, 0x3B82, 0x0318],
+        regs={1: 0x0107, 3: 0x0001},
+        fcw=FCW_SEG_SYS,
+        memory={0x0800: 0xA1B2},
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+
+    TestCase(
+        name="seg_io_odd_ini_word",
+        mnemonic="INI",
+        target="z8001-seg",
+        instruction="LDA RR8, 0x800; INI @RR8, @R1, R3",
+        description="Segmented block word INI from odd port 0x010B to seg 0 offset 0x0800",
+        tags=["io", "word", "odd_port", "block"],
+        code=[0x7608, 0x8000, 0x0800, 0x3B10, 0x0388],
+        regs={1: 0x010B, 3: 0x0001},
+        fcw=FCW_SEG_SYS,
+        memory={0x0800: 0x5555},
+        io_preloads={5: 0xC3D4},
+        observe_memory=[0x0800],
+    ),
+
+    TestCase(
+        name="seg_io_odd_outb_lanes",
+        mnemonic="OUTB",
+        target="z8001-seg",
+        instruction="OUTB #0x0107, RL0; OUTB #0x0106, RH0",
+        description="Segmented byte OUT to odd and even ports: lane duplication",
+        tags=["io", "byte", "odd_port"],
+        code=[0x3A86, 0x0107, 0x3A06, 0x0106],
+        regs={0: 0xA1B2},
+        fcw=FCW_SEG_SYS,
+        io_preloads={3: 0x5555},
+        observe_io=[3],
+    ),
+]

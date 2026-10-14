@@ -1,0 +1,100 @@
+{
+  "test": "seg_io_odd_ini_word",
+  "mnemonic": "INI",
+  "exec_result": "HALT",
+  "cycle_count": 548,
+  "fetch_count": 42,
+  "instr_cycle_count": 46,
+  "trace": [
+    {
+      "addr": 514,
+      "data": 32768,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 516,
+      "data": 2048,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 518,
+      "data": 15120,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 520,
+      "data": 904,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 267,
+      "data": 50132,
+      "rw": "R",
+      "bw": "W",
+      "io": "I",
+      "seg": 0,
+      "st": 2
+    },
+    {
+      "addr": 2048,
+      "data": 50132,
+      "rw": "W",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 8
+    },
+    {
+      "addr": 522,
+      "data": 24072,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    },
+    {
+      "addr": 524,
+      "data": 32768,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 526,
+      "data": 192,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 12
+    },
+    {
+      "addr": 192,
+      "data": 28416,
+      "rw": "R",
+      "bw": "W",
+      "io": "M",
+      "seg": 0,
+      "st": 13
+    }
+  ]
+}
