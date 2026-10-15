@@ -292,7 +292,7 @@ module z8000_sim_tb;
                 disable wait_timeout;
             end
             begin : wait_timeout
-                #2000000;  // 2ms timeout
+                #20000000;  // 20ms timeout (dab_sweep_* loops need >2ms)
                 disable wait_halt;
             end
         join
@@ -337,20 +337,16 @@ module z8000_sim_tb;
         end
 `endif
         // Memory readback: test code + operand + block + stack areas
-        // 0x0200-0x07FF (word addrs 256-1023)
-        for (i = 256; i < 1024; i = i + 1) begin
-            $display("MEM:%04h:%04h", i[12:0] * 2,
-                {bram.mem_hi[i], bram.mem_lo[i]});
-        end
-        // 0x0E00-0x0F0F (word addrs 1792-1927) — stack area
-        for (i = 1792; i < 1928; i = i + 1) begin
+        // 0x0200-0x0F0F (word addrs 256-1927), stack area at 0x0E00-0x0F0F
+        for (i = 256; i < 1928; i = i + 1) begin
             $display("MEM:%04h:%04h", i[12:0] * 2,
                 {bram.mem_hi[i], bram.mem_lo[i]});
         end
 `ifdef Z8001_MODE
-        // Segment 1 area: word addrs 2048+256..2048+1023 = 2304..3071
-        // Maps to byte addrs 0x1200-0x17FE (seg 1 offsets 0x200-0x7FE)
-        for (i = 2304; i < 3072; i = i + 1) begin
+        // Segment 1 area: word addrs 2048..2048+1023 = 2048..3071
+        // Maps to byte addrs 0x1000-0x17FE (seg 1 offsets 0x000-0x7FE),
+        // including the short-form DA/X targets at offsets below 0x200
+        for (i = 2048; i < 3072; i = i + 1) begin
             $display("MEM:%04h:%04h", i[12:0] * 2,
                 {bram.mem_hi[i], bram.mem_lo[i]});
         end
